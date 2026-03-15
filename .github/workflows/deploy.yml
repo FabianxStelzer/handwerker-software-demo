@@ -1,0 +1,30 @@
+# Deploy Handwerker Software auf Hetzner Server
+# Trigger: Push auf main oder manuell
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH || '/opt/handwerker-software' }}
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose build --no-cache
+            docker compose up -d --force-recreate
+            docker image prune -f

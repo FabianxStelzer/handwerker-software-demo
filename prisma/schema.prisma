@@ -1,0 +1,747 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  BAULEITER
+  MITARBEITER
+}
+
+enum CustomerType {
+  PRIVAT
+  GESCHAEFT
+}
+
+enum ProjectStatus {
+  PLANUNG
+  AKTIV
+  PAUSIERT
+  ABGESCHLOSSEN
+  STORNIERT
+}
+
+enum TaskPriority {
+  HOCH
+  MITTEL
+  NIEDRIG
+}
+
+enum TaskStatus {
+  OFFEN
+  IN_BEARBEITUNG
+  ERLEDIGT
+}
+
+enum OrderStatus {
+  ENTWURF
+  AUSSTEHEND
+  BESTAETIGT
+  ABGESCHLOSSEN
+  STORNIERT
+}
+
+enum InvoiceStatus {
+  ENTWURF
+  VERSENDET
+  BEZAHLT
+  UEBERFAELLIG
+}
+
+enum VacationStatus {
+  AUSSTEHEND
+  GENEHMIGT
+  ABGELEHNT
+}
+
+enum MaterialUnit {
+  STUECK
+  METER
+  QUADRATMETER
+  KUBIKMETER
+  KILOGRAMM
+  LITER
+  PALETTE
+  PAUSCHAL
+  STUNDE
+}
+
+// ─── Auth & Users ────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           UserRole  @default(MITARBEITER)
+  phone          String?
+  avatarUrl      String?
+  position       String?
+  street         String?
+  zip            String?
+  city           String?
+  hireDate       DateTime?
+  salary         Float?
+  vacationDays   Int       @default(30)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  timeEntries      TimeEntry[]
+  vacationRequests VacationRequest[]
+  chatMessages     ProjectChatMessage[]
+  notifications    Notification[]
+  payslips         Payslip[]
+  documents        EmployeeDocument[]
+  aiConversations  AIConversation[]
+
+  zugewieseneAufgaben  SchlosserAufgabe[]  @relation("AufgabeZugewiesen")
+  erstellteAufgaben    SchlosserAufgabe[]  @relation("AufgabeErstellt")
+  aufgabenKommentare   SchlosserAufgabeKommentar[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  @@map("sessions")
+}
+
+model CompanySettings {
+  id        String   @id @default(cuid())
+  name      String?
+  street    String?
+  zip       String?
+  city      String?
+  phone     String?
+  email     String?
+  taxId     String?
+  vatId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("company_settings")
+}
+
+// ─── Customers ───────────────────────────────────────────────────
+
+model Customer {
+  id          String       @id @default(cuid())
+  type        CustomerType @default(PRIVAT)
+  company     String?
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  street      String?
+  zip         String?
+  city        String?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  projects         Project[]
+  orders           Order[]
+  schlosserObjekte SchlosserObjekt[]
+
+  @@map("customers")
+}
+
+// ─── Projects ────────────────────────────────────────────────────
+
+model Project {
+  id            String        @id @default(cuid())
+  projectNumber String        @unique
+  name          String
+  description   String?
+  status        ProjectStatus @default(PLANUNG)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+
+  siteStreet    String?
+  siteZip       String?
+  siteCity      String?
+
+  startDate     DateTime?
+  endDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  entries       ProjectEntry[]
+  documents     ProjectDocument[]
+  tasks         ProjectTask[]
+  chatMessages  ProjectChatMessage[]
+  materials     ProjectMaterial[]
+  blueprints    ProjectBlueprint[]
+  timeEntries   TimeEntry[]
+  orders        Order[]
+
+  @@map("projects")
+}
+
+model ProjectEntry {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  date        DateTime @default(now())
+  attachments ProjectEntryAttachment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("project_entries")
+}
+
+model ProjectEntryAttachment {
+  id        String       @id @default(cuid())
+  entryId   String
+  entry     ProjectEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  createdAt DateTime     @default(now())
+
+  @@map("project_entry_attachments")
+}
+
+model ProjectDocument {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  fileUrl   String
+  fileType  String
+  folder    String   @default("Allgemein")
+  color     String   @default("#3B82F6")
+  fileSize  Int?
+  createdAt DateTime @default(now())
+
+  @@map("project_documents")
+}
+
+model ProjectTask {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  priority    TaskPriority @default(MITTEL)
+  status      TaskStatus   @default(OFFEN)
+  dueDate     DateTime?
+  assigneeId  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("project_tasks")
+}
+
+model ProjectChatMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("project_chat_messages")
+}
+
+model ProjectMaterial {
+  id              String          @id @default(cuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  catalogMaterialId String?
+  catalogMaterial CatalogMaterial? @relation(fields: [catalogMaterialId], references: [id])
+  name            String
+  unit            MaterialUnit    @default(STUECK)
+  quantityPlanned Float           @default(0)
+  quantityUsed    Float           @default(0)
+  pricePerUnit    Float           @default(0)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("project_materials")
+}
+
+model ProjectBlueprint {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  fileUrl   String
+  folder    String   @default("Allgemein")
+  createdAt DateTime @default(now())
+
+  @@map("project_blueprints")
+}
+
+// ─── Catalog ─────────────────────────────────────────────────────
+
+model CatalogMaterial {
+  id              String       @id @default(cuid())
+  name            String
+  description     String?
+  unit            MaterialUnit @default(STUECK)
+  pricePerUnit    Float        @default(0)
+  weight          Float?
+  format          String?
+  thermalValue    Float?
+  minSlope        Float?
+  category        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  projectMaterials ProjectMaterial[]
+  orderItems       OrderItem[]
+
+  @@map("catalog_materials")
+}
+
+model CatalogService {
+  id           String       @id @default(cuid())
+  name         String
+  description  String?
+  unit         MaterialUnit @default(STUNDE)
+  pricePerUnit Float        @default(0)
+  category     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("catalog_services")
+}
+
+// ─── Orders & Invoices ───────────────────────────────────────────
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id])
+  status      OrderStatus @default(ENTWURF)
+  notes       String?
+  netTotal    Float       @default(0)
+  taxRate     Float       @default(19)
+  taxAmount   Float       @default(0)
+  grossTotal  Float       @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items    OrderItem[]
+  invoice  Invoice?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String           @id @default(cuid())
+  orderId           String
+  order             Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogMaterialId String?
+  catalogMaterial   CatalogMaterial? @relation(fields: [catalogMaterialId], references: [id])
+  catalogServiceId  String?
+  catalogService    CatalogService?  @relation(fields: [catalogServiceId], references: [id])
+  description       String
+  unit              MaterialUnit     @default(STUECK)
+  quantity          Float            @default(1)
+  pricePerUnit      Float            @default(0)
+  total             Float            @default(0)
+  position          Int              @default(0)
+  createdAt         DateTime         @default(now())
+
+  @@map("order_items")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id])
+  status        InvoiceStatus @default(ENTWURF)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  paidDate      DateTime?
+  netTotal      Float         @default(0)
+  taxRate       Float         @default(19)
+  taxAmount     Float         @default(0)
+  grossTotal    Float         @default(0)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items InvoiceItem[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description  String
+  unit         MaterialUnit @default(STUECK)
+  quantity     Float        @default(1)
+  pricePerUnit Float        @default(0)
+  total        Float        @default(0)
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  @@map("invoice_items")
+}
+
+// ─── Time Tracking ───────────────────────────────────────────────
+
+model TimeEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  date       DateTime
+  startTime  String
+  endTime    String
+  breakMin   Int      @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("time_entries")
+}
+
+// ─── HR ──────────────────────────────────────────────────────────
+
+model VacationRequest {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  startDate DateTime
+  endDate   DateTime
+  days      Int
+  reason    String?
+  status    VacationStatus @default(AUSSTEHEND)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("vacation_requests")
+}
+
+model Payslip {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  month     Int
+  year      Int
+  fileUrl   String
+  fileName  String
+  createdAt DateTime @default(now())
+
+  @@map("payslips")
+}
+
+model EmployeeDocument {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  fileUrl   String
+  fileType  String
+  createdAt DateTime @default(now())
+
+  @@map("employee_documents")
+}
+
+// ─── Notifications ───────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ─── AI ──────────────────────────────────────────────────────────
+
+model AIConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  title     String      @default("Neues Gespräch")
+  model     String      @default("gpt-4")
+  folder    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  messages AIMessage[]
+
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  createdAt      DateTime       @default(now())
+
+  @@map("ai_messages")
+}
+
+// ─── Schlosser: Prüf- & Wartungsmanagement ──────────────────────
+
+enum ElementTyp {
+  TUER
+  FENSTER
+  TOR
+  GELAENDER
+  ZAUN
+  SCHLOSS
+  FLUCHTWEG
+  BRANDSCHUTZTUER
+  SONSTIGES
+}
+
+enum PruefErgebnis {
+  BESTANDEN
+  MAENGEL
+  NICHT_BESTANDEN
+}
+
+enum MangelSchwere {
+  LEICHT
+  MITTEL
+  SCHWER
+  KRITISCH
+}
+
+enum ObjektStatus {
+  OK
+  WARTUNG_FAELLIG
+  REPARATUR_NOETIG
+  NACHPRUEFUNG_OFFEN
+  PRUEFUNG_UEBERFAELLIG
+}
+
+model SchlosserObjekt {
+  id           String       @id @default(cuid())
+  customerId   String
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  name         String
+  street       String?
+  zip          String?
+  city         String?
+  description  String?
+  planFileName String?
+  planUrl      String?
+  status       ObjektStatus @default(OK)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  elemente SchlosserElement[]
+  aufgaben SchlosserAufgabe[]
+  bilder   SchlosserObjektBild[]
+  plaene   SchlosserObjektPlan[]
+
+  @@map("schlosser_objekte")
+}
+
+model SchlosserObjektPlan {
+  id           String          @id @default(cuid())
+  objektId     String
+  objekt       SchlosserObjekt @relation(fields: [objektId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileUrl      String
+  titel        String?
+  beschreibung String?
+  createdAt    DateTime        @default(now())
+
+  @@map("schlosser_objekt_plaene")
+}
+
+model SchlosserElement {
+  id           String     @id @default(cuid())
+  objektId     String
+  objekt       SchlosserObjekt @relation(fields: [objektId], references: [id], onDelete: Cascade)
+  typ          ElementTyp @default(TUER)
+  bezeichnung  String
+  standort     String?
+  hersteller   String?
+  baujahr      Int?
+  seriennummer String?
+  notizen      String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  pruefungen SchlosserPruefung[]
+  bilder     SchlosserElementBild[]
+
+  @@map("schlosser_elemente")
+}
+
+model SchlosserPruefung {
+  id          String        @id @default(cuid())
+  elementId   String
+  element     SchlosserElement @relation(fields: [elementId], references: [id], onDelete: Cascade)
+  datum       DateTime      @default(now())
+  pruefer     String?
+  ergebnis    PruefErgebnis @default(BESTANDEN)
+  notizen     String?
+  naechstePruefung DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  maengel SchlosserMangel[]
+  texteintraege SchlosserPruefungText[]
+
+  @@map("schlosser_pruefungen")
+}
+
+model SchlosserPruefungText {
+  id         String       @id @default(cuid())
+  pruefungId String
+  pruefung   SchlosserPruefung @relation(fields: [pruefungId], references: [id], onDelete: Cascade)
+  text       String
+  createdAt  DateTime     @default(now())
+
+  @@map("schlosser_pruefung_texte")
+}
+
+model SchlosserMangel {
+  id           String        @id @default(cuid())
+  pruefungId   String
+  pruefung     SchlosserPruefung @relation(fields: [pruefungId], references: [id], onDelete: Cascade)
+  beschreibung String
+  schwere      MangelSchwere @default(MITTEL)
+  fotoUrl      String?
+  fotoName     String?
+  fotoUrls     Json?         // [{url, fileName}, ...] für mehrere Bilder
+  behoben      Boolean       @default(false)
+  behobenAm    DateTime?
+  behobenVon   String?
+  behobenNotiz String?
+  notizen      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("schlosser_maengel")
+}
+
+enum AufgabeTyp {
+  REPARATUR
+  PRUEFUNG
+  WARTUNG
+  SONSTIGES
+}
+
+enum AufgabePrioritaet {
+  NIEDRIG
+  NORMAL
+  HOCH
+  DRINGEND
+}
+
+enum AufgabeStatus {
+  OFFEN
+  IN_ARBEIT
+  WARTE_AUF_MATERIAL
+  ERLEDIGT
+  ABGENOMMEN
+}
+
+model SchlosserAufgabe {
+  id            String            @id @default(cuid())
+  objektId      String
+  objekt        SchlosserObjekt   @relation(fields: [objektId], references: [id], onDelete: Cascade)
+  elementId     String?
+  mangelId      String?
+  typ           AufgabeTyp        @default(REPARATUR)
+  titel         String
+  beschreibung  String?
+  prioritaet    AufgabePrioritaet @default(NORMAL)
+  status        AufgabeStatus     @default(OFFEN)
+  zugewiesenAn  String?
+  zugewiesen    User?             @relation("AufgabeZugewiesen", fields: [zugewiesenAn], references: [id])
+  erstelltVon   String
+  ersteller     User              @relation("AufgabeErstellt", fields: [erstelltVon], references: [id])
+  faelligAm     DateTime?
+  erledigtAm    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  kommentare SchlosserAufgabeKommentar[]
+
+  @@map("schlosser_aufgaben")
+}
+
+model SchlosserAufgabeKommentar {
+  id         String   @id @default(cuid())
+  aufgabeId  String
+  aufgabe    SchlosserAufgabe @relation(fields: [aufgabeId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  text       String
+  fotoUrl    String?
+  fotoName   String?
+  createdAt  DateTime @default(now())
+
+  @@map("schlosser_aufgabe_kommentare")
+}
+
+model SchlosserObjektBild {
+  id         String          @id @default(cuid())
+  objektId   String
+  objekt     SchlosserObjekt @relation(fields: [objektId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileUrl    String
+  beschreibung String?
+  createdAt  DateTime        @default(now())
+
+  @@map("schlosser_objekt_bilder")
+}
+
+model SchlosserElementBild {
+  id         String           @id @default(cuid())
+  elementId  String
+  element    SchlosserElement @relation(fields: [elementId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileUrl    String
+  beschreibung String?
+  createdAt  DateTime         @default(now())
+
+  @@map("schlosser_element_bilder")
+}
+
+model SchlosserPruefConfig {
+  id             String     @id @default(cuid())
+  elementTyp     ElementTyp @unique
+  intervallMonate Int       @default(12)
+  vorlaufTage    Int        @default(30)
+  pflicht        Boolean    @default(true)
+  bezeichnung    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("schlosser_pruef_config")
+}

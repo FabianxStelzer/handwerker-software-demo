@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Handwerker-Betriebssoftware
 
-## Getting Started
+Umfassende webbasierte Betriebssoftware für Handwerksunternehmen. Verwaltet den gesamten Lebenszyklus von Kundenanfrage über Projektabwicklung bis zur Abrechnung.
 
-First, run the development server:
+## Features
+
+- **Kundenverwaltung** – Privat- & Geschäftskunden, Echtzeit-Suche
+- **Projektmanagement** – Tabelle/Kanban/Kacheln, Bautagebuch, Dokumente, Chat, Aufgaben, Baupläne, Material
+- **Material-/Leistungskatalog** – Technische Eigenschaften, Preise, Kategorien
+- **Aufträge & Rechnungen** – Status-Workflow, automatische Berechnung (Netto/MwSt/Brutto), Analytics
+- **Mitarbeiterverwaltung** – Rollenbasiertes Zugriffssystem, Urlaubsverwaltung, HR-Daten
+- **Zeiterfassung** – Bauleiter-geführte Erfassung pro Mitarbeiter und Projekt
+- **KI-Assistent** – Multi-Provider (OpenAI, Anthropic), persistente Gespräche
+- **Sprachassistent** – Freihändige Bedienung auf der Baustelle
+- **Dashboard** – Kennzahlen, aktuelle Projekte, offene Rechnungen
+
+## Tech-Stack
+
+- **Frontend/Backend:** Next.js 14 (App Router), TypeScript
+- **Datenbank:** PostgreSQL + Prisma ORM
+- **Auth:** NextAuth.js v5
+- **UI:** Tailwind CSS + shadcn/ui-inspirierte Komponenten
+- **KI:** Vercel AI SDK (OpenAI, Anthropic)
+- **Deployment:** Docker + Docker Compose
+
+## Schnellstart (Entwicklung)
 
 ```bash
+# 1. Abhängigkeiten installieren
+npm install
+
+# 2. PostgreSQL starten (Docker)
+docker compose up db -d
+
+# 3. Datenbank migrieren
+npx prisma migrate dev --name init
+
+# 4. Beispieldaten laden
+npm run db:seed
+
+# 5. Entwicklungsserver starten
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Anmeldung: `admin@handwerker.de` / `admin123`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment (Hetzner VPS)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1. Repository auf den Server klonen
+git clone <repo-url>
+cd handwerker-software
 
-## Learn More
+# 2. .env-Datei erstellen
+cp .env.example .env
+# NEXTAUTH_SECRET und NEXTAUTH_URL anpassen!
 
-To learn more about Next.js, take a look at the following resources:
+# 3. Alles mit Docker starten
+docker compose up -d --build
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 4. Datenbank migrieren und seeden
+docker compose exec app npx prisma migrate deploy
+docker compose exec app npx tsx prisma/seed.ts
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Die App ist dann unter `http://<server-ip>:3000` erreichbar.
 
-## Deploy on Vercel
+## Strato-Domain verbinden
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. In der Strato-Domainverwaltung einen A-Record auf die Hetzner-IP setzen
+2. Optional: Nginx als Reverse Proxy mit SSL (Let's Encrypt) vor die App schalten
+3. `NEXTAUTH_URL` in `.env` auf die Domain setzen (z.B. `https://software.meine-firma.de`)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Demo-Konten
+
+| Rolle       | E-Mail                    | Passwort  |
+|-------------|---------------------------|-----------|
+| Admin       | admin@handwerker.de       | admin123  |
+| Bauleiter   | bauleiter@handwerker.de   | user123   |
+| Mitarbeiter | mitarbeiter@handwerker.de | user123   |
+
+## KI-Konfiguration
+
+Für den KI-Assistenten API-Schlüssel in `.env` hinterlegen:
+
+```
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+```

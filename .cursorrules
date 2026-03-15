@@ -1,0 +1,6 @@
+# Projekt-Regeln
+
+## Dev-Server starten
+**Immer** `npm run dev` verwenden – **nie** `next dev` direkt.
+
+Grund: Der Projektpfad enthält Leerzeichen. Turbopack erzeugt dann fehlerhafte Chunk-URLs (ChunkLoadError). Das Script `scripts/run-dev.mjs` startet mit `--webpack` und aus einem Symlink-Pfad ohne Leerzeichen.

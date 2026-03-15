@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ObjektStatus" ADD VALUE 'NACHPRUEFUNG_OFFEN';
