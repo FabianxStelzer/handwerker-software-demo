@@ -7,14 +7,11 @@ import { compare } from "bcryptjs";
  * Nur in Entwicklung nutzen – in Produktion entfernen!
  */
 export async function GET() {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Nicht in Produktion" }, { status: 403 });
-  }
-
   const checks: Record<string, string | boolean> = {};
 
-  // 1. AUTH_SECRET
+  // 1. Auth-Konfiguration
   checks.AUTH_SECRET = !!(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET);
+  checks.NEXTAUTH_URL = process.env.NEXTAUTH_URL || "(nicht gesetzt)";
 
   // 2. Datenbank-Verbindung & User
   try {
@@ -40,7 +37,7 @@ export async function GET() {
     }
   } catch (err) {
     checks.dbError = err instanceof Error ? err.message : String(err);
-    checks.hint = "Datenbank-Fehler. Prüfe DATABASE_URL und ob PostgreSQL läuft.";
+    checks.hint = "Datenbank-Fehler. Prüfe DATABASE_URL.";
   }
 
   return NextResponse.json(checks);

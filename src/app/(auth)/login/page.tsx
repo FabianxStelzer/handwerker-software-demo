@@ -106,6 +106,15 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-400 mt-4">
           Demo: admin@handwerker.de / admin123
         </p>
+        <p className="text-center text-xs text-gray-400 mt-2">
+          <a href="/api/auth/debug-login" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+            Login-Diagnose
+          </a>
+          {" · "}
+          <a href="/api/auth/seed-admin" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+            Admin anlegen
+          </a>
+        </p>
       </div>
     </div>
   );
