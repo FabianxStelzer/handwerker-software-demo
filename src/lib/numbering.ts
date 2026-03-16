@@ -13,6 +13,19 @@ export async function generateProjectNumber(): Promise<string> {
   return `${prefix}${String(nextNum).padStart(3, "0")}`;
 }
 
+export async function generateQuotationNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `ANG-${year}-`;
+  const last = await prisma.quotation.findFirst({
+    where: { quotationNumber: { startsWith: prefix } },
+    orderBy: { quotationNumber: "desc" },
+  });
+  const nextNum = last
+    ? parseInt(last.quotationNumber.split("-").pop()!) + 1
+    : 1;
+  return `${prefix}${String(nextNum).padStart(3, "0")}`;
+}
+
 export async function generateOrderNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `ORD-${year}-`;

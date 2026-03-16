@@ -46,6 +46,14 @@ enum OrderStatus {
   STORNIERT
 }
 
+enum QuotationStatus {
+  ENTWURF
+  VERSENDET
+  ANGENOMMEN
+  ABGELEHNT
+  ABGELAUFEN
+}
+
 enum InvoiceStatus {
   ENTWURF
   VERSENDET
@@ -127,7 +135,6 @@ model CompanySettings {
   email            String?
   taxId            String?
   vatId            String?
-  lexofficeApiKey  String?  // Lexoffice Public API Key (https://app.lexware.de/addons/public-api)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -153,6 +160,7 @@ model Customer {
 
   projects         Project[]
   orders           Order[]
+  quotations       Quotation[]
   schlosserObjekte SchlosserObjekt[]
 
   @@map("customers")
@@ -186,6 +194,8 @@ model Project {
   blueprints    ProjectBlueprint[]
   timeEntries   TimeEntry[]
   orders        Order[]
+  quotations    Quotation[]
+  expenses      Expense[]
 
   @@map("projects")
 }
@@ -307,6 +317,7 @@ model CatalogMaterial {
 
   projectMaterials ProjectMaterial[]
   orderItems       OrderItem[]
+  quotationItems   QuotationItem[]
 
   @@map("catalog_materials")
 }
@@ -321,28 +332,75 @@ model CatalogService {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  orderItems OrderItem[]
+  orderItems     OrderItem[]
+  quotationItems QuotationItem[]
 
   @@map("catalog_services")
+}
+
+// ─── Quotations (Angebote) ───────────────────────────────────────
+
+model Quotation {
+  id            String            @id @default(cuid())
+  quotationNumber String          @unique
+  customerId    String
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  projectId     String?
+  project       Project?         @relation(fields: [projectId], references: [id])
+  status        QuotationStatus   @default(ENTWURF)
+  validUntil    DateTime?
+  notes         String?
+  netTotal      Float             @default(0)
+  taxRate       Float             @default(19)
+  taxAmount     Float             @default(0)
+  grossTotal    Float             @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  items       QuotationItem[]
+  order       Order?
+
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id                String           @id @default(cuid())
+  quotationId       String
+  quotation         Quotation        @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  catalogMaterialId String?
+  catalogMaterial   CatalogMaterial? @relation(fields: [catalogMaterialId], references: [id])
+  catalogServiceId  String?
+  catalogService    CatalogService?  @relation(fields: [catalogServiceId], references: [id])
+  description       String
+  unit              MaterialUnit     @default(STUECK)
+  quantity          Float            @default(1)
+  pricePerUnit      Float            @default(0)
+  total             Float            @default(0)
+  position          Int              @default(0)
+  createdAt         DateTime         @default(now())
+
+  @@map("quotation_items")
 }
 
 // ─── Orders & Invoices ───────────────────────────────────────────
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique
-  customerId  String
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  projectId   String?
-  project     Project?    @relation(fields: [projectId], references: [id])
-  status      OrderStatus @default(ENTWURF)
-  notes       String?
-  netTotal    Float       @default(0)
-  taxRate     Float       @default(19)
-  taxAmount   Float       @default(0)
-  grossTotal  Float       @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  quotationId   String?       @unique
+  quotation     Quotation?    @relation(fields: [quotationId], references: [id])
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  projectId     String?
+  project       Project?      @relation(fields: [projectId], references: [id])
+  status        OrderStatus   @default(ENTWURF)
+  notes         String?
+  netTotal      Float         @default(0)
+  taxRate       Float         @default(19)
+  taxAmount     Float         @default(0)
+  grossTotal    Float         @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   items    OrderItem[]
   invoice  Invoice?
@@ -406,7 +464,26 @@ model InvoiceItem {
   @@map("invoice_items")
 }
 
-// ─── Time Tracking ───────────────────────────────────────────────
+// ─── Buchhaltung (Expenses) ──────────────────────────────────────
+
+model Expense {
+  id          String        @id @default(cuid())
+  date        DateTime
+  category    String        // z.B. Material, Fahrtkosten, Werkzeug, Sonstiges
+  description String
+  amount      Float
+  taxRate     Float         @default(19)
+  taxAmount   Float         @default(0)
+  grossAmount Float         @default(0)
+  vendor      String?
+  receiptUrl  String?
+  projectId   String?
+  project     Project?      @relation(fields: [projectId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("expenses")
+}
 
 model TimeEntry {
   id         String   @id @default(cuid())
