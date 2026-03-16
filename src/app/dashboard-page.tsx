@@ -87,8 +87,14 @@ export function DashboardPage() {
 
         {isEmpty && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-medium">Keine Daten geladen</p>
-            <p className="mt-1">Führen Sie <code className="bg-amber-100 px-1 rounded">npm run db:seed:admin</code> aus, um Demo-Daten zu erstellen.</p>
+            <p className="font-medium">Keine Daten vorhanden</p>
+            <p className="mt-1">
+              Die Datenbank ist leer.{" "}
+              <a href="/api/seed-demo" target="_blank" rel="noopener noreferrer" className="font-medium text-amber-900 underline hover:no-underline">
+                Demo-Daten anlegen
+              </a>
+              {" "}oder starten Sie mit Kunden und Projekten.
+            </p>
           </div>
         )}
 
