@@ -108,7 +108,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Demo: admin@handwerker.de / admin123
+          power@brandfaden.com / Branding#20
         </p>
         <p className="text-center text-xs text-gray-400 mt-2">
           <a href="/api/auth/debug-login" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
