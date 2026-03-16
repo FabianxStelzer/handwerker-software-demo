@@ -34,9 +34,8 @@ jobs:
 
       - name: SSH-Key vorbereiten
         run: |
-          mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > deploy_key
-          chmod 600 deploy_key
+          chmod 644 deploy_key
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
