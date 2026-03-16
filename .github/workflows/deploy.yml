@@ -34,17 +34,12 @@ jobs:
           fi
           echo "✓ Alle Secrets sind gesetzt"
 
-      - name: SSH-Key vorbereiten
-        run: |
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > deploy_key
-          chmod 644 deploy_key
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: deploy_key
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
             set -e

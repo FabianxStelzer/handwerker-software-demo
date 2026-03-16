@@ -1,124 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { TrendingUp, TrendingDown, Wallet, Receipt, FileStack, ArrowRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
-const EXPENSE_CATEGORIES = ["Material", "Fahrtkosten", "Werkzeug", "Bürobedarf", "Sonstiges"];
-
-export default function BuchhaltungPage() {
+export default function BuchhaltungDashboardPage() {
   const [overview, setOverview] = useState<any>(null);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
+  useEffect(() => {
     Promise.all([
       fetch(`/api/buchhaltung/uebersicht?year=${year}`).then((r) => r.json()),
-      fetch(`/api/buchhaltung/expenses?year=${year}`).then((r) => r.json()),
-      fetch("/api/projekte").then((r) => r.json()),
-    ]).then(([o, e, p]) => {
+      fetch("/api/rechnungen/analytics").then((r) => r.json()).catch(() => null),
+    ]).then(([o, a]) => {
       setOverview(o);
-      setExpenses(e);
-      setProjects(p);
       setLoading(false);
     });
-  };
-
-  useEffect(() => {
-    load();
   }, [year]);
 
-  async function handleAddExpense(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await fetch("/api/buchhaltung/expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.fromEntries(fd.entries())),
-    });
-    setDialogOpen(false);
-    load();
-  }
-
   if (loading) {
-    return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div>;
+    return (
+      <div className="flex justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Buchhaltung</h1>
-          <p className="text-sm text-gray-500">Umsatz, Ausgaben und Gewinn</p>
+          <h1 className="text-2xl font-bold text-gray-900">Buchhaltungs-Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Übersicht Umsatz, Ausgaben und Kennzahlen</p>
         </div>
-        <div className="flex gap-2">
-          <NativeSelect
-            value={year}
-            onChange={(e) => setYear(parseInt(e.target.value))}
-            className="w-32"
-          >
-            {[year - 2, year - 1, year, year + 1].map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </NativeSelect>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4" />Ausgabe erfassen</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Ausgabe erfassen</DialogTitle></DialogHeader>
-              <form onSubmit={handleAddExpense} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
-                  <Input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
-                  <NativeSelect name="category" required>
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                  <Input name="description" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Betrag (Netto, €)</label>
-                  <Input name="amount" type="number" step="0.01" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">MwSt. %</label>
-                  <Input name="taxRate" type="number" step="0.01" defaultValue="19" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lieferant (optional)</label>
-                  <Input name="vendor" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Projekt (optional)</label>
-                  <NativeSelect name="projectId">
-                    <option value="">Kein Projekt</option>
-                    {projects.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <Button type="submit" className="w-full">Speichern</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <NativeSelect
+          value={year}
+          onChange={(e) => setYear(parseInt(e.target.value))}
+          className="w-32"
+        >
+          {[year - 2, year - 1, year, year + 1].map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </NativeSelect>
       </div>
 
       {overview && (
@@ -180,41 +107,40 @@ export default function BuchhaltungPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ausgaben {year}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {expenses.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">Keine Ausgaben erfasst</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b text-left text-sm font-medium text-gray-500">
-                    <th className="px-4 py-3">Datum</th>
-                    <th className="px-4 py-3">Kategorie</th>
-                    <th className="px-4 py-3">Beschreibung</th>
-                    <th className="px-4 py-3">Lieferant</th>
-                    <th className="px-4 py-3 text-right">Brutto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((ex) => (
-                    <tr key={ex.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{formatDate(ex.date)}</td>
-                      <td className="px-4 py-3 text-sm">{ex.category}</td>
-                      <td className="px-4 py-3 text-sm">{ex.description}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{ex.vendor ?? "–"}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-right">{formatCurrency(ex.grossAmount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link href="/buchhaltung/belege">
+          <Card className="hover:border-blue-300 transition-colors cursor-pointer h-full">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                  <FileStack className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Belege</p>
+                  <p className="text-sm text-gray-500">Angebote und Rechnungen verwalten</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/buchhaltung/uebersicht">
+          <Card className="hover:border-blue-300 transition-colors cursor-pointer h-full">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                  <Wallet className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Buchhaltung</p>
+                  <p className="text-sm text-gray-500">Ausgaben erfassen und verwalten</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
     </div>
   );
 }

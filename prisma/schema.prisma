@@ -464,7 +464,26 @@ model InvoiceItem {
   @@map("invoice_items")
 }
 
-// ─── Buchhaltung (Expenses) ──────────────────────────────────────
+// ─── Buchhaltung (Expenses, Vendors) ──────────────────────────────
+
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String
+  taxId     String?
+  vatId     String?
+  street    String?
+  zip       String?
+  city      String?
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses Expense[]
+
+  @@map("vendors")
+}
 
 model Expense {
   id          String        @id @default(cuid())
@@ -475,7 +494,9 @@ model Expense {
   taxRate     Float         @default(19)
   taxAmount   Float         @default(0)
   grossAmount Float         @default(0)
-  vendor      String?
+  vendor      String?       // Freitext, falls kein Vendor verknüpft
+  vendorId    String?
+  vendorRef   Vendor?       @relation(fields: [vendorId], references: [id])
   receiptUrl  String?
   projectId   String?
   project     Project?      @relation(fields: [projectId], references: [id])
