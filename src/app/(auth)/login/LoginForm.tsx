@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getCsrfToken } from "next-auth/react";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
   const [csrfToken, setCsrfToken] = useState("");
+  const [csrfError, setCsrfError] = useState(false);
   const [error] = useState(() => {
     if (initialError === "CredentialsSignin") return "Ungültige Anmeldedaten";
     if (initialError === "Configuration") return "Konfigurationsfehler. Bitte AUTH_SECRET und NEXTAUTH_URL prüfen.";
@@ -15,9 +17,15 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
   });
 
   useEffect(() => {
-    fetch("/api/auth/csrf")
-      .then((r) => r.json())
-      .then((data) => setCsrfToken(data.csrfToken || ""));
+    getCsrfToken()
+      .then((token) => setCsrfToken(token || ""))
+      .catch(() => {
+        // Fallback: direkter Fetch falls getCsrfToken fehlschlägt
+        fetch("/api/auth/csrf", { credentials: "same-origin" })
+          .then((r) => r.json())
+          .then((data) => setCsrfToken(data?.csrfToken || ""))
+          .catch(() => setCsrfError(true));
+      });
   }, []);
 
   return (
@@ -88,9 +96,15 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={!csrfToken}>
-            {csrfToken ? "Anmelden" : "Lade..."}
-          </Button>
+          {csrfError ? (
+            <a href="/login" className="block w-full text-center py-2.5 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+              Seite neu laden
+            </a>
+          ) : (
+            <Button type="submit" className="w-full" disabled={!csrfToken}>
+              {csrfToken ? "Anmelden" : "Lade..."}
+            </Button>
+          )}
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-4">
