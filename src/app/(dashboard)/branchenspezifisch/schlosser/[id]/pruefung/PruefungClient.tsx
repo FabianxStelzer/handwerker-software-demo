@@ -263,7 +263,6 @@ export default function PruefungClient({
       if (res.ok) {
         setPruefungen((prev) => prev.filter((p) => p.id !== pruefungId));
         setExpandedPruefung(null);
-        mangelFileInputRef.current && (mangelFileInputRef.current.value = "");
         await load();
       } else {
         const err = await res.json().catch(() => ({}));
