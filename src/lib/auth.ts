@@ -8,10 +8,13 @@ if (!secret && process.env.NODE_ENV !== "test") {
   console.warn("[Auth] AUTH_SECRET fehlt – Anmeldung kann fehlschlagen. Setze AUTH_SECRET in .env");
 }
 
+const baseUrl = process.env.NEXTAUTH_URL || "";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: secret || "fallback-dev-only-change-in-production",
   trustHost: true,
-  session: { strategy: "jwt" },
+  useSecureCookies: baseUrl.startsWith("https://"),
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: {
     signIn: "/login",
   },
