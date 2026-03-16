@@ -1,32 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getCsrfToken } from "next-auth/react";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
-  const [csrfToken, setCsrfToken] = useState("");
-  const [csrfError, setCsrfError] = useState(false);
-  const [error] = useState(() => {
+  const [error, setError] = useState(() => {
     if (initialError === "CredentialsSignin") return "Ungültige Anmeldedaten";
     if (initialError === "Configuration") return "Konfigurationsfehler. Bitte AUTH_SECRET und NEXTAUTH_URL prüfen.";
     if (initialError) return "Anmeldung fehlgeschlagen.";
     return "";
   });
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    getCsrfToken()
-      .then((token) => setCsrfToken(token || ""))
-      .catch(() => {
-        // Fallback: direkter Fetch falls getCsrfToken fehlschlägt
-        fetch("/api/auth/csrf", { credentials: "same-origin" })
-          .then((r) => r.json())
-          .then((data) => setCsrfToken(data?.csrfToken || ""))
-          .catch(() => setCsrfError(true));
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
-  }, []);
+
+      if (result?.error) {
+        setError("Ungültige Anmeldedaten");
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = "/";
+    } catch {
+      setError("Anmeldung fehlgeschlagen.");
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -50,23 +66,12 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </div>
 
         <form
-          action="/api/auth/signin/credentials"
-          method="POST"
+          onSubmit={handleSubmit}
           className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200"
         >
-          <input type="hidden" name="csrfToken" value={csrfToken} />
-          <input type="hidden" name="callbackUrl" value="/" />
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 space-y-2">
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
               <p>{error}</p>
-              <a
-                href="/api/auth/debug-login"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline text-xs"
-              >
-                Login-Diagnose prüfen →
-              </a>
             </div>
           )}
 
@@ -79,7 +84,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
               name="email"
               type="email"
               required
-              placeholder="admin@handwerker.de"
+              placeholder="E-Mail Adresse"
             />
           </div>
 
@@ -96,29 +101,10 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          {csrfError ? (
-            <a href="/login" className="block w-full text-center py-2.5 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
-              Seite neu laden
-            </a>
-          ) : (
-            <Button type="submit" className="w-full" disabled={!csrfToken}>
-              {csrfToken ? "Anmelden" : "Lade..."}
-            </Button>
-          )}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Anmeldung..." : "Anmelden"}
+          </Button>
         </form>
-
-        <p className="text-center text-xs text-gray-400 mt-4">
-          power@brandfaden.com / Branding#20
-        </p>
-        <p className="text-center text-xs text-gray-400 mt-2">
-          <a href="/api/auth/debug-login" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-            Login-Diagnose
-          </a>
-          {" · "}
-          <a href="/api/auth/seed-admin" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-            Admin anlegen
-          </a>
-        </p>
       </div>
     </div>
   );
