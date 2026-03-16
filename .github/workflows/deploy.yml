@@ -13,6 +13,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Prüfe Deploy-Secrets
+        run: |
+          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
+            echo "::error::DEPLOY_HOST fehlt. Bitte in Settings → Secrets and variables → Actions anlegen."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
+            echo "::error::DEPLOY_USER fehlt."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "::error::DEPLOY_SSH_KEY fehlt."
+            exit 1
+          fi
+          echo "✓ Alle Secrets sind gesetzt"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
