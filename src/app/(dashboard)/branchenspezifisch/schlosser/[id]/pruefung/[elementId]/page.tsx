@@ -87,6 +87,7 @@ export default async function PruefungElementPage({
       naechstePruefung: p.naechstePruefung?.toISOString() ?? null,
       maengel: p.maengel.map((m) => ({
         ...m,
+        fotoUrls: Array.isArray(m.fotoUrls) ? (m.fotoUrls as { url: string; fileName?: string }[]) : null,
         behobenAm: m.behobenAm?.toISOString() ?? null,
         createdAt: m.createdAt.toISOString(),
       })),

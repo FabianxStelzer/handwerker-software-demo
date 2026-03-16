@@ -27,7 +27,7 @@ import {
 
 interface MangelFoto {
   url: string;
-  fileName: string;
+  fileName?: string;
 }
 
 interface Mangel {
