@@ -1,27 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useState } from "react";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { loginAction } from "./actions";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Anmeldung..." : "Anmelden"}
-    </Button>
-  );
-}
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
-  const [error, setError] = useState(() => {
+  const [csrfToken, setCsrfToken] = useState("");
+  const [error] = useState(() => {
     if (initialError === "CredentialsSignin") return "Ungültige Anmeldedaten";
+    if (initialError === "Configuration") return "Konfigurationsfehler. Bitte AUTH_SECRET und NEXTAUTH_URL prüfen.";
     if (initialError) return "Anmeldung fehlgeschlagen.";
     return "";
   });
+
+  useEffect(() => {
+    fetch("/api/auth/csrf")
+      .then((r) => r.json())
+      .then((data) => setCsrfToken(data.csrfToken || ""));
+  }, []);
 
   return (
     <div
@@ -45,17 +42,12 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </div>
 
         <form
-          action={async (formData) => {
-            setError("");
-            try {
-              await loginAction(formData);
-            } catch (err) {
-              if (String(err).includes("NEXT_REDIRECT")) throw err;
-              setError("Anmeldung fehlgeschlagen.");
-            }
-          }}
+          action="/api/auth/signin/credentials"
+          method="POST"
           className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200"
         >
+          <input type="hidden" name="csrfToken" value={csrfToken} />
+          <input type="hidden" name="callbackUrl" value="/" />
           {error && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 space-y-2">
               <p>{error}</p>
@@ -96,7 +88,9 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          <SubmitButton />
+          <Button type="submit" className="w-full" disabled={!csrfToken}>
+            {csrfToken ? "Anmelden" : "Lade..."}
+          </Button>
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-4">
