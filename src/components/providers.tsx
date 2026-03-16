@@ -1,6 +1,8 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { OfflineFetchProvider } from "./OfflineFetchProvider";
+import { OfflineInit } from "./OfflineInit";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +10,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       refetchInterval={5}
       refetchOnWindowFocus={true}
     >
-      {children}
+      <OfflineInit />
+      <OfflineFetchProvider>{children}</OfflineFetchProvider>
     </SessionProvider>
   );
 }

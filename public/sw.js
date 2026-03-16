@@ -1,7 +1,7 @@
 // Service Worker für Handwerker-Software
 // Cacht statische Assets und API-Responses für Offline-Nutzung
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v3";
 const STATIC_CACHE = `handwerker-static-${CACHE_VERSION}`;
 const API_CACHE = `handwerker-api-${CACHE_VERSION}`;
 
@@ -18,6 +18,8 @@ const CACHEABLE_API_PATTERNS = [
   /^\/api\/mitarbeiter/,
   /^\/api\/zeiterfassung/,
   /^\/api\/notifications/,
+  /^\/api\/schlosser/,
+  /^\/api\/settings/,
 ];
 
 // Auth-Routen niemals cachen
@@ -77,17 +79,33 @@ self.addEventListener("fetch", (event) => {
       event.request.destination === "font")
   ) {
     event.respondWith(
-      caches.match(event.request).then(
-        (cached) =>
-          cached ||
-          fetch(event.request).then((response) => {
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request)
+          .then((response) => {
             if (response.ok) {
               const clone = response.clone();
               caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
             }
             return response;
           })
-      )
+          .catch(async () => {
+            // Bei Netzwerkfehler: für Navigation die App-Shell ausliefern
+            // statt "Du bist offline" – so lädt die App und kann offline weiterarbeiten
+            if (event.request.destination === "document") {
+              const fallback =
+                (await caches.match("/")) ||
+                (await caches.match(url.origin + "/"));
+              if (fallback) return fallback;
+              // Kein Cache: minimales Offline-HTML mit Reload-Hinweis
+              return new Response(
+                '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title></head><body style="font-family:sans-serif;padding:2rem;text-align:center"><h1>Sie sind offline</h1><p>Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite neu.</p><button onclick="location.reload()" style="padding:0.5rem 1rem;font-size:1rem;cursor:pointer">Seite neu laden</button></body></html>',
+                { headers: { "Content-Type": "text/html; charset=utf-8" } }
+              );
+            }
+            return undefined;
+          });
+      })
     );
   }
 });

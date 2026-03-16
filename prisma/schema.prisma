@@ -118,17 +118,18 @@ model Session {
 }
 
 model CompanySettings {
-  id        String   @id @default(cuid())
-  name      String?
-  street    String?
-  zip       String?
-  city      String?
-  phone     String?
-  email     String?
-  taxId     String?
-  vatId     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String?
+  street           String?
+  zip              String?
+  city             String?
+  phone            String?
+  email            String?
+  taxId            String?
+  vatId            String?
+  lexofficeApiKey  String?  // Lexoffice Public API Key (https://app.lexware.de/addons/public-api)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("company_settings")
 }

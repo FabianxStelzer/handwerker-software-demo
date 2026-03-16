@@ -35,10 +35,12 @@ export function getSyncStatus(): SyncStatus {
 // Einzelnen Queue-Eintrag an den Server senden
 async function processEntry(entry: SyncQueueEntry): Promise<boolean> {
   try {
-    const response = await fetch(entry.url, {
+    const fullUrl = entry.url.startsWith("http") ? entry.url : window.location.origin + entry.url;
+    const response = await fetch(fullUrl, {
       method: entry.method,
       headers: entry.headers,
       body: entry.body || undefined,
+      credentials: "include",
     });
 
     if (response.ok) {

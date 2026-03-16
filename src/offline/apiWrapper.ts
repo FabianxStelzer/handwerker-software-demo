@@ -4,6 +4,7 @@
 // POST/PUT/DELETE: Wenn offline → in syncQueue speichern statt Fehler zu werfen
 
 import { getCachedData, setCachedData, addToSyncQueue } from "./db";
+import { getOriginalFetch } from "./fetchBridge";
 
 type FetchOptions = RequestInit & {
   // Kein Cache für diesen Request (z.B. Auth-Routen)
@@ -54,10 +55,10 @@ async function handleGet(
 ): Promise<Response> {
   const cacheKey = getCacheKey(url);
 
-  // Online → Server anfragen, Cache aktualisieren
+  // Online → Server anfragen, Cache aktualisieren (Original-Fetch, um Rekursion zu vermeiden)
   if (navigator.onLine) {
     try {
-      const response = await fetch(url, init);
+      const response = await getOriginalFetch()(url, init);
       if (response.ok && !skipCache) {
         const clone = response.clone();
         clone.json().then((data) => setCachedData(cacheKey, data)).catch(() => {});
@@ -92,10 +93,10 @@ async function handleMutation(
   method: "POST" | "PUT" | "DELETE",
   init: FetchOptions | undefined
 ): Promise<Response> {
-  // Online → ganz normal an den Server senden
+  // Online → ganz normal an den Server senden (Original-Fetch)
   if (navigator.onLine) {
     try {
-      return await fetch(url, init);
+      return await getOriginalFetch()(url, init);
     } catch {
       // Netzwerkfehler trotz onLine → in Queue
     }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { VoiceAssistantSafe } from "@/components/VoiceAssistantSafe";
+import { OfflineBanner } from "@/offline";
 import { useEffect, useState } from "react";
 
 const LOADING_TIMEOUT_MS = 2000;
@@ -102,6 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
       <VoiceAssistantSafe />
+      <OfflineBanner />
     </div>
   );
 }
