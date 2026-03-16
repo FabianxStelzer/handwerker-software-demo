@@ -32,4 +32,4 @@ RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
-CMD ["sh", "-c", "npx prisma migrate deploy && (npx tsx scripts/seed-admin.ts || true) && exec node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && (npx tsx scripts/seed-admin.ts || true) && exec node server.js"]
