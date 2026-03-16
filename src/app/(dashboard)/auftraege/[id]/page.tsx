@@ -75,12 +75,18 @@ export default function AuftragDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function createInvoice() {
-    await fetch("/api/rechnungen", {
+    const res = await fetch("/api/rechnungen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId: id }),
     });
-    load();
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Fehler beim Erstellen der Rechnung");
+      return;
+    }
+    const invoice = await res.json();
+    router.push(`/rechnungen/${invoice.id}`);
   }
 
   if (!order) {

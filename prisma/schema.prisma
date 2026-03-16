@@ -162,6 +162,7 @@ model Customer {
   orders           Order[]
   quotations       Quotation[]
   schlosserObjekte SchlosserObjekt[]
+  deliveryNotes    DeliveryNote[]
 
   @@map("customers")
 }
@@ -196,6 +197,7 @@ model Project {
   orders        Order[]
   quotations    Quotation[]
   expenses      Expense[]
+  deliveryNotes DeliveryNote[]
 
   @@map("projects")
 }
@@ -480,9 +482,62 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  expenses Expense[]
+  expenses         Expense[]
+  incomingInvoices IncomingInvoice[]
 
   @@map("vendors")
+}
+
+enum IncomingInvoiceStatus {
+  OFFEN
+  BEZAHLT
+  UEBERFAELLIG
+}
+
+model IncomingInvoice {
+  id            String                 @id @default(cuid())
+  vendorId      String
+  vendor        Vendor                 @relation(fields: [vendorId], references: [id])
+  referenceNo   String                 // Rechnungsnummer des Lieferanten
+  date          DateTime
+  dueDate       DateTime?
+  grossAmount   Float                  @default(0)
+  status        IncomingInvoiceStatus   @default(OFFEN)
+  paidDate      DateTime?
+  notes         String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@map("incoming_invoices")
+}
+
+model DeliveryNote {
+  id          String    @id @default(cuid())
+  noteNumber  String    @unique
+  date        DateTime  @default(now())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items DeliveryNoteItem[]
+
+  @@map("delivery_notes")
+}
+
+model DeliveryNoteItem {
+  id          String       @id @default(cuid())
+  deliveryId  String
+  delivery    DeliveryNote @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float        @default(1)
+  unit        MaterialUnit @default(STUECK)
+  createdAt   DateTime     @default(now())
+
+  @@map("delivery_note_items")
 }
 
 model Expense {

@@ -51,3 +51,16 @@ export async function generateInvoiceNumber(): Promise<string> {
     : 1;
   return `${prefix}${String(nextNum).padStart(3, "0")}`;
 }
+
+export async function generateDeliveryNoteNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `LS-${year}-`;
+  const last = await prisma.deliveryNote.findFirst({
+    where: { noteNumber: { startsWith: prefix } },
+    orderBy: { noteNumber: "desc" },
+  });
+  const nextNum = last
+    ? parseInt(last.noteNumber.split("-").pop()!) + 1
+    : 1;
+  return `${prefix}${String(nextNum).padStart(3, "0")}`;
+}
