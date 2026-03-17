@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const token = await getToken({
-    req: _req,
-    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  });
-  if (!token?.role || token.role !== "ADMIN") {
+  const session = await auth();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (!role || role !== "ADMIN") {
     return NextResponse.json({ error: "Nur Administratoren dürfen Prüfungen löschen" }, { status: 403 });
   }
 

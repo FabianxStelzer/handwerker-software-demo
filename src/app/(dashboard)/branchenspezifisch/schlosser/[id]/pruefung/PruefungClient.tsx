@@ -431,12 +431,17 @@ export default function PruefungClient({
                     size="sm"
                     variant="outline"
                     onClick={async () => {
-                      const res = await fetch(`/api/schlosser/maengel/${m.id}/aufgabe-or-create`, { method: "POST" });
-                      if (res.ok) {
-                        const { aufgabeId } = await res.json();
-                        router.push(`/branchenspezifisch/schlosser/aufgaben/${aufgabeId}`);
-                      } else {
-                        alert("Aufgabe konnte nicht erstellt werden.");
+                      try {
+                        const res = await fetch(`/api/schlosser/maengel/${m.id}/aufgabe-or-create`, { method: "POST" });
+                        if (res.ok) {
+                          const { aufgabeId } = await res.json();
+                          router.push(`/branchenspezifisch/schlosser/aufgaben/${aufgabeId}`);
+                        } else {
+                          const err = await res.json().catch(() => ({}));
+                          alert(err?.error || "Aufgabe konnte nicht erstellt werden.");
+                        }
+                      } catch {
+                        alert("Netzwerkfehler – bitte erneut versuchen.");
                       }
                     }}
                   >
@@ -612,12 +617,17 @@ export default function PruefungClient({
                                     size="sm"
                                     variant="ghost"
                                     onClick={async () => {
-                                      const res = await fetch(`/api/schlosser/maengel/${m.id}/aufgabe-or-create`, { method: "POST" });
-                                      if (res.ok) {
-                                        const { aufgabeId } = await res.json();
-                                        router.push(`/branchenspezifisch/schlosser/aufgaben/${aufgabeId}`);
-                                      } else {
-                                        alert("Aufgabe konnte nicht erstellt werden.");
+                                      try {
+                                        const res = await fetch(`/api/schlosser/maengel/${m.id}/aufgabe-or-create`, { method: "POST" });
+                                        if (res.ok) {
+                                          const { aufgabeId } = await res.json();
+                                          router.push(`/branchenspezifisch/schlosser/aufgaben/${aufgabeId}`);
+                                        } else {
+                                          const err = await res.json().catch(() => ({}));
+                                          alert(err?.error || "Aufgabe konnte nicht erstellt werden.");
+                                        }
+                                      } catch {
+                                        alert("Netzwerkfehler – bitte erneut versuchen.");
                                       }
                                     }}
                                   >
