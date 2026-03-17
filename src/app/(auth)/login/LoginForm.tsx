@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,21 +24,36 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
     const password = formData.get("password") as string;
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+
+      const res = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          csrfToken,
+          email,
+          password,
+          json: "true",
+        }),
+        redirect: "follow",
       });
 
-      if (result?.error) {
-        setError("Ungültige Anmeldedaten");
-        setLoading(false);
+      if (res.ok) {
+        window.location.href = "/";
         return;
       }
 
-      window.location.href = "/";
-    } catch {
-      setError("Anmeldung fehlgeschlagen.");
+      const url = new URL(res.url);
+      if (url.searchParams.has("error")) {
+        setError("Ungültige Anmeldedaten");
+      } else {
+        setError("Anmeldung fehlgeschlagen.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
+    } finally {
       setLoading(false);
     }
   }
