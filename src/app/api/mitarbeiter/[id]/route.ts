@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET });
-  if (!token?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
 
   const { id } = await params;
   const user = await prisma.user.findUnique({
@@ -25,13 +25,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET });
-  if (!token?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
 
   const { id } = await params;
-  const currentUserId = token.id as string;
+  const currentUserId = session.user.id;
   const isOwnProfile = id === currentUserId;
-  const isAdmin = token.role === "ADMIN";
+  const isAdmin = (session.user as { role?: string }).role === "ADMIN";
   if (!isOwnProfile && !isAdmin) {
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
   }
