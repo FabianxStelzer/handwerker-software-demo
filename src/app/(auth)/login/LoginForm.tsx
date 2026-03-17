@@ -24,32 +24,31 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
     const password = formData.get("password") as string;
 
     try {
-      const csrfRes = await fetch("/api/auth/csrf");
+      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
+      if (!csrfRes.ok) {
+        setError("Server nicht erreichbar. Bitte Seite neu laden.");
+        setLoading(false);
+        return;
+      }
       const { csrfToken } = await csrfRes.json();
 
-      const res = await fetch("/api/auth/callback/credentials", {
+      await fetch("/api/auth/callback/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          csrfToken,
-          email,
-          password,
-          json: "true",
-        }),
+        body: new URLSearchParams({ csrfToken, email, password }),
+        credentials: "include",
         redirect: "follow",
       });
 
-      if (res.ok) {
+      const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
+      const session = await sessionRes.json().catch(() => ({}));
+
+      if (session?.user) {
         window.location.href = "/";
         return;
       }
 
-      const url = new URL(res.url);
-      if (url.searchParams.has("error")) {
-        setError("Ungültige Anmeldedaten");
-      } else {
-        setError("Anmeldung fehlgeschlagen.");
-      }
+      setError("Ungültige Anmeldedaten");
     } catch (err) {
       console.error("Login error:", err);
       setError("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
