@@ -7,7 +7,7 @@ import {
   UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings,
   Calculator, ChevronDown, ChevronRight, FileStack, Building2,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
-  Bell, LogOut, User, Car,
+  Bell, LogOut, User, Car, Ruler,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -37,6 +37,7 @@ const navigation: NavItem[] = [
   { name: "Kunden", href: "/kunden", icon: Users },
   { name: "Projekte", href: "/projekte", icon: FolderKanban },
   { name: "Katalog", href: "/katalog", icon: Package },
+  { name: "Aufmaß", href: "/aufmass", icon: Ruler },
   { name: "Aufträge", href: "/auftraege", icon: FileText },
   { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung" },
   { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog, children: mitarbeiterSubItems, expandKey: "mitarbeiter" },
