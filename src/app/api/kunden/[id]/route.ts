@@ -6,8 +6,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const customer = await prisma.customer.findUnique({
     where: { id },
     include: {
-      projects: { orderBy: { createdAt: "desc" }, take: 20 },
-      orders: { orderBy: { createdAt: "desc" }, take: 20, include: { invoice: true } },
+      projects: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true, projectNumber: true, name: true, description: true,
+          status: true, startDate: true, endDate: true,
+          _count: { select: { documents: true } },
+        },
+      },
+      orders: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { invoice: true },
+      },
+      quotations: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true, quotationNumber: true, status: true, grossTotal: true, createdAt: true,
+        },
+      },
     },
   });
 
@@ -15,7 +34,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Kunde nicht gefunden" }, { status: 404 });
   }
 
-  return NextResponse.json(customer);
+  const revenue = customer.orders
+    .filter((o) => o.invoice && o.invoice.status === "BEZAHLT")
+    .reduce((sum, o) => sum + (o.invoice?.grossTotal || 0), 0);
+
+  const documentCount = customer.projects.reduce((sum, p) => sum + p._count.documents, 0);
+
+  return NextResponse.json({ ...customer, revenue, documentCount });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
