@@ -258,12 +258,12 @@ export function EinbauTab({ project }: { project: any }) {
               >
                 {/* PDF rendered as non-interactive background */}
                 {viewPlan.dateiUrl.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? (
-                  <img src={viewPlan.dateiUrl} alt={viewPlan.titel} className="w-full h-auto block" draggable={false} style={{ pointerEvents: "none" }} />
+                  <img src={viewPlan.dateiUrl} alt={viewPlan.titel} className="w-full h-auto block" draggable={false} style={{ pointerEvents: placingMarker ? "none" : "auto" }} />
                 ) : (
                   <iframe
                     src={`${viewPlan.dateiUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                     className="w-full border-0 block"
-                    style={{ height: "1200px", pointerEvents: "none" }}
+                    style={{ height: "1200px", pointerEvents: placingMarker ? "none" : "auto" }}
                     title={viewPlan.titel}
                   />
                 )}
