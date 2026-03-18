@@ -78,8 +78,15 @@ export function EinbauTab({ project }: { project: any }) {
         await load();
         setUploadTitel("");
       } else {
-        const err = await res.json().catch(() => ({ error: "Upload fehlgeschlagen" }));
-        setUploadError(err.error || `Fehler ${res.status}`);
+        const text = await res.text();
+        let errorMsg = `Fehler ${res.status}`;
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json.error || errorMsg;
+        } catch {
+          if (text.length < 200) errorMsg = text || errorMsg;
+        }
+        setUploadError(errorMsg);
       }
     } catch (e: any) {
       setUploadError(e.message || "Netzwerkfehler beim Upload");

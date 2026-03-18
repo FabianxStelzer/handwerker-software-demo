@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import path from "path";
 import { mkdir, writeFile } from "fs/promises";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
 export async function GET(req: NextRequest) {
