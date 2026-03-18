@@ -85,12 +85,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#f1f3f0" }}>
-      <Sidebar />
+      <Sidebar
+        user={safeUser}
+        onSignOut={() => signOut({ callbackUrl: "/login" })}
+      />
       <div className="lg:pl-64">
-        <Header
-          user={safeUser}
-          onSignOut={() => signOut({ callbackUrl: "/login" })}
-        />
+        <Header />
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
       <VoiceAssistantSafe />

@@ -3,28 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  Package,
-  FileText,
-  UserCog,
-  Clock,
-  Bot,
-  Menu,
-  X,
-  Hammer,
-  Wrench,
-  Settings,
-  Calculator,
-  ChevronDown,
-  ChevronRight,
-  FileStack,
-  Building2,
-  PackageSearch,
-  Banknote,
-  CalendarDays,
-  ClipboardList,
+  LayoutDashboard, Users, FolderKanban, Package, FileText,
+  UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings,
+  Calculator, ChevronDown, ChevronRight, FileStack, Building2,
+  PackageSearch, Banknote, CalendarDays, ClipboardList,
+  Bell, LogOut, User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -62,17 +45,24 @@ const navigation: NavItem[] = [
   { name: "Einstellungen", href: "/einstellungen", icon: Settings },
 ];
 
+const roleLabels: Record<string, string> = {
+  ADMIN: "Administrator",
+  BAULEITER: "Bauleiter",
+  MITARBEITER: "Mitarbeiter",
+};
+
 function isGroupOpen(pathname: string, item: NavItem): boolean {
-  if (item.expandKey === "buchhaltung") {
-    return pathname.startsWith("/buchhaltung");
-  }
-  if (item.expandKey === "mitarbeiter") {
-    return pathname.startsWith("/mitarbeiter");
-  }
+  if (item.expandKey === "buchhaltung") return pathname.startsWith("/buchhaltung");
+  if (item.expandKey === "mitarbeiter") return pathname.startsWith("/mitarbeiter");
   return false;
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  user?: { name: string; email: string; role: string } | null;
+  onSignOut?: () => void;
+}
+
+export function Sidebar({ user, onSignOut }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -80,6 +70,41 @@ export function Sidebar() {
     if (href === "/") return pathname === "/";
     return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
   };
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "?";
+
+  const userSection = user && (
+    <div className="border-t border-white/10 px-3 py-3">
+      <div className="flex items-center gap-3 px-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: "#9eb552" }}>
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white truncate">{user.name}</p>
+          <p className="text-xs text-gray-400 truncate">{roleLabels[user.role] || user.role}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/benachrichtigungen"
+            onClick={() => setMobileOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Benachrichtigungen"
+          >
+            <Bell className="h-4 w-4" />
+          </Link>
+          <button
+            onClick={onSignOut}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/10 transition-colors"
+            title="Abmelden"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const navContent = (
     <>
@@ -103,9 +128,7 @@ export function Sidebar() {
                   onClick={() => setMobileOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive(item.href)
-                      ? "text-white"
-                      : "text-gray-300 hover:text-white"
+                    isActive(item.href) ? "text-white" : "text-gray-300 hover:text-white"
                   )}
                   style={isActive(item.href) ? { backgroundColor: "#9eb552" } : undefined}
                   onMouseEnter={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
@@ -113,11 +136,7 @@ export function Sidebar() {
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {item.name}
-                  {open ? (
-                    <ChevronDown className="h-4 w-4 ml-auto" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 ml-auto" />
-                  )}
+                  {open ? <ChevronDown className="h-4 w-4 ml-auto" /> : <ChevronRight className="h-4 w-4 ml-auto" />}
                 </Link>
                 {open && (
                   <div className="ml-4 pl-2 border-l border-white/15 space-y-0.5">
@@ -128,9 +147,7 @@ export function Sidebar() {
                         onClick={() => setMobileOpen(false)}
                         className={cn(
                           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                          isActive(child.href)
-                            ? "text-white"
-                            : "text-gray-400 hover:text-white"
+                          isActive(child.href) ? "text-white" : "text-gray-400 hover:text-white"
                         )}
                         style={isActive(child.href) ? { backgroundColor: "rgba(158,181,82,0.7)" } : undefined}
                         onMouseEnter={(e) => { if (!isActive(child.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
@@ -152,9 +169,7 @@ export function Sidebar() {
               onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive(item.href)
-                  ? "text-white"
-                  : "text-gray-300 hover:text-white"
+                isActive(item.href) ? "text-white" : "text-gray-300 hover:text-white"
               )}
               style={isActive(item.href) ? { backgroundColor: "#9eb552" } : undefined}
               onMouseEnter={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
@@ -166,6 +181,7 @@ export function Sidebar() {
           );
         })}
       </nav>
+      {userSection}
     </>
   );
 
