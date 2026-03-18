@@ -26,6 +26,12 @@ export default function KatalogPage() {
   const [matDialogOpen, setMatDialogOpen] = useState(false);
   const [svcDialogOpen, setSvcDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -75,19 +81,6 @@ export default function KatalogPage() {
     await fetch(`/api/katalog/leistungen/${id}`, { method: "DELETE" });
     setServices(services.filter((s) => s.id !== id));
   }
-
-  if (loading) {
-    return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div>;
-  }
-
-  const categories = [...new Set(materials.map((m) => m.category).filter(Boolean))];
-
-  const [importResult, setImportResult] = useState<any>(null);
-  const [importing, setImporting] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [apiKeyLoading, setApiKeyLoading] = useState(false);
-  const [apiKeyCopied, setApiKeyCopied] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleImport(file: File) {
     setImporting(true);
@@ -140,6 +133,10 @@ export default function KatalogPage() {
     a.download = "katalog-vorlage.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div>;
   }
 
   return (
