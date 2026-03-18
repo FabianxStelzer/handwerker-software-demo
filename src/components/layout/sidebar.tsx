@@ -64,10 +64,10 @@ const navigation: NavItem[] = [
 
 function isGroupOpen(pathname: string, item: NavItem): boolean {
   if (item.expandKey === "buchhaltung") {
-    return pathname.startsWith("/buchhaltung") || pathname === "/kunden" || pathname.startsWith("/kunden/") || pathname === "/katalog";
+    return pathname.startsWith("/buchhaltung");
   }
   if (item.expandKey === "mitarbeiter") {
-    return pathname.startsWith("/mitarbeiter") || pathname === "/zeiterfassung" || pathname.startsWith("/zeiterfassung/");
+    return pathname.startsWith("/mitarbeiter");
   }
   return false;
 }
