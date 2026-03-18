@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Lock, Building2, Save, CheckCircle2,
-  Clock, FileText, Image,
+  Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/select";
+import {
+  getPlaceholdersForType, getDefaultTemplate, getSampleData,
+  replaceTemplatePlaceholders, printDocument,
+} from "@/lib/document-templates";
 
 interface UserProfile {
   id: string;
@@ -67,6 +73,20 @@ export default function EinstellungenPage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaved, setPasswordSaved] = useState(false);
 
+  // Template state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [tplType, setTplType] = useState<"RECHNUNG" | "ANGEBOT" | "REGIEBERICHT">("RECHNUNG");
+  const [editingTpl, setEditingTpl] = useState<any>(null);
+  const [tplName, setTplName] = useState("");
+  const [tplHtml, setTplHtml] = useState("");
+  const [tplSaving, setTplSaving] = useState(false);
+  const tplFileRef = useRef<HTMLInputElement>(null);
+
+  async function loadTemplates() {
+    const res = await fetch("/api/document-templates");
+    if (res.ok) setTemplates(await res.json());
+  }
+
   useEffect(() => {
     const load = async () => {
       if (!userId) { setLoading(false); return; }
@@ -85,7 +105,83 @@ export default function EinstellungenPage() {
       setLoading(false);
     };
     load();
+    loadTemplates();
   }, [userId]);
+
+  function startNewTemplate() {
+    setEditingTpl(null);
+    setTplName(`Neue ${tplType === "RECHNUNG" ? "Rechnungs" : tplType === "ANGEBOT" ? "Angebots" : "Regiebericht"}-Vorlage`);
+    setTplHtml(getDefaultTemplate(tplType));
+  }
+
+  function startEditTemplate(tpl: any) {
+    setEditingTpl(tpl);
+    setTplName(tpl.name);
+    setTplHtml(tpl.html);
+  }
+
+  async function saveTemplate() {
+    setTplSaving(true);
+    if (editingTpl) {
+      await fetch("/api/document-templates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingTpl.id, name: tplName, html: tplHtml }),
+      });
+    } else {
+      await fetch("/api/document-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: tplType, name: tplName, html: tplHtml, isDefault: templates.filter((t) => t.type === tplType).length === 0 }),
+      });
+    }
+    setTplSaving(false);
+    setEditingTpl(null);
+    setTplName("");
+    setTplHtml("");
+    loadTemplates();
+  }
+
+  async function deleteTemplate(id: string) {
+    if (!confirm("Vorlage wirklich löschen?")) return;
+    await fetch("/api/document-templates", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    loadTemplates();
+  }
+
+  async function setDefaultTemplate(id: string) {
+    await fetch("/api/document-templates", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, setDefault: true }),
+    });
+    loadTemplates();
+  }
+
+  function handleTplFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      setTplHtml(content);
+      if (!tplName || tplName.startsWith("Neue ")) setTplName(file.name.replace(/\.html?$/i, ""));
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function previewTemplate() {
+    const data = getSampleData(tplType);
+    const rendered = replaceTemplatePlaceholders(tplHtml, data);
+    printDocument(rendered);
+  }
+
+  const filteredTemplates = templates.filter((t) => t.type === tplType);
+  const placeholders = getPlaceholdersForType(tplType);
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -236,6 +332,9 @@ export default function EinstellungenPage() {
           </TabsTrigger>
           <TabsTrigger value="regieberichte">
             <FileText className="mr-2 h-4 w-4" />Regieberichte
+          </TabsTrigger>
+          <TabsTrigger value="vorlagen">
+            <FileCode className="mr-2 h-4 w-4" />Dokumentvorlagen
           </TabsTrigger>
         </TabsList>
 
@@ -511,6 +610,125 @@ export default function EinstellungenPage() {
               </form>
             ) : <div className="flex h-32 items-center justify-center text-gray-400">Lade…</div>}
           </Card>
+        </TabsContent>
+
+        {/* ── Dokumentvorlagen ──────────────────────────── */}
+        <TabsContent value="vorlagen">
+          <div className="space-y-4">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Dokumentvorlagen</h3>
+                  <p className="text-sm text-gray-500">HTML-Vorlagen für Rechnungen, Angebote und Regieberichte verwalten.</p>
+                </div>
+                <NativeSelect value={tplType} onChange={(e) => { setTplType(e.target.value as any); setTplHtml(""); setTplName(""); setEditingTpl(null); }} className="w-48">
+                  <option value="RECHNUNG">Rechnung</option>
+                  <option value="ANGEBOT">Angebot</option>
+                  <option value="REGIEBERICHT">Regiebericht</option>
+                </NativeSelect>
+              </div>
+
+              {/* Existing templates list */}
+              {filteredTemplates.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {filteredTemplates.map((tpl) => (
+                    <div key={tpl.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        {tpl.isDefault && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                        <span className="text-sm font-medium">{tpl.name}</span>
+                        {tpl.isDefault && <span className="text-xs text-gray-400">(Standard)</span>}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!tpl.isDefault && (
+                          <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setDefaultTemplate(tpl.id)}>
+                            <Star className="h-3 w-3" />Als Standard
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => startEditTemplate(tpl)}>
+                          <FileCode className="h-3 w-3" />Bearbeiten
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs gap-1 text-red-500" onClick={() => deleteTemplate(tpl.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!tplHtml ? (
+                <div className="flex gap-3">
+                  <Button size="sm" className="gap-1.5" onClick={startNewTemplate}>
+                    <Plus className="h-4 w-4" />Neue Vorlage erstellen
+                  </Button>
+                  <input ref={tplFileRef} type="file" accept=".html,.htm" className="hidden" onChange={handleTplFileUpload} />
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { startNewTemplate(); setTimeout(() => tplFileRef.current?.click(), 100); }}>
+                    <Upload className="h-4 w-4" />HTML-Datei hochladen
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs font-medium text-gray-600">Vorlagenname</label>
+                      <Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Meine Vorlage" />
+                    </div>
+                    <div className="flex items-center gap-2 pt-4">
+                      <input ref={tplFileRef} type="file" accept=".html,.htm" className="hidden" onChange={handleTplFileUpload} />
+                      <Button variant="outline" size="sm" className="gap-1" onClick={() => tplFileRef.current?.click()}>
+                        <Upload className="h-3.5 w-3.5" />Datei laden
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1" onClick={previewTemplate}>
+                        <Eye className="h-3.5 w-3.5" />Vorschau
+                      </Button>
+                      <Button size="sm" className="gap-1" onClick={saveTemplate} disabled={tplSaving || !tplName}>
+                        <Save className="h-3.5 w-3.5" />{tplSaving ? "Speichern..." : "Speichern"}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setTplHtml(""); setTplName(""); setEditingTpl(null); }}>
+                        Abbrechen
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                    {/* Editor */}
+                    <div className="lg:col-span-3">
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">HTML-Code</label>
+                      <Textarea
+                        value={tplHtml}
+                        onChange={(e) => setTplHtml(e.target.value)}
+                        className="font-mono text-xs min-h-[500px] leading-relaxed"
+                        spellCheck={false}
+                      />
+                    </div>
+
+                    {/* Placeholder reference */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">Verfügbare Platzhalter</label>
+                      <div className="border rounded-lg p-3 bg-gray-50 space-y-1 max-h-[500px] overflow-y-auto">
+                        <p className="text-xs text-gray-400 mb-2">Klicke zum Kopieren. Füge diese in dein HTML ein:</p>
+                        {placeholders.map((p) => (
+                          <button
+                            key={p.key}
+                            type="button"
+                            className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white transition-colors flex items-center justify-between group"
+                            onClick={() => { navigator.clipboard.writeText(`{{${p.key}}}`); }}
+                            title={`{{${p.key}}} kopieren`}
+                          >
+                            <span>
+                              <code className="text-blue-600 font-mono">{`{{${p.key}}}`}</code>
+                              <span className="text-gray-500 ml-1.5">{p.label}</span>
+                            </span>
+                            <Copy className="h-3 w-3 text-gray-300 group-hover:text-gray-500" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

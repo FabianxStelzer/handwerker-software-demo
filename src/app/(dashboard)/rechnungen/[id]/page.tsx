@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,60 @@ export default function RechnungDetailPage({ params }: { params: Promise<{ id: s
     load();
   }
 
+  async function printInvoice() {
+    const { replaceTemplatePlaceholders, getDefaultTemplate, printDocument, unitLabel } = await import("@/lib/document-templates");
+
+    let templateHtml: string | null = null;
+    try {
+      const res = await fetch("/api/document-templates?type=RECHNUNG");
+      if (res.ok) {
+        const tpls = await res.json();
+        const def = tpls.find((t: any) => t.isDefault);
+        if (def) templateHtml = def.html;
+        else if (tpls.length > 0) templateHtml = tpls[0].html;
+      }
+    } catch {}
+    if (!templateHtml) templateHtml = getDefaultTemplate("RECHNUNG");
+
+    let cs: any = {};
+    try { const r = await fetch("/api/settings/company"); if (r.ok) cs = await r.json(); } catch {}
+
+    const cust = invoice.order.customer;
+    const data = {
+      firma: {
+        name: cs.name || "", strasse: cs.street || "", plz: cs.zip || "", ort: cs.city || "",
+        telefon: cs.phone || "", fax: cs.fax || "", email: cs.email || "",
+        website: cs.website || "", steuernr: cs.taxId || "", ustid: cs.vatId || "",
+        logo: cs.logoUrl || "",
+      },
+      kunde: {
+        firma: cust.type === "GESCHAEFT" ? cust.company || "" : "",
+        name: `${cust.firstName} ${cust.lastName}`,
+        strasse: cust.street || "",
+        plz: cust.zip || "",
+        ort: cust.city || "",
+      },
+      datum: formatDate(invoice.createdAt),
+      nummer: invoice.invoiceNumber,
+      faellig: invoice.dueDate ? formatDate(invoice.dueDate) : "",
+      positionen: invoice.items.map((item: any, i: number) => ({
+        pos: i + 1,
+        beschreibung: item.description,
+        menge: item.quantity,
+        einheit: unitLabel(item.unit),
+        ep: item.pricePerUnit,
+        gp: item.quantity * item.pricePerUnit,
+      })),
+      netto: formatCurrency(invoice.netTotal),
+      mwst: formatCurrency(invoice.taxAmount),
+      mwst_satz: String(invoice.taxRate),
+      brutto: formatCurrency(invoice.grossTotal),
+    };
+
+    const rendered = replaceTemplatePlaceholders(templateHtml, data);
+    printDocument(rendered);
+  }
+
   if (!invoice) {
     return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div>;
   }
@@ -64,6 +118,9 @@ export default function RechnungDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={printInvoice} className="gap-1.5">
+            <Printer className="h-4 w-4" />PDF erstellen
+          </Button>
           {invoice.status === "ENTWURF" && (
             <Button onClick={() => updateStatus("VERSENDET")}>Als versendet markieren</Button>
           )}

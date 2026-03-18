@@ -711,6 +711,26 @@ model RegieMaterial {
   @@map("regie_materialien")
 }
 
+// ─── Dokumentvorlagen ────────────────────────────────────────────
+
+enum DocumentTemplateType {
+  RECHNUNG
+  ANGEBOT
+  REGIEBERICHT
+}
+
+model DocumentTemplate {
+  id        String               @id @default(cuid())
+  type      DocumentTemplateType
+  name      String
+  html      String
+  isDefault Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("document_templates")
+}
+
 // ─── Fahrzeuge ──────────────────────────────────────────────────
 
 model Vehicle {

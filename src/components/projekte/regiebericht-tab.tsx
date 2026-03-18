@@ -237,87 +237,50 @@ export function RegieberichtTab({ project, onUpdate }: Props) {
     setSaving(false);
   }
 
-  // ─── PDF generation (browser-side) ────────────────────────────
-  function generatePDF(bericht: Regiebericht) {
-    const customerName = project.customer.company
-      || `${project.customer.firstName} ${project.customer.lastName}`;
-    const customerAddress = [project.customer.street, `${project.customer.zip || ""} ${project.customer.city || ""}`]
-      .filter(Boolean).join(", ");
+  // ─── PDF generation (browser-side, template-based) ────────────
+  async function generatePDF(bericht: Regiebericht) {
+    const { replaceTemplatePlaceholders, getDefaultTemplate, printDocument } = await import("@/lib/document-templates");
+
+    let templateHtml: string | null = null;
+    try {
+      const res = await fetch("/api/document-templates?type=REGIEBERICHT");
+      if (res.ok) {
+        const tpls = await res.json();
+        const def = tpls.find((t: any) => t.isDefault);
+        if (def) templateHtml = def.html;
+        else if (tpls.length > 0) templateHtml = tpls[0].html;
+      }
+    } catch {}
+    if (!templateHtml) templateHtml = getDefaultTemplate("REGIEBERICHT");
+
     const cs = companySettings || {};
-    const companyName = cs.name || "Firma";
-    const companyAddress = [cs.street, `${cs.zip || ""} ${cs.city || ""}`].filter(Boolean).join(" · ");
-    const companyContact = [cs.phone && `T: ${cs.phone}`, cs.fax && `Fax: ${cs.fax}`, cs.email && `${cs.email}`, cs.website, cs.instagram && `Instagram: ${cs.instagram}`]
-      .filter(Boolean).join(" · ");
-
     const dateStr = new Date(bericht.datum).toLocaleDateString("de-DE");
-    const logoImg = cs.logoUrl ? `<img src="${cs.logoUrl}" style="max-height:70px;max-width:200px;" />` : "";
+    const customerName = project.customer.company || `${project.customer.firstName} ${project.customer.lastName}`;
 
-    const mitarbeiterRows = bericht.mitarbeiter.map((m) =>
-      `<tr><td style="padding:4px 8px;border-bottom:1px solid #ccc;">${dateStr}</td><td style="padding:4px 8px;border-bottom:1px solid #ccc;">${m.name}</td><td style="padding:4px 8px;border-bottom:1px solid #ccc;text-align:right;">${formatHours(m.stunden)}</td></tr>`
-    ).join("");
+    const data = {
+      firma: {
+        name: cs.name || "", strasse: cs.street || "", plz: cs.zip || "", ort: cs.city || "",
+        telefon: cs.phone || "", fax: cs.fax || "", email: cs.email || "",
+        website: cs.website || "", steuernr: cs.taxId || "", ustid: cs.vatId || "",
+        instagram: cs.instagram || "", logo: cs.logoUrl || "",
+      },
+      kunde: {
+        firma: project.customer.company || "",
+        name: `${project.customer.firstName || ""} ${project.customer.lastName || ""}`.trim(),
+        strasse: project.customer.street || "",
+        plz: project.customer.zip || "",
+        ort: project.customer.city || "",
+      },
+      datum: dateStr,
+      nummer: String(bericht.berichtNummer),
+      mitarbeiter: bericht.mitarbeiter.map((m) => ({ datum: dateStr, name: m.name, stunden: formatHours(m.stunden) })),
+      materialien: bericht.materialien.map((m) => ({ name: m.name, menge: String(m.menge), einheit: m.einheit })),
+      arbeiten: bericht.durchgefuehrteArbeiten || "–",
+      unterschrift: bericht.unterschriftUrl ? `<img src="${bericht.unterschriftUrl}" style="max-height:60px;" />` : undefined,
+    };
 
-    const materialRows = bericht.materialien.map((m) =>
-      `<tr><td style="padding:4px 8px;border-bottom:1px solid #ccc;">${m.name}</td><td style="padding:4px 8px;border-bottom:1px solid #ccc;text-align:center;">${m.menge} ${m.einheit}</td></tr>`
-    ).join("");
-
-    const signatureHtml = bericht.unterschriftUrl
-      ? `<img src="${bericht.unterschriftUrl}" style="max-height:60px;" />`
-      : "<div style='height:40px;border-bottom:1px solid #333;width:200px;'></div>";
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-      @page { size: A4; margin: 20mm; }
-      body { font-family: Arial, sans-serif; font-size: 11px; color: #333; margin: 0; padding: 20mm; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #333; }
-      .header-right { text-align: right; font-size: 10px; color: #666; }
-      h1 { font-size: 18px; margin: 0 0 20px 0; }
-      .section { margin-bottom: 16px; }
-      .section-title { font-weight: bold; background: #e5e7eb; padding: 6px 10px; margin-bottom: 4px; font-size: 11px; }
-      table { width: 100%; border-collapse: collapse; }
-      th { text-align: left; padding: 4px 8px; border-bottom: 2px solid #666; font-size: 10px; color: #666; }
-      .arbeiten-box { min-height: 120px; padding: 8px; border: 1px solid #ccc; white-space: pre-wrap; line-height: 1.6; }
-      .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
-      .sig-block { width: 45%; }
-      .sig-label { font-size: 10px; color: #666; margin-bottom: 4px; }
-      .sig-line { border-bottom: 1px solid #333; height: 30px; margin-bottom: 4px; }
-      .footer { position: fixed; bottom: 10mm; left: 20mm; right: 20mm; text-align: center; font-size: 8px; color: #888; border-top: 1px solid #ccc; padding-top: 6px; }
-    </style></head><body>
-      <div class="header">
-        <div>${logoImg}<div style="font-weight:bold;font-size:14px;margin-top:4px;">${companyName}</div></div>
-        <div class="header-right">${companyAddress}<br/>${companyContact}</div>
-      </div>
-      <h1>Regiebericht Nr. ${bericht.berichtNummer}</h1>
-      <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
-        <div><strong>Datum:</strong> ${dateStr}</div>
-      </div>
-      <div class="section">
-        <div class="section-title">Kunde</div>
-        <div style="padding:6px 10px;">${customerName}<br/>${customerAddress}</div>
-      </div>
-      <div class="section">
-        <div class="section-title">Mitarbeiter / Stunden</div>
-        <table><thead><tr><th>Datum</th><th>Mitarbeiter</th><th style="text-align:right;">Stunden</th></tr></thead><tbody>${mitarbeiterRows}</tbody></table>
-      </div>
-      <div class="section">
-        <div class="section-title">Durchgeführte Arbeiten</div>
-        <div class="arbeiten-box">${bericht.durchgefuehrteArbeiten || "–"}</div>
-      </div>
-      ${bericht.materialien.length > 0 ? `<div class="section">
-        <div class="section-title">Material</div>
-        <table><thead><tr><th>Bezeichnung</th><th style="text-align:center;">Menge</th></tr></thead><tbody>${materialRows}</tbody></table>
-      </div>` : ""}
-      <div class="signatures">
-        <div class="sig-block"><div class="sig-label">Auftragnehmer</div><div class="sig-label">Ort, Datum</div><div class="sig-line"></div><div class="sig-label">Unterschrift</div></div>
-        <div class="sig-block"><div class="sig-label">Auftraggeber / Richtigkeit anerkannt</div><div class="sig-label">Ort, Datum</div><div class="sig-line"></div><div class="sig-label">Unterschrift</div>${signatureHtml}</div>
-      </div>
-      <div class="footer">${companyName} · ${companyAddress} · ${companyContact}</div>
-    </body></html>`;
-
-    const w = window.open("", "_blank");
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => w.print(), 500);
-    }
+    const rendered = replaceTemplatePlaceholders(templateHtml, data);
+    printDocument(rendered);
   }
 
   // ─── RENDER ─────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, FileText } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,60 @@ export default function AngebotDetailPage({ params }: { params: Promise<{ id: st
     load();
   }
 
+  async function printQuotation() {
+    const { replaceTemplatePlaceholders, getDefaultTemplate, printDocument, unitLabel } = await import("@/lib/document-templates");
+
+    let templateHtml: string | null = null;
+    try {
+      const res = await fetch("/api/document-templates?type=ANGEBOT");
+      if (res.ok) {
+        const tpls = await res.json();
+        const def = tpls.find((t: any) => t.isDefault);
+        if (def) templateHtml = def.html;
+        else if (tpls.length > 0) templateHtml = tpls[0].html;
+      }
+    } catch {}
+    if (!templateHtml) templateHtml = getDefaultTemplate("ANGEBOT");
+
+    let cs: any = {};
+    try { const r = await fetch("/api/settings/company"); if (r.ok) cs = await r.json(); } catch {}
+
+    const cust = quotation.customer;
+    const data = {
+      firma: {
+        name: cs.name || "", strasse: cs.street || "", plz: cs.zip || "", ort: cs.city || "",
+        telefon: cs.phone || "", fax: cs.fax || "", email: cs.email || "",
+        website: cs.website || "", steuernr: cs.taxId || "", ustid: cs.vatId || "",
+        logo: cs.logoUrl || "",
+      },
+      kunde: {
+        firma: cust.type === "GESCHAEFT" ? cust.company || "" : "",
+        name: `${cust.firstName} ${cust.lastName}`,
+        strasse: cust.street || "",
+        plz: cust.zip || "",
+        ort: cust.city || "",
+      },
+      datum: formatDate(quotation.createdAt),
+      nummer: quotation.quotationNumber,
+      positionen: (quotation.items || []).map((item: any, i: number) => ({
+        pos: i + 1,
+        beschreibung: item.description,
+        menge: item.quantity,
+        einheit: unitLabel(item.unit),
+        ep: item.pricePerUnit,
+        gp: item.quantity * item.pricePerUnit,
+      })),
+      netto: formatCurrency(quotation.netTotal),
+      mwst: formatCurrency(quotation.taxAmount),
+      mwst_satz: String(quotation.taxRate),
+      brutto: formatCurrency(quotation.grossTotal),
+      notizen: quotation.notes || "",
+    };
+
+    const rendered = replaceTemplatePlaceholders(templateHtml, data);
+    printDocument(rendered);
+  }
+
   async function convertToOrder() {
     const res = await fetch(`/api/angebote/${id}/to-order`, { method: "POST" });
     if (!res.ok) {
@@ -102,6 +156,9 @@ export default function AngebotDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={printQuotation} className="gap-1.5">
+            <Printer className="h-4 w-4" />PDF erstellen
+          </Button>
           {quotation.status === "ENTWURF" && (
             <Button variant="outline" onClick={() => updateStatus("VERSENDET")}>Als versendet markieren</Button>
           )}
