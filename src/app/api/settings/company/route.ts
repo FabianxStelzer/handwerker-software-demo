@@ -64,6 +64,8 @@ export async function PUT(req: NextRequest) {
           fax: body.fax !== undefined ? body.fax : undefined,
           instagram: body.instagram !== undefined ? body.instagram : undefined,
           hourlyRate: body.hourlyRate !== undefined ? (parseFloat(body.hourlyRate) || 55) : undefined,
+          gocardlessSecretId: body.gocardlessSecretId !== undefined ? body.gocardlessSecretId : undefined,
+          gocardlessSecretKey: body.gocardlessSecretKey !== undefined ? body.gocardlessSecretKey : undefined,
         },
       });
     }

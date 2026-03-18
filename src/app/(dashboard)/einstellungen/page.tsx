@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Lock, Building2, Save, CheckCircle2,
-  Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus,
+  Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus, Landmark,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
@@ -47,6 +47,8 @@ interface CompanySettings {
   fax: string | null;
   instagram: string | null;
   hourlyRate: number;
+  gocardlessSecretId: string | null;
+  gocardlessSecretKey: string | null;
 }
 
 const EMPTY_COMPANY: CompanySettings = {
@@ -54,6 +56,7 @@ const EMPTY_COMPANY: CompanySettings = {
   phone: null, email: null, taxId: null, vatId: null,
   lunchBreakMinutes: 30, workHoursPerDay: 8,
   logoUrl: null, website: null, fax: null, instagram: null, hourlyRate: 55,
+  gocardlessSecretId: null, gocardlessSecretKey: null,
 };
 
 export default function EinstellungenPage() {
@@ -144,6 +147,8 @@ export default function EinstellungenPage() {
         lunchBreakMinutes: data.lunchBreakMinutes, workHoursPerDay: data.workHoursPerDay,
         logoUrl: data.logoUrl, website: data.website, fax: data.fax,
         instagram: data.instagram, hourlyRate: data.hourlyRate,
+        gocardlessSecretId: data.gocardlessSecretId,
+        gocardlessSecretKey: data.gocardlessSecretKey,
       }),
       cache: "no-store", credentials: "same-origin",
     });
@@ -289,6 +294,8 @@ export default function EinstellungenPage() {
           lunchBreakMinutes: company.lunchBreakMinutes, workHoursPerDay: company.workHoursPerDay,
           logoUrl: company.logoUrl, website: company.website, fax: company.fax,
           instagram: company.instagram, hourlyRate: company.hourlyRate,
+          gocardlessSecretId: company.gocardlessSecretId,
+          gocardlessSecretKey: company.gocardlessSecretKey,
         }),
         cache: "no-store", credentials: "same-origin",
       });
@@ -376,6 +383,9 @@ export default function EinstellungenPage() {
           </TabsTrigger>
           <TabsTrigger value="vorlagen">
             <FileCode className="mr-2 h-4 w-4" />Dokumentvorlagen
+          </TabsTrigger>
+          <TabsTrigger value="banking">
+            <Landmark className="mr-2 h-4 w-4" />Banking
           </TabsTrigger>
         </TabsList>
 
@@ -790,6 +800,59 @@ export default function EinstellungenPage() {
               )}
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ── Banking ──────────────────────────────── */}
+        <TabsContent value="banking">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Banking-Integration</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Verbinde dein Bankkonto über GoCardless (Open Banking), um Kontostände und Umsätze automatisch abzurufen.
+            </p>
+            {company ? (
+              <form onSubmit={saveCompany} className="max-w-2xl space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                  <p className="font-medium mb-1">GoCardless Bank Account Data API</p>
+                  <p className="text-xs">
+                    Erstelle ein kostenloses Konto auf{" "}
+                    <a href="https://bankaccountdata.gocardless.com/" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                      bankaccountdata.gocardless.com
+                    </a>
+                    {" "}und kopiere die Zugangsdaten (Secret ID und Secret Key) aus dem Bereich "User Secrets" hierher.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Secret ID</label>
+                  <Input
+                    value={company.gocardlessSecretId || ""}
+                    onChange={(e) => setCompany({ ...company, gocardlessSecretId: e.target.value || null })}
+                    className="mt-1 font-mono text-xs"
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Secret Key</label>
+                  <Input
+                    type="password"
+                    value={company.gocardlessSecretKey || ""}
+                    onChange={(e) => setCompany({ ...company, gocardlessSecretKey: e.target.value || null })}
+                    className="mt-1 font-mono text-xs"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {companySaveError && <p className="text-sm text-red-600">{companySaveError}</p>}
+                <SaveButton isSaving={companySaving} isSaved={companySaved} />
+
+                <div className="border-t pt-4">
+                  <p className="text-sm text-gray-500">
+                    Nach dem Speichern der Zugangsdaten kannst du unter <strong>Buchhaltung</strong> dein Bankkonto verbinden.
+                  </p>
+                </div>
+              </form>
+            ) : <div className="flex h-32 items-center justify-center text-gray-400">Lade…</div>}
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

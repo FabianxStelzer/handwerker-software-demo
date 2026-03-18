@@ -147,6 +147,8 @@ model CompanySettings {
   fax                String?
   instagram          String?
   hourlyRate         Float    @default(55)
+  gocardlessSecretId  String?
+  gocardlessSecretKey String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -709,6 +711,60 @@ model RegieMaterial {
   createdAt       DateTime     @default(now())
 
   @@map("regie_materialien")
+}
+
+// ─── Banking ────────────────────────────────────────────────────
+
+model BankConnection {
+  id              String   @id @default(cuid())
+  institutionId   String
+  institutionName String
+  institutionLogo String?
+  requisitionId   String   @unique
+  status          String   @default("CR")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  accounts BankAccount[]
+
+  @@map("bank_connections")
+}
+
+model BankAccount {
+  id               String    @id @default(cuid())
+  connectionId     String
+  connection       BankConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  externalId       String    @unique
+  iban             String?
+  name             String
+  balanceAmount    Float     @default(0)
+  balanceCurrency  String    @default("EUR")
+  balanceUpdatedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  transactions BankTransaction[]
+
+  @@map("bank_accounts")
+}
+
+model BankTransaction {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  externalId   String?
+  amount       Float
+  currency     String    @default("EUR")
+  bookingDate  DateTime
+  valueDate    DateTime?
+  debtorName   String?
+  creditorName String?
+  description  String?
+  invoiceId    String?
+  expenseId    String?
+  createdAt    DateTime  @default(now())
+
+  @@map("bank_transactions")
 }
 
 // ─── Dokumentvorlagen ────────────────────────────────────────────
