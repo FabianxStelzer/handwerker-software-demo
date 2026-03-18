@@ -73,6 +73,10 @@ export default function EinstellungenPage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaved, setPasswordSaved] = useState(false);
 
+  // Logo upload state
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+
   // Template state
   const [templates, setTemplates] = useState<any[]>([]);
   const [tplType, setTplType] = useState<"RECHNUNG" | "ANGEBOT" | "REGIEBERICHT">("RECHNUNG");
@@ -107,6 +111,43 @@ export default function EinstellungenPage() {
     load();
     loadTemplates();
   }, [userId]);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/settings/logo", { method: "POST", body: fd });
+      if (res.ok) {
+        const data = await res.json();
+        setCompany((prev) => prev ? { ...prev, logoUrl: data.logoUrl } : prev);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Upload fehlgeschlagen");
+      }
+    } catch {
+      alert("Upload fehlgeschlagen");
+    }
+    setLogoUploading(false);
+    e.target.value = "";
+  }
+
+  async function saveCompanyDirect(data: CompanySettings) {
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name, street: data.street, zip: data.zip, city: data.city,
+        phone: data.phone, email: data.email, taxId: data.taxId, vatId: data.vatId,
+        lunchBreakMinutes: data.lunchBreakMinutes, workHoursPerDay: data.workHoursPerDay,
+        logoUrl: data.logoUrl, website: data.website, fax: data.fax,
+        instagram: data.instagram, hourlyRate: data.hourlyRate,
+      }),
+      cache: "no-store", credentials: "same-origin",
+    });
+  }
 
   function startNewTemplate() {
     setEditingTpl(null);
@@ -485,25 +526,48 @@ export default function EinstellungenPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Logo & Branding</h3>
             <p className="text-sm text-gray-500 mb-4">Firmenlogo für Regieberichte, Rechnungen und Angebote.</p>
             {company ? (
-              <form onSubmit={saveCompany} className="max-w-2xl space-y-5">
+              <div className="max-w-2xl space-y-5">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Firmenlogo</label>
-                  {company.logoUrl && (
-                    <div className="flex items-center gap-3 mb-3">
+                  {company.logoUrl ? (
+                    <div className="flex items-center gap-4 mb-3">
                       <img src={company.logoUrl} alt="Logo" className="h-20 max-w-[250px] object-contain border rounded-lg p-2 bg-white" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => setCompany({ ...company, logoUrl: null })}>Entfernen</Button>
+                      <div className="space-y-2">
+                        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => logoFileRef.current?.click()}>
+                          <Upload className="h-3.5 w-3.5" />Logo ändern
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="text-red-500 gap-1.5" onClick={async () => { setCompany({ ...company, logoUrl: null }); await saveCompanyDirect({ ...company, logoUrl: null }); }}>
+                          <Trash2 className="h-3.5 w-3.5" />Entfernen
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                      onClick={() => logoFileRef.current?.click()}
+                    >
+                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-gray-600">Logo hochladen</p>
+                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG oder WebP · Empfohlen: 300x100px</p>
                     </div>
                   )}
-                  <Input
-                    value={company.logoUrl || ""}
-                    onChange={(e) => setCompany({ ...company, logoUrl: e.target.value })}
-                    placeholder="URL zum Logo (z.B. https://...)"
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleLogoUpload}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Wird im Header von Regieberichten und Rechnungen angezeigt.</p>
+                  {logoUploading && (
+                    <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                      Logo wird hochgeladen...
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Vorschau</h4>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Vorschau auf Dokumenten</h4>
                   <div className="border rounded-lg p-4 bg-gray-50 max-w-md">
                     <div className="flex items-start justify-between border-b pb-3 mb-3">
                       <div>
@@ -526,10 +590,7 @@ export default function EinstellungenPage() {
                     </div>
                   </div>
                 </div>
-
-                {companySaveError && <p className="text-sm text-red-600">{companySaveError}</p>}
-                <SaveButton isSaving={companySaving} isSaved={companySaved} />
-              </form>
+              </div>
             ) : <div className="flex h-32 items-center justify-center text-gray-400">Lade Firmendaten…</div>}
           </Card>
         </TabsContent>
