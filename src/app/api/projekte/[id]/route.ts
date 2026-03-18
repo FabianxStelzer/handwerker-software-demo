@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       documents: { orderBy: { createdAt: "desc" } },
       tasks: { orderBy: { createdAt: "desc" } },
       chatMessages: { orderBy: { createdAt: "asc" }, include: { user: { select: { id: true, firstName: true, lastName: true } } } },
-      materials: { orderBy: { createdAt: "desc" }, include: { catalogMaterial: true } },
+      materials: { orderBy: { createdAt: "desc" }, include: { catalogMaterial: true, requestedBy: { select: { firstName: true, lastName: true } } } },
       blueprints: { orderBy: { createdAt: "desc" } },
     },
   });

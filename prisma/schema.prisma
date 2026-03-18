@@ -113,6 +113,7 @@ model User {
   erstellteAufgaben    SchlosserAufgabe[]  @relation("AufgabeErstellt")
   aufgabenKommentare   SchlosserAufgabeKommentar[]
   notizen              UserNote[]
+  angefordertesMaterial ProjectMaterial[] @relation("MaterialAngefordert")
 
   @@map("users")
 }
@@ -281,11 +282,19 @@ model ProjectMaterial {
   catalogMaterialId String?
   catalogMaterial CatalogMaterial? @relation(fields: [catalogMaterialId], references: [id])
   name            String
+  description     String?
+  imageUrl        String?
   unit            MaterialUnit    @default(STUECK)
   quantityPlanned Float           @default(0)
   quantityUsed    Float           @default(0)
   pricePerUnit    Float           @default(0)
   notes           String?
+  isAdditional    Boolean         @default(false)
+  isInstalled     Boolean         @default(false)
+  requestedById   String?
+  requestedBy     User?           @relation("MaterialAngefordert", fields: [requestedById], references: [id])
+  requestedAt     DateTime?
+  installedAt     DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -310,6 +319,7 @@ model CatalogMaterial {
   id              String       @id @default(cuid())
   name            String
   description     String?
+  imageUrl        String?
   unit            MaterialUnit @default(STUECK)
   pricePerUnit    Float        @default(0)
   weight          Float?
