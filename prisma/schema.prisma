@@ -112,6 +112,7 @@ model User {
   zugewieseneAufgaben  SchlosserAufgabe[]  @relation("AufgabeZugewiesen")
   erstellteAufgaben    SchlosserAufgabe[]  @relation("AufgabeErstellt")
   aufgabenKommentare   SchlosserAufgabeKommentar[]
+  notizen              UserNote[]
 
   @@map("users")
 }
@@ -620,6 +621,20 @@ model EmployeeDocument {
   createdAt DateTime @default(now())
 
   @@map("employee_documents")
+}
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String   @default("")
+  color     String   @default("#FEF3C7")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_notes")
 }
 
 // ─── Notifications ───────────────────────────────────────────────

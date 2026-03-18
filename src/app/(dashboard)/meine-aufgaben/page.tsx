@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import {
   ClipboardList,
@@ -15,6 +17,13 @@ import {
   Wrench,
   CalendarDays,
   ArrowUpRight,
+  StickyNote,
+  Plus,
+  Pin,
+  PinOff,
+  Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 
 interface ProjectTask {
@@ -46,6 +55,28 @@ interface AssignedProject {
   endDate: string | null;
   customer: { company: string | null; firstName: string; lastName: string };
   _count: { tasks: number };
+}
+
+interface UserNote {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  pinned: boolean;
+  updatedAt: string;
+}
+
+const NOTE_COLORS = [
+  { value: "#FEF3C7", label: "Gelb", bg: "bg-amber-50", border: "border-amber-200" },
+  { value: "#DBEAFE", label: "Blau", bg: "bg-blue-50", border: "border-blue-200" },
+  { value: "#D1FAE5", label: "Grün", bg: "bg-green-50", border: "border-green-200" },
+  { value: "#FCE7F3", label: "Rosa", bg: "bg-pink-50", border: "border-pink-200" },
+  { value: "#EDE9FE", label: "Lila", bg: "bg-purple-50", border: "border-purple-200" },
+  { value: "#F3F4F6", label: "Grau", bg: "bg-gray-50", border: "border-gray-200" },
+];
+
+function getNoteStyle(color: string) {
+  return NOTE_COLORS.find((c) => c.value === color) || NOTE_COLORS[0];
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -91,21 +122,78 @@ export default function MeineAufgabenPage() {
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [schlosserAufgaben, setSchlosserAufgaben] = useState<SchlosserAufgabe[]>([]);
   const [assignedProjects, setAssignedProjects] = useState<AssignedProject[]>([]);
+  const [notes, setNotes] = useState<UserNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"alle" | "projekte" | "aufgaben" | "schlosser">("alle");
+  const [activeTab, setActiveTab] = useState<"alle" | "projekte" | "aufgaben" | "schlosser" | "notizen">("alle");
+  const [editingNote, setEditingNote] = useState<UserNote | null>(null);
+  const [noteForm, setNoteForm] = useState({ title: "", content: "", color: "#FEF3C7" });
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const saveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
   const loadData = useCallback(async () => {
-    const res = await fetch("/api/meine-aufgaben");
-    if (res.ok) {
-      const data = await res.json();
+    const [tasksRes, notesRes] = await Promise.all([
+      fetch("/api/meine-aufgaben"),
+      fetch("/api/meine-notizen"),
+    ]);
+    if (tasksRes.ok) {
+      const data = await tasksRes.json();
       setProjectTasks(data.projectTasks || []);
       setSchlosserAufgaben(data.schlosserAufgaben || []);
       setAssignedProjects(data.assignedProjects || []);
+    }
+    if (notesRes.ok) {
+      setNotes(await notesRes.json());
     }
     setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  async function createNote() {
+    if (!noteForm.title.trim()) return;
+    const res = await fetch("/api/meine-notizen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(noteForm),
+    });
+    if (res.ok) {
+      setNoteForm({ title: "", content: "", color: "#FEF3C7" });
+      setShowNoteForm(false);
+      loadData();
+    }
+  }
+
+  async function updateNote(note: UserNote, updates: Partial<UserNote>) {
+    await fetch("/api/meine-notizen", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: note.id, ...updates }),
+    });
+    loadData();
+  }
+
+  function autoSaveNote(note: UserNote, field: "title" | "content", value: string) {
+    setEditingNote({ ...note, [field]: value });
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      fetch("/api/meine-notizen", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: note.id, [field]: value }),
+      }).then(() => loadData());
+    }, 800);
+  }
+
+  async function deleteNote(id: string) {
+    if (!confirm("Notiz wirklich löschen?")) return;
+    await fetch("/api/meine-notizen", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (editingNote?.id === id) setEditingNote(null);
+    loadData();
+  }
 
   if (loading) {
     return (
@@ -128,6 +216,7 @@ export default function MeineAufgabenPage() {
     { key: "projekte" as const, label: `Projekte (${assignedProjects.length})` },
     { key: "aufgaben" as const, label: `Projekt-Aufgaben (${projectTasks.length})` },
     ...(schlosserAufgaben.length > 0 ? [{ key: "schlosser" as const, label: `Schlosser (${schlosserAufgaben.length})` }] : []),
+    { key: "notizen" as const, label: `Notizen (${notes.length})` },
   ];
 
   return (
@@ -321,6 +410,144 @@ export default function MeineAufgabenPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {(activeTab === "alle" || activeTab === "notizen") && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900">Meine Notizen</h2>}
+            {activeTab === "notizen" && <div />}
+            <Button size="sm" className="gap-1.5" onClick={() => { setShowNoteForm(true); setEditingNote(null); }}>
+              <Plus className="h-4 w-4" />
+              Neue Notiz
+            </Button>
+          </div>
+
+          {showNoteForm && (
+            <Card className="mb-4 border-blue-200 p-4">
+              <div className="space-y-3">
+                <Input
+                  placeholder="Titel"
+                  value={noteForm.title}
+                  onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })}
+                  autoFocus
+                />
+                <Textarea
+                  placeholder="Notiz schreiben..."
+                  value={noteForm.content}
+                  onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
+                  rows={4}
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Farbe:</span>
+                  {NOTE_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => setNoteForm({ ...noteForm, color: c.value })}
+                      className={`h-6 w-6 rounded-full border-2 ${c.bg} ${noteForm.color === c.value ? "border-gray-800 ring-2 ring-gray-300" : "border-gray-300"}`}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setShowNoteForm(false)}>Abbrechen</Button>
+                  <Button size="sm" onClick={createNote} disabled={!noteForm.title.trim()}>Speichern</Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {editingNote && (
+            <Card className="mb-4 border-blue-200 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500">Notiz bearbeiten</span>
+                <button onClick={() => setEditingNote(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <Input
+                  value={editingNote.title}
+                  onChange={(e) => autoSaveNote(editingNote, "title", e.target.value)}
+                  className="font-medium"
+                />
+                <Textarea
+                  value={editingNote.content}
+                  onChange={(e) => autoSaveNote(editingNote, "content", e.target.value)}
+                  rows={6}
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Farbe:</span>
+                  {NOTE_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => { updateNote(editingNote, { color: c.value }); setEditingNote({ ...editingNote, color: c.value }); }}
+                      className={`h-6 w-6 rounded-full border-2 ${c.bg} ${editingNote.color === c.value ? "border-gray-800 ring-2 ring-gray-300" : "border-gray-300"}`}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {notes.length === 0 && !showNoteForm ? (
+            <Card className="p-8 text-center text-gray-400">
+              <StickyNote className="h-10 w-10 mx-auto mb-2" />
+              <p className="text-sm">Noch keine Notizen</p>
+              <p className="text-xs mt-1">Erstelle deine erste Notiz</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {notes.map((note) => {
+                const style = getNoteStyle(note.color);
+                return (
+                  <Card
+                    key={note.id}
+                    className={`p-4 ${style.border} cursor-pointer hover:shadow-md transition-shadow relative group`}
+                    style={{ backgroundColor: note.color + "33" }}
+                  >
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); updateNote(note, { pinned: !note.pinned }); }}
+                        className="p-1 rounded hover:bg-black/10"
+                        title={note.pinned ? "Lösen" : "Anpinnen"}
+                      >
+                        {note.pinned ? <PinOff className="h-3.5 w-3.5 text-gray-600" /> : <Pin className="h-3.5 w-3.5 text-gray-600" />}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingNote(note); setShowNoteForm(false); }}
+                        className="p-1 rounded hover:bg-black/10"
+                        title="Bearbeiten"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                        className="p-1 rounded hover:bg-red-100"
+                        title="Löschen"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      </button>
+                    </div>
+                    <div onClick={() => { setEditingNote(note); setShowNoteForm(false); }}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        {note.pinned && <Pin className="h-3 w-3 text-gray-500" />}
+                        <h4 className="text-sm font-semibold text-gray-900 truncate">{note.title}</h4>
+                      </div>
+                      {note.content && (
+                        <p className="text-xs text-gray-600 line-clamp-4 whitespace-pre-wrap">{note.content}</p>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-2">
+                        {new Date(note.updatedAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
