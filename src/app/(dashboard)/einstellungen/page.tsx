@@ -37,6 +37,8 @@ interface CompanySettings {
   email: string | null;
   taxId: string | null;
   vatId: string | null;
+  lunchBreakMinutes: number;
+  workHoursPerDay: number;
 }
 
 export default function EinstellungenPage() {
@@ -73,7 +75,7 @@ export default function EinstellungenPage() {
         setCompany(
           companyData && !companyData.error
             ? companyData
-            : { id: "", name: null, street: null, zip: null, city: null, phone: null, email: null, taxId: null, vatId: null }
+            : { id: "", name: null, street: null, zip: null, city: null, phone: null, email: null, taxId: null, vatId: null, lunchBreakMinutes: 30, workHoursPerDay: 8 }
         );
       } catch (e) {
         console.error("Einstellungen laden:", e);
@@ -386,6 +388,8 @@ export default function EinstellungenPage() {
                         email: company.email ?? null,
                         taxId: company.taxId ?? null,
                         vatId: company.vatId ?? null,
+                        lunchBreakMinutes: company.lunchBreakMinutes,
+                        workHoursPerDay: company.workHoursPerDay,
                       }),
                       cache: "no-store",
                       credentials: "same-origin",
@@ -479,6 +483,37 @@ export default function EinstellungenPage() {
                     className="mt-1"
                     placeholder="DE..."
                   />
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Arbeitszeiteinstellungen</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Mittagspause (Minuten)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={120}
+                        value={company.lunchBreakMinutes ?? 30}
+                        onChange={(e) => setCompany({ ...company, lunchBreakMinutes: parseInt(e.target.value) || 0 })}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Wird ab 6h Arbeitszeit automatisch abgezogen</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Sollstunden/Tag</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={12}
+                        step={0.5}
+                        value={company.workHoursPerDay ?? 8}
+                        onChange={(e) => setCompany({ ...company, workHoursPerDay: parseFloat(e.target.value) || 8 })}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Für Überstundenberechnung</p>
+                    </div>
+                  </div>
                 </div>
                 {companySaveError && <p className="text-sm text-red-600">{companySaveError}</p>}
                 <div className="flex items-center gap-3">

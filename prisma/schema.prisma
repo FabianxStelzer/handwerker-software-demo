@@ -126,17 +126,19 @@ model Session {
 }
 
 model CompanySettings {
-  id               String   @id @default(cuid())
-  name             String?
-  street           String?
-  zip              String?
-  city             String?
-  phone            String?
-  email            String?
-  taxId            String?
-  vatId            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String?
+  street             String?
+  zip                String?
+  city               String?
+  phone              String?
+  email              String?
+  taxId              String?
+  vatId              String?
+  lunchBreakMinutes  Int      @default(30)
+  workHoursPerDay    Float    @default(8)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("company_settings")
 }
@@ -565,11 +567,11 @@ model TimeEntry {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id])
   date       DateTime
   startTime  String
-  endTime    String
+  endTime    String?
   breakMin   Int      @default(0)
   notes      String?
   createdAt  DateTime @default(now())

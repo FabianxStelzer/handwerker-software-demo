@@ -40,6 +40,8 @@ export async function PUT(req: NextRequest) {
           email: body.email ?? null,
           taxId: body.taxId ?? null,
           vatId: body.vatId ?? null,
+          lunchBreakMinutes: body.lunchBreakMinutes ?? 30,
+          workHoursPerDay: body.workHoursPerDay ?? 8,
         },
       });
     } else {
@@ -54,6 +56,8 @@ export async function PUT(req: NextRequest) {
           email: body.email ?? undefined,
           taxId: body.taxId ?? undefined,
           vatId: body.vatId ?? undefined,
+          lunchBreakMinutes: body.lunchBreakMinutes !== undefined ? (parseInt(body.lunchBreakMinutes) || 0) : undefined,
+          workHoursPerDay: body.workHoursPerDay !== undefined ? (parseFloat(body.workHoursPerDay) || 8) : undefined,
         },
       });
     }

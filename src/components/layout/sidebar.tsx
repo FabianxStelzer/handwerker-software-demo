@@ -22,13 +22,16 @@ import {
   FileStack,
   Building2,
   PackageSearch,
-  Wallet,
   Banknote,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-const buchhaltungSubItems = [
+type NavChild = { name: string; href: string; icon: React.ElementType };
+type NavItem = { name: string; href: string; icon: React.ElementType; children?: NavChild[]; expandKey?: string };
+
+const buchhaltungSubItems: NavChild[] = [
   { name: "Dashboard", href: "/buchhaltung", icon: LayoutDashboard },
   { name: "Belege", href: "/buchhaltung/belege", icon: FileStack },
   { name: "Kunden", href: "/kunden", icon: Users },
@@ -38,28 +41,38 @@ const buchhaltungSubItems = [
   { name: "Lohn", href: "/buchhaltung/lohn", icon: Banknote },
 ];
 
-const navigation = [
+const mitarbeiterSubItems: NavChild[] = [
+  { name: "Übersicht", href: "/mitarbeiter", icon: Users },
+  { name: "Zeiterfassung", href: "/mitarbeiter/zeiterfassung", icon: Clock },
+  { name: "Urlaubsplanung", href: "/mitarbeiter/urlaubsplanung", icon: CalendarDays },
+];
+
+const navigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Kunden", href: "/kunden", icon: Users },
   { name: "Projekte", href: "/projekte", icon: FolderKanban },
   { name: "Katalog", href: "/katalog", icon: Package },
   { name: "Aufträge", href: "/auftraege", icon: FileText },
-  { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems },
-  { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog },
-  { name: "Zeiterfassung", href: "/zeiterfassung", icon: Clock },
+  { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung" },
+  { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog, children: mitarbeiterSubItems, expandKey: "mitarbeiter" },
   { name: "KI-Assistent", href: "/ki-assistent", icon: Bot },
   { name: "Branchenspezifisch", href: "/branchenspezifisch", icon: Wrench },
   { name: "Einstellungen", href: "/einstellungen", icon: Settings },
 ];
 
+function isGroupOpen(pathname: string, item: NavItem): boolean {
+  if (item.expandKey === "buchhaltung") {
+    return pathname.startsWith("/buchhaltung") || pathname === "/kunden" || pathname.startsWith("/kunden/") || pathname === "/katalog";
+  }
+  if (item.expandKey === "mitarbeiter") {
+    return pathname.startsWith("/mitarbeiter") || pathname === "/zeiterfassung" || pathname.startsWith("/zeiterfassung/");
+  }
+  return false;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const buchhaltungOpen =
-    pathname.startsWith("/buchhaltung") ||
-    pathname === "/kunden" ||
-    pathname.startsWith("/kunden/") ||
-    pathname === "/katalog";
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -79,7 +92,8 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
-          if ("children" in item && item.children) {
+          if (item.children) {
+            const open = isGroupOpen(pathname, item);
             return (
               <div key={item.name} className="space-y-0.5">
                 <Link
@@ -94,13 +108,13 @@ export function Sidebar() {
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {item.name}
-                  {buchhaltungOpen ? (
+                  {open ? (
                     <ChevronDown className="h-4 w-4 ml-auto" />
                   ) : (
                     <ChevronRight className="h-4 w-4 ml-auto" />
                   )}
                 </Link>
-                {buchhaltungOpen && (
+                {open && (
                   <div className="ml-4 pl-2 border-l border-gray-700 space-y-0.5">
                     {item.children.map((child) => (
                       <Link
