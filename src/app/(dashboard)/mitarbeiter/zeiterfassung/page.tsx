@@ -191,10 +191,11 @@ export default function ZeiterfassungPage() {
 
   const [y, m] = month.split("-").map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
-  const workdaysInMonth = Array.from({ length: daysInMonth }, (_, i) => {
-    const dow = new Date(y, m - 1, i + 1).getDay();
-    return dow > 0 && dow < 6 ? 1 : 0;
-  }).reduce((a, b) => a + b, 0);
+  let workdaysInMonth = 0;
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dow = new Date(y, m - 1, i).getDay();
+    if (dow > 0 && dow < 6) workdaysInMonth++;
+  }
 
   const targetHours = workdaysInMonth * config.workHoursPerDay;
   const overtime = totalHours - targetHours;
