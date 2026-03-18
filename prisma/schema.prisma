@@ -114,6 +114,8 @@ model User {
   aufgabenKommentare   SchlosserAufgabeKommentar[]
   notizen              UserNote[]
   angefordertesMaterial ProjectMaterial[] @relation("MaterialAngefordert")
+  vehicleAssignments   VehicleAssignment[]
+  licenseUploads       LicenseUpload[]
 
   @@map("users")
 }
@@ -707,6 +709,58 @@ model RegieMaterial {
   createdAt       DateTime     @default(now())
 
   @@map("regie_materialien")
+}
+
+// ─── Fahrzeuge ──────────────────────────────────────────────────
+
+model Vehicle {
+  id            String   @id @default(cuid())
+  licensePlate  String   @unique
+  brand         String
+  model         String
+  year          Int?
+  color         String?
+  vin           String?
+  nextInspection DateTime?
+  nextTuv       DateTime?
+  mileage       Int?
+  notes         String?
+  gpsDeviceId   String?
+  gpsLastLat    Float?
+  gpsLastLng    Float?
+  gpsLastUpdate DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  assignments VehicleAssignment[]
+
+  @@map("vehicles")
+}
+
+model VehicleAssignment {
+  id         String   @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  isPrimary  Boolean  @default(false)
+  assignedAt DateTime @default(now())
+
+  @@map("vehicle_assignments")
+}
+
+model LicenseUpload {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  imageUrl   String
+  uploadedAt DateTime @default(now())
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  verifiedBy String?
+
+  @@map("license_uploads")
 }
 
 // ─── Notifications ───────────────────────────────────────────────

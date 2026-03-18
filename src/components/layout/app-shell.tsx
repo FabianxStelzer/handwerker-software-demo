@@ -6,6 +6,7 @@ import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { VoiceAssistantSafe } from "@/components/VoiceAssistantSafe";
 import { OfflineBanner } from "@/offline";
+import { LicenseReminder } from "./license-reminder";
 import { useEffect, useState } from "react";
 
 const LOADING_TIMEOUT_MS = 2000;
@@ -95,6 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <VoiceAssistantSafe />
       <OfflineBanner />
+      <LicenseReminder />
     </div>
   );
 }
