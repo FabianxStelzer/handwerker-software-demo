@@ -58,6 +58,7 @@ export async function PUT(req: NextRequest) {
           vatId: body.vatId ?? undefined,
           lunchBreakMinutes: body.lunchBreakMinutes !== undefined ? (parseInt(body.lunchBreakMinutes) || 0) : undefined,
           workHoursPerDay: body.workHoursPerDay !== undefined ? (parseFloat(body.workHoursPerDay) || 8) : undefined,
+          catalogApiKey: body.catalogApiKey !== undefined ? body.catalogApiKey : undefined,
         },
       });
     }

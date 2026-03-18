@@ -139,6 +139,7 @@ model CompanySettings {
   vatId              String?
   lunchBreakMinutes  Int      @default(30)
   workHoursPerDay    Float    @default(8)
+  catalogApiKey      String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
