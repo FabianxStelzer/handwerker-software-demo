@@ -33,30 +33,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const contentType = req.headers.get("content-type") || "";
 
   // File upload for plan PDF
-  if (contentType.includes("multipart/form-data")) {
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const titel = (formData.get("titel") as string) || "Bauplan";
+  if (contentType.includes("multipart/form-data") || contentType.includes("multipart")) {
+    try {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      const titel = (formData.get("titel") as string) || "Bauplan";
 
-    if (!file) return NextResponse.json({ error: "Keine Datei" }, { status: 400 });
+      if (!file) return NextResponse.json({ error: "Keine Datei" }, { status: 400 });
+      if (file.size > 50 * 1024 * 1024) return NextResponse.json({ error: "Datei zu groß (max. 50 MB)" }, { status: 400 });
 
-    const dir = path.join(DATA_DIR, "uploads", "einbau");
-    await mkdir(dir, { recursive: true });
+      const dir = path.join(DATA_DIR, "uploads", "einbau");
+      await mkdir(dir, { recursive: true });
 
-    const ext = file.name.split(".").pop() || "pdf";
-    const fileName = `${projectId}_${Date.now()}.${ext}`;
-    const filePath = path.join(dir, fileName);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
+      const ext = file.name.split(".").pop() || "pdf";
+      const fileName = `${projectId}_${Date.now()}.${ext}`;
+      const filePath = path.join(dir, fileName);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(filePath, buffer);
 
-    const dateiUrl = `/api/uploads/einbau/${fileName}`;
+      const dateiUrl = `/api/uploads/einbau/${fileName}`;
 
-    const plan = await prisma.einbauPlan.create({
-      data: { projectId, titel, dateiUrl, dateiName: file.name },
-      include: { markers: { include: { materialien: true } } },
-    });
+      const plan = await prisma.einbauPlan.create({
+        data: { projectId, titel, dateiUrl, dateiName: file.name },
+        include: { markers: { include: { materialien: true } } },
+      });
 
-    return NextResponse.json(plan, { status: 201 });
+      return NextResponse.json(plan, { status: 201 });
+    } catch (err: any) {
+      console.error("Einbau upload error:", err);
+      return NextResponse.json({ error: err.message || "Upload fehlgeschlagen" }, { status: 500 });
+    }
   }
 
   // JSON: add marker or material

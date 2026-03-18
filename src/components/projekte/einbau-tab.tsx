@@ -41,6 +41,7 @@ export function EinbauTab({ project }: { project: any }) {
   const [plans, setPlans] = useState<EinbauPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadTitel, setUploadTitel] = useState("");
 
@@ -67,13 +68,21 @@ export function EinbauTab({ project }: { project: any }) {
 
   async function uploadPlan(file: File) {
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("titel", uploadTitel || file.name.replace(/\.[^.]+$/, ""));
-    const res = await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", body: fd });
-    if (res.ok) {
-      await load();
-      setUploadTitel("");
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("titel", uploadTitel || file.name.replace(/\.[^.]+$/, ""));
+      const res = await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", body: fd });
+      if (res.ok) {
+        await load();
+        setUploadTitel("");
+      } else {
+        const err = await res.json().catch(() => ({ error: "Upload fehlgeschlagen" }));
+        setUploadError(err.error || `Fehler ${res.status}`);
+      }
+    } catch (e: any) {
+      setUploadError(e.message || "Netzwerkfehler beim Upload");
     }
     setUploading(false);
   }
@@ -442,35 +451,49 @@ export function EinbauTab({ project }: { project: any }) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-900">Einbau-Dokumentation</h3>
         <div>
-          <Button size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Button size="sm" className="gap-1.5" onClick={() => { setUploadError(null); fileRef.current?.click(); }} disabled={uploading}>
             <Upload className="h-3.5 w-3.5" />{uploading ? "Wird hochgeladen…" : "Bauplan hochladen"}
           </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) uploadPlan(f);
-              e.target.value = "";
-            }}
-          />
         </div>
       </div>
 
-      {plans.length === 0 ? (
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) uploadPlan(f);
+          e.target.value = "";
+        }}
+      />
+
+      {uploadError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          Upload fehlgeschlagen: {uploadError}
+        </div>
+      )}
+
+      {uploading && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+          <span className="text-sm text-blue-700">Bauplan wird hochgeladen…</span>
+        </div>
+      )}
+
+      {plans.length === 0 && !uploading ? (
         <Card>
           <CardContent className="p-10 text-center">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500">Noch keine Baupläne hochgeladen</p>
             <p className="text-xs text-gray-400 mt-1">Lade einen PDF-Bauplan hoch, um Einbau-Punkte zu dokumentieren</p>
-            <Button size="sm" className="mt-4 gap-1.5" onClick={() => fileRef.current?.click()}>
+            <Button size="sm" className="mt-4 gap-1.5" onClick={() => { setUploadError(null); fileRef.current?.click(); }}>
               <Upload className="h-3.5 w-3.5" />PDF hochladen
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      ) : plans.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {plans.map((plan) => (
             <Card key={plan.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setViewPlan(plan)}>
@@ -501,7 +524,7 @@ export function EinbauTab({ project }: { project: any }) {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

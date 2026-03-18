@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd()),
   serverExternalPackages: ["@prisma/client", "prisma", "bcryptjs"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
