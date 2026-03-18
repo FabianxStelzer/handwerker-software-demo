@@ -24,6 +24,7 @@ import {
   PackageSearch,
   Banknote,
   CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -49,6 +50,7 @@ const mitarbeiterSubItems: NavChild[] = [
 
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Meine Aufgaben", href: "/meine-aufgaben", icon: ClipboardList },
   { name: "Kunden", href: "/kunden", icon: Users },
   { name: "Projekte", href: "/projekte", icon: FolderKanban },
   { name: "Katalog", href: "/katalog", icon: Package },
