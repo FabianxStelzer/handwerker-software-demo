@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
-  Upload, MapPin, Plus, Trash2, X, ChevronLeft, Eye, FileText, User, Package,
+  Upload, MapPin, Plus, Trash2, X, ChevronLeft, Eye, FileText, User, Package, Search, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,6 +46,92 @@ interface EinbauPlan {
   createdAt: string;
 }
 
+// ── Searchable material picker ──────────────────────────────
+function MaterialPicker({
+  planMaterials,
+  usageMap,
+  onSelect,
+  disabled,
+}: {
+  planMaterials: PlanMaterial[];
+  usageMap: Map<string, number>;
+  onSelect: (name: string, menge: string, einheit: string) => void;
+  disabled: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [menge, setMenge] = useState("1");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const filtered = planMaterials.filter((pm) =>
+    pm.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="text-xs font-medium text-gray-700 mb-1 block">Material aus Liste zuordnen</label>
+      <div className="flex gap-1.5">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <Input
+            placeholder="Material suchen…"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            className="text-xs pl-7"
+          />
+        </div>
+        <Input
+          type="number"
+          placeholder="Menge"
+          value={menge}
+          onChange={(e) => setMenge(e.target.value)}
+          className="text-xs w-16"
+        />
+      </div>
+
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map((pm) => {
+            const used = usageMap.get(pm.name) || 0;
+            const fulfilled = pm.menge > 0 && used >= pm.menge;
+            return (
+              <button
+                key={pm.id}
+                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between transition-colors ${fulfilled ? "bg-green-50" : ""}`}
+                disabled={disabled}
+                onClick={() => {
+                  onSelect(pm.name, menge || "1", pm.einheit);
+                  setQuery("");
+                  setMenge("1");
+                  setOpen(false);
+                }}
+              >
+                <div>
+                  <span className="font-medium text-gray-900">{pm.name}</span>
+                  {pm.menge > 0 && (
+                    <span className="text-gray-400 ml-1.5">({used}/{pm.menge} {pm.einheit})</span>
+                  )}
+                </div>
+                {fulfilled && <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────
 export function EinbauTab({ project }: { project: any }) {
   const [plans, setPlans] = useState<EinbauPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,17 +147,14 @@ export function EinbauTab({ project }: { project: any }) {
   const [markerBeschreibung, setMarkerBeschreibung] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Material für Marker
   const [newMaterialName, setNewMaterialName] = useState("");
   const [newMaterialMenge, setNewMaterialMenge] = useState("1");
   const [newMaterialEinheit, setNewMaterialEinheit] = useState("Stk");
 
-  // Plan-Materialliste
   const [newPlanMatName, setNewPlanMatName] = useState("");
   const [newPlanMatMenge, setNewPlanMatMenge] = useState("");
   const [newPlanMatEinheit, setNewPlanMatEinheit] = useState("Stk");
 
-  // PDF container ref – this is the actual scrollable area for correct coordinates
   const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -81,6 +164,20 @@ export function EinbauTab({ project }: { project: any }) {
   }, [project.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Usage map: material name → total quantity used across all markers
+  const usageMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!viewPlan) return map;
+    for (const marker of viewPlan.markers) {
+      for (const mat of marker.materialien) {
+        if (!mat.isExtra) {
+          map.set(mat.name, (map.get(mat.name) || 0) + mat.menge);
+        }
+      }
+    }
+    return map;
+  }, [viewPlan]);
 
   async function refreshPlan(planId: string) {
     const all = await fetch(`/api/projekte/${project.id}/einbau`).then((r) => r.json());
@@ -121,15 +218,10 @@ export function EinbauTab({ project }: { project: any }) {
     if (!placingMarker || !pdfContainerRef.current) return;
     const container = pdfContainerRef.current;
     const rect = container.getBoundingClientRect();
-    // Account for scroll inside the container
-    const scrollLeft = container.scrollLeft;
-    const scrollTop = container.scrollTop;
-    const totalW = container.scrollWidth;
-    const totalH = container.scrollHeight;
-    const clickX = e.clientX - rect.left + scrollLeft;
-    const clickY = e.clientY - rect.top + scrollTop;
-    const x = (clickX / totalW) * 100;
-    const y = (clickY / totalH) * 100;
+    const clickX = e.clientX - rect.left + container.scrollLeft;
+    const clickY = e.clientY - rect.top + container.scrollTop;
+    const x = (clickX / container.scrollWidth) * 100;
+    const y = (clickY / container.scrollHeight) * 100;
     setNewMarkerPos({ x, y });
     setMarkerBeschreibung("");
     setMarkerDialogOpen(true);
@@ -145,8 +237,7 @@ export function EinbauTab({ project }: { project: any }) {
     });
     const updated = await refreshPlan(viewPlan.id);
     if (updated) {
-      const latest = updated.markers[updated.markers.length - 1];
-      setSelectedMarker(latest);
+      setSelectedMarker(updated.markers[updated.markers.length - 1]);
     }
     setMarkerDialogOpen(false);
     setNewMarkerPos(null);
@@ -178,8 +269,7 @@ export function EinbauTab({ project }: { project: any }) {
     });
     const updated = await refreshPlan(viewPlan!.id);
     if (updated && selectedMarker) {
-      const m = updated.markers.find((mk: Marker) => mk.id === selectedMarker.id);
-      setSelectedMarker(m || null);
+      setSelectedMarker(updated.markers.find((mk: Marker) => mk.id === selectedMarker.id) || null);
     }
   }
 
@@ -220,9 +310,11 @@ export function EinbauTab({ project }: { project: any }) {
 
   // ── Plan viewer ───────────────────────────────────────────
   if (viewPlan) {
-    // Collect all extra materials from markers
     const allExtraMaterials = viewPlan.markers.flatMap((m) =>
-      m.materialien.filter((mat) => mat.isExtra).map((mat) => ({ ...mat, markerBeschreibung: m.beschreibung, markerNr: viewPlan.markers.indexOf(m) + 1 }))
+      m.materialien.filter((mat) => mat.isExtra).map((mat) => ({
+        ...mat,
+        markerNr: viewPlan.markers.indexOf(m) + 1,
+      }))
     );
 
     return (
@@ -246,6 +338,13 @@ export function EinbauTab({ project }: { project: any }) {
           </Button>
         </div>
 
+        {placingMarker && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            Marker-Modus aktiv – klicke auf die gewünschte Stelle im Bauplan. PDF-Bearbeitung ist währenddessen pausiert.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* PDF + Markers */}
           <div className="lg:col-span-8">
@@ -253,22 +352,27 @@ export function EinbauTab({ project }: { project: any }) {
               <div
                 ref={pdfContainerRef}
                 className={`relative overflow-auto ${placingMarker ? "cursor-crosshair" : ""}`}
-                style={{ maxHeight: "75vh", background: "#d4d4d4" }}
+                style={{ maxHeight: "80vh", background: "#d4d4d4" }}
                 onClick={handlePlanClick}
               >
-                {/* PDF rendered as non-interactive background */}
                 {viewPlan.dateiUrl.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? (
-                  <img src={viewPlan.dateiUrl} alt={viewPlan.titel} className="w-full h-auto block" draggable={false} style={{ pointerEvents: placingMarker ? "none" : "auto" }} />
+                  <img
+                    src={viewPlan.dateiUrl}
+                    alt={viewPlan.titel}
+                    className="w-full h-auto block"
+                    draggable={false}
+                    style={{ pointerEvents: placingMarker ? "none" : "auto" }}
+                  />
                 ) : (
                   <iframe
-                    src={`${viewPlan.dateiUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    src={viewPlan.dateiUrl}
                     className="w-full border-0 block"
                     style={{ height: "1200px", pointerEvents: placingMarker ? "none" : "auto" }}
                     title={viewPlan.titel}
                   />
                 )}
 
-                {/* Markers – positioned relative to the scrollable content */}
+                {/* Markers */}
                 {viewPlan.markers.map((marker, i) => (
                   <button
                     key={marker.id}
@@ -291,7 +395,7 @@ export function EinbauTab({ project }: { project: any }) {
             </Card>
           </div>
 
-          {/* Sidebar: Marker details / point list */}
+          {/* Sidebar */}
           <div className="lg:col-span-4 space-y-3">
             {selectedMarker ? (
               <Card>
@@ -331,27 +435,24 @@ export function EinbauTab({ project }: { project: any }) {
                       </div>
                     ) : <p className="text-xs text-gray-400 mt-1">Keine</p>}
 
-                    {/* Quick-add from plan material list */}
+                    {/* Searchable material picker */}
                     {viewPlan.planMaterials.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {viewPlan.planMaterials.map((pm) => (
-                          <button
-                            key={pm.id}
-                            className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium hover:bg-blue-100 transition-colors border border-blue-200"
-                            onClick={() => addMaterialToMarker(pm.name, "1", pm.einheit, false)}
-                          >
-                            + {pm.name}
-                          </button>
-                        ))}
+                      <div className="mt-2">
+                        <MaterialPicker
+                          planMaterials={viewPlan.planMaterials}
+                          usageMap={usageMap}
+                          onSelect={(name, menge, einheit) => addMaterialToMarker(name, menge, einheit, false)}
+                          disabled={saving}
+                        />
                       </div>
                     )}
                   </div>
 
                   {/* Extra materials */}
-                  <div className="mb-3 border-t pt-3">
+                  <div className="border-t pt-3">
                     <label className="text-xs font-medium text-gray-700">Zusatzmaterial</label>
-                    {selectedMarker.materialien.filter((m) => m.isExtra).length > 0 ? (
-                      <div className="mt-1 space-y-1">
+                    {selectedMarker.materialien.filter((m) => m.isExtra).length > 0 && (
+                      <div className="mt-1 space-y-1 mb-2">
                         {selectedMarker.materialien.filter((m) => m.isExtra).map((m) => (
                           <div key={m.id} className="flex items-center justify-between bg-orange-50 rounded-lg p-2">
                             <div>
@@ -362,9 +463,9 @@ export function EinbauTab({ project }: { project: any }) {
                           </div>
                         ))}
                       </div>
-                    ) : <p className="text-xs text-gray-400 mt-1">Kein Zusatzmaterial</p>}
+                    )}
 
-                    <div className="mt-2 space-y-1.5">
+                    <div className="space-y-1.5 mt-2">
                       <Input placeholder="Zusatzmaterial-Name" value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} className="text-xs" />
                       <div className="grid grid-cols-2 gap-1.5">
                         <Input type="number" placeholder="Menge" value={newMaterialMenge} onChange={(e) => setNewMaterialMenge(e.target.value)} className="text-xs" />
@@ -386,7 +487,6 @@ export function EinbauTab({ project }: { project: any }) {
               </Card>
             )}
 
-            {/* All markers list */}
             {viewPlan.markers.length > 0 && (
               <Card>
                 <CardContent className="p-4">
@@ -416,26 +516,44 @@ export function EinbauTab({ project }: { project: any }) {
 
         {/* ── Below PDF: Material lists ───────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Plan Material List (Vorschlagsliste) */}
+          {/* Plan Material List */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Package className="h-4 w-4 text-blue-600" />
                 <h4 className="text-sm font-bold text-gray-900">Materialliste</h4>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Materialien, die bei diesem Plan verbaut werden. Werden als Vorschläge bei Punkten angezeigt.</p>
+              <p className="text-xs text-gray-400 mb-3">Materialien für diesen Plan. Werden als Vorschläge bei Punkten angezeigt.</p>
 
               {viewPlan.planMaterials.length > 0 && (
                 <div className="space-y-1.5 mb-3">
-                  {viewPlan.planMaterials.map((pm) => (
-                    <div key={pm.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5">
-                      <div>
-                        <p className="text-xs font-medium text-gray-900">{pm.name}</p>
-                        {pm.menge > 0 && <p className="text-[10px] text-gray-400">{pm.menge} {pm.einheit}</p>}
+                  {viewPlan.planMaterials.map((pm) => {
+                    const used = usageMap.get(pm.name) || 0;
+                    const fulfilled = pm.menge > 0 && used >= pm.menge;
+                    return (
+                      <div
+                        key={pm.id}
+                        className={`flex items-center justify-between rounded-lg p-2.5 transition-colors ${
+                          fulfilled ? "bg-green-50 border border-green-200" : "bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {fulfilled && <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+                          <div>
+                            <p className={`text-xs font-medium ${fulfilled ? "text-green-800" : "text-gray-900"}`}>{pm.name}</p>
+                            {pm.menge > 0 && (
+                              <p className={`text-[10px] ${fulfilled ? "text-green-600" : "text-gray-400"}`}>
+                                {used}/{pm.menge} {pm.einheit} verbaut
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePlanMaterial(pm.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePlanMaterial(pm.id)}><Trash2 className="h-3 w-3" /></Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -457,7 +575,7 @@ export function EinbauTab({ project }: { project: any }) {
                 <Package className="h-4 w-4 text-orange-500" />
                 <h4 className="text-sm font-bold text-gray-900">Zusatzmaterial</h4>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Materialien, die zusätzlich an einzelnen Punkten verbaut wurden und nicht in der Materialliste sind.</p>
+              <p className="text-xs text-gray-400 mb-3">Materialien, die zusätzlich an einzelnen Punkten verbaut wurden.</p>
 
               {allExtraMaterials.length > 0 ? (
                 <div className="space-y-1.5">
@@ -471,7 +589,7 @@ export function EinbauTab({ project }: { project: any }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 text-center py-3">Kein Zusatzmaterial vorhanden</p>
+                <p className="text-xs text-gray-400 text-center py-3">Kein Zusatzmaterial</p>
               )}
             </CardContent>
           </Card>
@@ -510,7 +628,12 @@ export function EinbauTab({ project }: { project: any }) {
       <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPlan(f); e.target.value = ""; }} />
 
       {uploadError && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{uploadError}</div>}
-      {uploading && <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"><div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /><span className="text-sm text-blue-700">Bauplan wird hochgeladen…</span></div>}
+      {uploading && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+          <span className="text-sm text-blue-700">Bauplan wird hochgeladen…</span>
+        </div>
+      )}
 
       {plans.length === 0 && !uploading ? (
         <Card>
@@ -518,7 +641,9 @@ export function EinbauTab({ project }: { project: any }) {
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500">Noch keine Baupläne hochgeladen</p>
             <p className="text-xs text-gray-400 mt-1">Lade einen PDF-Bauplan hoch, um Einbau-Punkte zu dokumentieren</p>
-            <Button size="sm" className="mt-4 gap-1.5" onClick={() => fileRef.current?.click()}><Upload className="h-3.5 w-3.5" />PDF hochladen</Button>
+            <Button size="sm" className="mt-4 gap-1.5" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5" />PDF hochladen
+            </Button>
           </CardContent>
         </Card>
       ) : plans.length > 0 ? (
@@ -532,13 +657,17 @@ export function EinbauTab({ project }: { project: any }) {
                     <p className="text-sm font-bold text-gray-900 truncate">{plan.titel}</p>
                     <p className="text-xs text-gray-400">{plan.dateiName}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 shrink-0" onClick={(e) => { e.stopPropagation(); deletePlan(plan.id); }}><Trash2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 shrink-0" onClick={(e) => { e.stopPropagation(); deletePlan(plan.id); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-1"><MapPin className="h-3 w-3" /><span>{plan.markers.length} Punkte</span></div>
                   <span>{new Date(plan.createdAt).toLocaleDateString("de-DE")}</span>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-3 gap-1.5 text-xs" onClick={() => setViewPlan(plan)}><Eye className="h-3.5 w-3.5" />Plan öffnen</Button>
+                <Button variant="outline" size="sm" className="w-full mt-3 gap-1.5 text-xs" onClick={() => setViewPlan(plan)}>
+                  <Eye className="h-3.5 w-3.5" />Plan öffnen
+                </Button>
               </CardContent>
             </Card>
           ))}
