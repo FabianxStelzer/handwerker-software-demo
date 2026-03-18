@@ -1174,9 +1174,22 @@ model EinbauPlan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  markers EinbauMarker[]
+  markers       EinbauMarker[]
+  planMaterials EinbauPlanMaterial[]
 
   @@map("einbau_plaene")
+}
+
+model EinbauPlanMaterial {
+  id        String     @id @default(cuid())
+  planId    String
+  plan      EinbauPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name      String
+  menge     Float      @default(0)
+  einheit   String     @default("Stk")
+  createdAt DateTime   @default(now())
+
+  @@map("einbau_plan_materialien")
 }
 
 model EinbauMarker {
@@ -1203,6 +1216,7 @@ model EinbauMaterial {
   name       String
   menge      Float        @default(1)
   einheit    String       @default("Stk")
+  isExtra    Boolean      @default(false)
   createdAt  DateTime     @default(now())
 
   @@map("einbau_materialien")

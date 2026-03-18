@@ -9,6 +9,11 @@ export const dynamic = "force-dynamic";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 
+const FULL_INCLUDE = {
+  markers: { include: { materialien: true }, orderBy: { createdAt: "asc" as const } },
+  planMaterials: { orderBy: { createdAt: "asc" as const } },
+};
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
@@ -16,12 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const plans = await prisma.einbauPlan.findMany({
     where: { projectId: id },
-    include: {
-      markers: {
-        include: { materialien: true },
-        orderBy: { createdAt: "asc" },
-      },
-    },
+    include: FULL_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
 
@@ -57,8 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const ext = file.name.split(".").pop() || "pdf";
       const fileName = `${projectId}_${Date.now()}.${ext}`;
       const filePath = path.join(dir, fileName);
-      const arrayBuf = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuf);
+      const bytes = new Uint8Array(await file.arrayBuffer());
 
       step = "writeFile";
       await writeFile(filePath, bytes);
@@ -67,18 +66,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const dateiUrl = `/api/uploads/einbau/${fileName}`;
       const plan = await prisma.einbauPlan.create({
         data: { projectId, titel, dateiUrl, dateiName: file.name },
-        include: { markers: { include: { materialien: true } } },
+        include: FULL_INCLUDE,
       });
 
       return NextResponse.json(plan, { status: 201 });
     } catch (err: any) {
       console.error(`Einbau upload error at step [${step}]:`, err);
-      const msg = err?.message || err?.toString() || "Unbekannter Fehler";
-      return NextResponse.json({ error: `Upload fehlgeschlagen (${step}): ${msg}` }, { status: 500 });
+      return NextResponse.json({ error: `Upload fehlgeschlagen (${step}): ${err?.message || "Unbekannt"}` }, { status: 500 });
     }
   }
 
-  // JSON actions (marker, material, updateMarker)
   try {
     const body = await req.json();
 
@@ -105,6 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           name: body.name,
           menge: parseFloat(body.menge) || 1,
           einheit: body.einheit || "Stk",
+          isExtra: body.isExtra || false,
         },
       });
       return NextResponse.json(material, { status: 201 });
@@ -117,6 +115,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         include: { materialien: true },
       });
       return NextResponse.json(updated);
+    }
+
+    // Plan-level materials
+    if (body.action === "addPlanMaterial") {
+      const mat = await prisma.einbauPlanMaterial.create({
+        data: {
+          planId: body.planId,
+          name: body.name,
+          menge: parseFloat(body.menge) || 0,
+          einheit: body.einheit || "Stk",
+        },
+      });
+      return NextResponse.json(mat, { status: 201 });
+    }
+
+    if (body.action === "removePlanMaterial") {
+      await prisma.einbauPlanMaterial.delete({ where: { id: body.materialId } });
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Unbekannte Aktion" }, { status: 400 });
@@ -136,12 +152,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await prisma.einbauPlan.delete({ where: { id: body.planId } });
     return NextResponse.json({ success: true });
   }
-
   if (body.markerId) {
     await prisma.einbauMarker.delete({ where: { id: body.markerId } });
     return NextResponse.json({ success: true });
   }
-
   if (body.materialId) {
     await prisma.einbauMaterial.delete({ where: { id: body.materialId } });
     return NextResponse.json({ success: true });
