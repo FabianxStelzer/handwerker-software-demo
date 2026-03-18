@@ -12,6 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "Allgemein";
+    const title = formData.get("title") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "Keine Datei" }, { status: 400 });
@@ -25,11 +26,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await writeFile(path.join(uploadDir, fileName), buffer);
 
     const fileUrl = `/api/uploads/bauplaene/${fileName}`;
+    const displayName = title?.trim() || file.name;
 
     const blueprint = await prisma.projectBlueprint.create({
       data: {
         projectId: id,
-        name: file.name,
+        name: displayName,
         fileUrl,
         folder,
       },
