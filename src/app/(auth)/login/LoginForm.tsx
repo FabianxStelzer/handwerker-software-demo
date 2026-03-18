@@ -59,23 +59,23 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-gray-50 px-4"
+      className="flex min-h-screen items-center justify-center px-4"
       style={{
         minHeight: "100vh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#f9fafb",
+        background: "linear-gradient(135deg, #212f46 0%, #354360 100%)",
         padding: "1rem",
       }}
     >
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 mb-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl mb-4" style={{ backgroundColor: "#9eb552" }}>
             <Hammer className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Handwerker Software</h1>
-          <p className="text-sm text-gray-500 mt-1">Melden Sie sich an</p>
+          <h1 className="text-2xl font-bold text-white">Handwerker Software</h1>
+          <p className="text-sm text-gray-300 mt-1">Melden Sie sich an</p>
         </div>
 
         <form

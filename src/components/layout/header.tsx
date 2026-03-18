@@ -23,7 +23,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
               <p className="text-sm font-medium text-gray-900">{user.name}</p>
               <p className="text-xs text-gray-500">{user.role === "ADMIN" ? "Administrator" : user.role === "BAULEITER" ? "Bauleiter" : "Mitarbeiter"}</p>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full text-white" style={{ backgroundColor: "#354360" }}>
               <User className="h-5 w-5" />
             </div>
             <Button variant="ghost" size="icon" onClick={onSignOut} title="Abmelden">

@@ -1,10 +1,28 @@
 @import "tailwindcss";
 
+@theme {
+  --color-blue-50: #f4f7ec;
+  --color-blue-100: #e5edce;
+  --color-blue-200: #d2e0ab;
+  --color-blue-300: #bfd388;
+  --color-blue-400: #adc96f;
+  --color-blue-500: #9eb552;
+  --color-blue-600: #9eb552;
+  --color-blue-700: #8ba348;
+  --color-blue-800: #78913e;
+  --color-blue-900: #657f34;
+  --color-blue-950: #3d4d20;
+
+  --color-brand-outer: #212f46;
+  --color-brand-inner: #354360;
+  --color-brand-light: #3e5070;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background-color: #f9fafb;
+  background-color: #f1f3f0;
 }

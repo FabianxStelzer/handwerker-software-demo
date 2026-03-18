@@ -83,8 +83,8 @@ export function Sidebar() {
 
   const navContent = (
     <>
-      <div className="flex items-center gap-3 px-4 py-6 border-b border-gray-800">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
+      <div className="flex items-center gap-3 px-4 py-6 border-b border-white/10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: "#9eb552" }}>
           <Hammer className="h-6 w-6 text-white" />
         </div>
         <div>
@@ -104,9 +104,12 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive(item.href)
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                      ? "text-white"
+                      : "text-gray-300 hover:text-white"
                   )}
+                  style={isActive(item.href) ? { backgroundColor: "#9eb552" } : undefined}
+                  onMouseEnter={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+                  onMouseLeave={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = ""; }}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {item.name}
@@ -117,7 +120,7 @@ export function Sidebar() {
                   )}
                 </Link>
                 {open && (
-                  <div className="ml-4 pl-2 border-l border-gray-700 space-y-0.5">
+                  <div className="ml-4 pl-2 border-l border-white/15 space-y-0.5">
                     {item.children.map((child) => (
                       <Link
                         key={child.name}
@@ -126,9 +129,12 @@ export function Sidebar() {
                         className={cn(
                           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                           isActive(child.href)
-                            ? "bg-blue-600/80 text-white"
-                            : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                            ? "text-white"
+                            : "text-gray-400 hover:text-white"
                         )}
+                        style={isActive(child.href) ? { backgroundColor: "rgba(158,181,82,0.7)" } : undefined}
+                        onMouseEnter={(e) => { if (!isActive(child.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+                        onMouseLeave={(e) => { if (!isActive(child.href)) e.currentTarget.style.backgroundColor = ""; }}
                       >
                         <child.icon className="h-4 w-4 shrink-0" />
                         {child.name}
@@ -147,9 +153,12 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                  ? "text-white"
+                  : "text-gray-300 hover:text-white"
               )}
+              style={isActive(item.href) ? { backgroundColor: "#9eb552" } : undefined}
+              onMouseEnter={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+              onMouseLeave={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = ""; }}
             >
               <item.icon className="h-5 w-5 shrink-0" />
               {item.name}
@@ -164,7 +173,8 @@ export function Sidebar() {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden rounded-lg bg-gray-900 p-2 text-white shadow-lg"
+        className="fixed top-4 left-4 z-50 lg:hidden rounded-lg p-2 text-white shadow-lg"
+        style={{ backgroundColor: "#212f46" }}
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -172,7 +182,10 @@ export function Sidebar() {
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 flex flex-col z-50">
+          <div
+            className="fixed inset-y-0 left-0 w-64 flex flex-col z-50"
+            style={{ background: "linear-gradient(180deg, #212f46 0%, #354360 100%)" }}
+          >
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -184,7 +197,10 @@ export function Sidebar() {
         </div>
       )}
 
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-gray-900">
+      <aside
+        className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0"
+        style={{ background: "linear-gradient(180deg, #212f46 0%, #354360 100%)" }}
+      >
         {navContent}
       </aside>
     </>

@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#1e40af",
+  themeColor: "#212f46",
 };
 
 export const metadata: Metadata = {
@@ -23,8 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de">
       <body
-        className={`${inter.className} min-h-screen bg-gray-50 antialiased`}
-        style={{ backgroundColor: "#f9fafb" }}
+        className={`${inter.className} min-h-screen antialiased`}
+        style={{ backgroundColor: "#f1f3f0" }}
         suppressHydrationWarning
       >
         <noscript>
