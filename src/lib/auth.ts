@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 
-const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || undefined;
 
 if (!secret && process.env.NODE_ENV !== "test") {
   console.warn("[Auth] AUTH_SECRET fehlt – Anmeldung kann fehlschlagen. Setze AUTH_SECRET in .env");
@@ -11,9 +11,8 @@ if (!secret && process.env.NODE_ENV !== "test") {
 const baseUrl = process.env.NEXTAUTH_URL || "";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: secret || "fallback-dev-only-change-in-production",
+  secret: secret || "handwerker-software-secret-key-2024",
   trustHost: true,
-  useSecureCookies: baseUrl.startsWith("https://"),
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: {
     signIn: "/login",
