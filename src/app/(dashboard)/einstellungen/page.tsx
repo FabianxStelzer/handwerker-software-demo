@@ -39,6 +39,11 @@ interface CompanySettings {
   vatId: string | null;
   lunchBreakMinutes: number;
   workHoursPerDay: number;
+  logoUrl: string | null;
+  website: string | null;
+  fax: string | null;
+  instagram: string | null;
+  hourlyRate: number;
 }
 
 export default function EinstellungenPage() {
@@ -75,7 +80,7 @@ export default function EinstellungenPage() {
         setCompany(
           companyData && !companyData.error
             ? companyData
-            : { id: "", name: null, street: null, zip: null, city: null, phone: null, email: null, taxId: null, vatId: null, lunchBreakMinutes: 30, workHoursPerDay: 8 }
+            : { id: "", name: null, street: null, zip: null, city: null, phone: null, email: null, taxId: null, vatId: null, lunchBreakMinutes: 30, workHoursPerDay: 8, logoUrl: null, website: null, fax: null, instagram: null, hourlyRate: 55 }
         );
       } catch (e) {
         console.error("Einstellungen laden:", e);
@@ -390,6 +395,11 @@ export default function EinstellungenPage() {
                         vatId: company.vatId ?? null,
                         lunchBreakMinutes: company.lunchBreakMinutes,
                         workHoursPerDay: company.workHoursPerDay,
+                        logoUrl: company.logoUrl ?? null,
+                        website: company.website ?? null,
+                        fax: company.fax ?? null,
+                        instagram: company.instagram ?? null,
+                        hourlyRate: company.hourlyRate,
                       }),
                       cache: "no-store",
                       credentials: "same-origin",
@@ -483,6 +493,67 @@ export default function EinstellungenPage() {
                     className="mt-1"
                     placeholder="DE..."
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Fax</label>
+                  <Input
+                    value={company.fax || ""}
+                    onChange={(e) => setCompany({ ...company, fax: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Website</label>
+                  <Input
+                    value={company.website || ""}
+                    onChange={(e) => setCompany({ ...company, website: e.target.value })}
+                    className="mt-1"
+                    placeholder="www.beispiel.de"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Instagram</label>
+                  <Input
+                    value={company.instagram || ""}
+                    onChange={(e) => setCompany({ ...company, instagram: e.target.value })}
+                    className="mt-1"
+                    placeholder="@firmenname"
+                  />
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Firmenlogo (für Regieberichte / Rechnungen)</h4>
+                  <div className="space-y-2">
+                    {company.logoUrl && (
+                      <div className="flex items-center gap-3">
+                        <img src={company.logoUrl} alt="Logo" className="h-16 max-w-[200px] object-contain border rounded p-1" />
+                        <Button variant="outline" size="sm" onClick={() => setCompany({ ...company, logoUrl: null })}>Entfernen</Button>
+                      </div>
+                    )}
+                    <Input
+                      value={company.logoUrl || ""}
+                      onChange={(e) => setCompany({ ...company, logoUrl: e.target.value })}
+                      placeholder="URL zum Logo (z.B. https://...)"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-400">Logo-URL eingeben. Wird im Header von Regieberichten und Rechnungen angezeigt.</p>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Regieberichte</h4>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Stundensatz (€/Std.)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={company.hourlyRate ?? 55}
+                      onChange={(e) => setCompany({ ...company, hourlyRate: parseFloat(e.target.value) || 55 })}
+                      className="mt-1 max-w-[200px]"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Wird für automatische Rechnungserstellung aus Regieberichten verwendet</p>
+                  </div>
                 </div>
 
                 <div className="border-t pt-4 mt-4">

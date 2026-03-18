@@ -59,6 +59,11 @@ export async function PUT(req: NextRequest) {
           lunchBreakMinutes: body.lunchBreakMinutes !== undefined ? (parseInt(body.lunchBreakMinutes) || 0) : undefined,
           workHoursPerDay: body.workHoursPerDay !== undefined ? (parseFloat(body.workHoursPerDay) || 8) : undefined,
           catalogApiKey: body.catalogApiKey !== undefined ? body.catalogApiKey : undefined,
+          logoUrl: body.logoUrl !== undefined ? body.logoUrl : undefined,
+          website: body.website !== undefined ? body.website : undefined,
+          fax: body.fax !== undefined ? body.fax : undefined,
+          instagram: body.instagram !== undefined ? body.instagram : undefined,
+          hourlyRate: body.hourlyRate !== undefined ? (parseFloat(body.hourlyRate) || 55) : undefined,
         },
       });
     }

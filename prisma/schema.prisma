@@ -140,6 +140,11 @@ model CompanySettings {
   lunchBreakMinutes  Int      @default(30)
   workHoursPerDay    Float    @default(8)
   catalogApiKey      String?
+  logoUrl            String?
+  website            String?
+  fax                String?
+  instagram          String?
+  hourlyRate         Float    @default(55)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -202,8 +207,9 @@ model Project {
   timeEntries   TimeEntry[]
   orders        Order[]
   quotations    Quotation[]
-  expenses      Expense[]
-  deliveryNotes DeliveryNote[]
+  expenses       Expense[]
+  deliveryNotes  DeliveryNote[]
+  regieberichte  Regiebericht[]
 
   @@map("projects")
 }
@@ -647,6 +653,60 @@ model UserNote {
   updatedAt DateTime @updatedAt
 
   @@map("user_notes")
+}
+
+// ─── Regieberichte ──────────────────────────────────────────────
+
+enum RegieberichtStatus {
+  ENTWURF
+  ABGESCHLOSSEN
+  UNTERSCHRIEBEN
+  RECHNUNG_ERSTELLT
+}
+
+model Regiebericht {
+  id               String              @id @default(cuid())
+  berichtNummer    Int                 @unique
+  projectId        String
+  project          Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  datum            DateTime            @default(now())
+  durchgefuehrteArbeiten String?
+  status           RegieberichtStatus  @default(ENTWURF)
+  unterschriftUrl  String?
+  createdById      String
+  invoiceId        String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  mitarbeiter RegieMitarbeiter[]
+  materialien RegieMaterial[]
+
+  @@map("regieberichte")
+}
+
+model RegieMitarbeiter {
+  id              String       @id @default(cuid())
+  regieberichtId  String
+  regiebericht    Regiebericht @relation(fields: [regieberichtId], references: [id], onDelete: Cascade)
+  userId          String
+  name            String
+  stunden         Float        @default(0)
+  createdAt       DateTime     @default(now())
+
+  @@map("regie_mitarbeiter")
+}
+
+model RegieMaterial {
+  id              String       @id @default(cuid())
+  regieberichtId  String
+  regiebericht    Regiebericht @relation(fields: [regieberichtId], references: [id], onDelete: Cascade)
+  name            String
+  einheit         String       @default("Stk")
+  menge           Float        @default(1)
+  einzelpreis     Float        @default(0)
+  createdAt       DateTime     @default(now())
+
+  @@map("regie_materialien")
 }
 
 // ─── Notifications ───────────────────────────────────────────────
