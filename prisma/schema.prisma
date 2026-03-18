@@ -188,6 +188,7 @@ model Project {
 
   startDate     DateTime?
   endDate       DateTime?
+  plannedHours  Float?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

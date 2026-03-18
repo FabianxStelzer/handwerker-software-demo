@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       chatMessages: { orderBy: { createdAt: "asc" }, include: { user: { select: { id: true, firstName: true, lastName: true } } } },
       materials: { orderBy: { createdAt: "desc" }, include: { catalogMaterial: true, requestedBy: { select: { firstName: true, lastName: true } } } },
       blueprints: { orderBy: { createdAt: "desc" } },
+      timeEntries: { select: { userId: true, user: { select: { id: true, firstName: true, lastName: true } } }, distinct: ["userId"] },
     },
   });
 
@@ -38,6 +39,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       siteCity: body.siteCity || null,
       startDate: body.startDate ? new Date(body.startDate) : null,
       endDate: body.endDate ? new Date(body.endDate) : null,
+      ...(body.plannedHours !== undefined && { plannedHours: body.plannedHours ? parseFloat(body.plannedHours) : null }),
     },
     include: { customer: true },
   });
