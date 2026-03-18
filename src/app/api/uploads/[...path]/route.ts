@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
 import path from "path";
 
-const DATA_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR || process.env.UPLOAD_DIR || path.join(process.cwd(), "data");
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -15,6 +15,11 @@ const MIME_TYPES: Record<string, string> = {
   ".bmp": "image/bmp",
   ".tiff": "image/tiff",
   ".tif": "image/tiff",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
+  ".csv": "text/csv",
+  ".x31": "application/octet-stream",
+  ".d11": "application/octet-stream",
 };
 
 export async function GET(

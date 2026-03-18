@@ -47,6 +47,8 @@ export default function AufmassPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editPositionen, setEditPositionen] = useState<any[]>([]);
   const [editingPositionen, setEditingPositionen] = useState(false);
+  const [createFiles, setCreateFiles] = useState<File[]>([]);
+  const createFileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const [aRes, pRes] = await Promise.all([
@@ -72,12 +74,24 @@ export default function AufmassPage() {
     });
     if (res.ok) {
       const created = await res.json();
-      setAufmasse((prev) => [created, ...prev]);
-      setSelected(created);
+
+      // Upload pre-selected files
+      for (const file of createFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("aufmassId", created.id);
+        await fetch("/api/aufmass", { method: "POST", body: fd });
+      }
+
+      await load();
+      const refreshed = await fetch("/api/aufmass").then((r) => r.json());
+      setSelected(refreshed.find((a: any) => a.id === created.id) || created);
+      setAufmasse(refreshed);
       setCreateOpen(false);
       setNewTitel("");
       setNewBeschreibung("");
       setNewKiAnweisung("");
+      setCreateFiles([]);
     }
     setSaving(false);
   }
@@ -564,6 +578,46 @@ export default function AufmassPage() {
                 rows={2}
               />
             </div>
+            {/* Bauplan + Materialdateien */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Bauplan & Materialdateien</label>
+              <p className="text-xs text-gray-400 mt-0.5 mb-2">Lade einen PDF-Bauplan hoch, damit sich das Aufmaß daran orientiert. Zusätzlich X31-, D11- oder Excel-Dateien mit Materialien.</p>
+              {createFiles.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {createFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+                      <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                      <span className="text-xs text-gray-900 flex-1 truncate">{f.name}</span>
+                      <span className="text-[10px] text-gray-400 uppercase">{f.name.split(".").pop()}</span>
+                      <button className="text-red-400 hover:text-red-600" onClick={() => setCreateFiles(createFiles.filter((_, idx) => idx !== i))}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                onClick={() => createFileRef.current?.click()}
+              >
+                <Upload className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                <p className="text-xs font-medium text-gray-600">Dateien auswählen</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">PDF · X31 · D11 · Excel · CSV</p>
+              </div>
+              <input
+                ref={createFileRef}
+                type="file"
+                accept=".pdf,.x31,.d11,.xlsx,.xls,.csv"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length > 0) setCreateFiles((prev) => [...prev, ...files]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
             <div>
               <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                 <Bot className="h-4 w-4 text-blue-600" />KI-Anweisung (optional)
@@ -577,7 +631,7 @@ export default function AufmassPage() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateFiles([]); }}>Abbrechen</Button>
               <Button onClick={createAufmass} disabled={saving}>
                 {saving ? "Erstelle…" : "Erstellen"}
               </Button>

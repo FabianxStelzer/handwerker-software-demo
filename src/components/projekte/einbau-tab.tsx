@@ -224,27 +224,36 @@ export function EinbauTab({ project }: { project: any }) {
                 ref={planImageRef}
                 className={`relative ${placingMarker ? "cursor-crosshair" : "cursor-default"}`}
                 onClick={handlePlanClick}
-                style={{ minHeight: "500px", background: "#f0f0f0" }}
+                style={{ minHeight: "600px", background: "#e5e5e5" }}
               >
-                {/* PDF als Bild/Embed */}
-                <embed
-                  src={viewPlan.dateiUrl}
-                  type="application/pdf"
-                  className="w-full"
-                  style={{ height: "600px" }}
-                />
+                {/* PDF als iframe oder Bild */}
+                {viewPlan.dateiUrl.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? (
+                  <img
+                    src={viewPlan.dateiUrl}
+                    alt={viewPlan.titel}
+                    className="w-full h-auto"
+                    style={{ pointerEvents: "none" }}
+                  />
+                ) : (
+                  <iframe
+                    src={`${viewPlan.dateiUrl}#toolbar=0&navpanes=0`}
+                    className="w-full border-0"
+                    style={{ height: "700px", pointerEvents: placingMarker ? "none" : "auto" }}
+                    title={viewPlan.titel}
+                  />
+                )}
 
-                {/* Markers overlay */}
-                <div className="absolute inset-0 pointer-events-none">
+                {/* Markers overlay – immer sichtbar über dem PDF */}
+                <div className="absolute inset-0" style={{ pointerEvents: placingMarker ? "auto" : "none" }}>
                   {viewPlan.markers.map((marker, i) => (
                     <button
                       key={marker.id}
-                      className={`absolute pointer-events-auto transform -translate-x-1/2 -translate-y-full transition-all ${
+                      className={`absolute transform -translate-x-1/2 -translate-y-full transition-all ${
                         selectedMarker?.id === marker.id
                           ? "z-20 scale-125"
                           : "z-10 hover:scale-110"
                       }`}
-                      style={{ left: `${marker.xPercent}%`, top: `${marker.yPercent}%` }}
+                      style={{ left: `${marker.xPercent}%`, top: `${marker.yPercent}%`, pointerEvents: "auto" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMarker(marker);
@@ -432,20 +441,22 @@ export function EinbauTab({ project }: { project: any }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-900">Einbau-Dokumentation</h3>
-        <Button size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={uploading}>
-          <Upload className="h-3.5 w-3.5" />{uploading ? "Wird hochgeladen…" : "Bauplan hochladen"}
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".pdf"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) uploadPlan(f);
-            e.target.value = "";
-          }}
-        />
+        <div>
+          <Button size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <Upload className="h-3.5 w-3.5" />{uploading ? "Wird hochgeladen…" : "Bauplan hochladen"}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadPlan(f);
+              e.target.value = "";
+            }}
+          />
+        </div>
       </div>
 
       {plans.length === 0 ? (
