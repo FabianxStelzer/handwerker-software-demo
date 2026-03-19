@@ -83,6 +83,9 @@ export async function PUT(req: NextRequest) {
           emailAbsenderName: body.emailAbsenderName !== undefined ? (body.emailAbsenderName || null) : undefined,
           emailAbsenderAdresse: body.emailAbsenderAdresse !== undefined ? (body.emailAbsenderAdresse || null) : undefined,
           emailVorlagen: body.emailVorlagen !== undefined ? (body.emailVorlagen || null) : undefined,
+          nkKundenNaechster: body.nkKundenNaechster !== undefined ? (parseInt(body.nkKundenNaechster) || 10064) : undefined,
+          nkLieferantenNaechster: body.nkLieferantenNaechster !== undefined ? (parseInt(body.nkLieferantenNaechster) || 70089) : undefined,
+          nkBelege: body.nkBelege !== undefined ? (body.nkBelege || null) : undefined,
         },
       });
     }

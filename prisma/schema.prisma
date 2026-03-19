@@ -169,6 +169,10 @@ model CompanySettings {
   emailAbsenderAdresse String?
   emailVorlagen       String?   // JSON: { rechnung, angebot, ... }
 
+  nkKundenNaechster   Int       @default(10064)
+  nkLieferantenNaechster Int    @default(70089)
+  nkBelege            String?   // JSON: { rechnungen: { kuerzel, freifeld, naechster, mindestlaenge }, ... }
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

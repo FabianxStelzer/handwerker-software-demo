@@ -1471,7 +1471,8 @@ function BuchhaltungSettingsTab() {
       {activeSection === "benutzer" && <BuchBenutzerSection />}
       {activeSection === "steuerberater" && <BuchSteuerberaterSection />}
       {activeSection === "email" && <BuchEmailSection />}
-      {!["allgemein", "benutzer", "steuerberater", "email"].includes(activeSection!) && (
+      {activeSection === "nummernkreise" && <BuchNummernkreiseSection />}
+      {!["allgemein", "benutzer", "steuerberater", "email", "nummernkreise"].includes(activeSection!) && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
@@ -2392,6 +2393,168 @@ function BuchEmailSection() {
           })}
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ── Nummernkreise ─────────────────────────────────────────────
+
+const BELEG_NK_TYPEN = [
+  { key: "rechnungen", label: "Rechnungen", defaultKuerzel: "", defaultNaechster: 20082, defaultMindest: 5 },
+  { key: "angebote", label: "Angebote", defaultKuerzel: "AG", defaultNaechster: 93689, defaultMindest: 5 },
+  { key: "auftragsbestaetigungen", label: "Auftragsbestätigungen", defaultKuerzel: "AB", defaultNaechster: 107927, defaultMindest: 6 },
+  { key: "lieferscheine", label: "Lieferscheine", defaultKuerzel: "LS", defaultNaechster: 406104, defaultMindest: 6 },
+  { key: "rechnungskorrekturen", label: "Rechnungskorrekturen", defaultKuerzel: "GS", defaultNaechster: 1, defaultMindest: 4 },
+] as const;
+
+const MINDESTLAENGE_OPTIONS = [
+  { value: 4, label: "4-stellig" },
+  { value: 5, label: "5-stellig" },
+  { value: 6, label: "6-stellig" },
+  { value: 7, label: "7-stellig" },
+  { value: 8, label: "8-stellig" },
+];
+
+type BelegNk = { kuerzel: string; freifeld: string; naechster: number; mindestlaenge: number };
+
+function BuchNummernkreiseSection() {
+  const [kundenNaechster, setKundenNaechster] = useState(10064);
+  const [lieferantenNaechster, setLieferantenNaechster] = useState(70089);
+  const [belege, setBelege] = useState<Record<string, BelegNk>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/company").then((r) => r.json()).then((d) => {
+      setKundenNaechster(d.nkKundenNaechster ?? 10064);
+      setLieferantenNaechster(d.nkLieferantenNaechster ?? 70089);
+      try {
+        const parsed = d.nkBelege ? JSON.parse(d.nkBelege) : {};
+        const merged: Record<string, BelegNk> = {};
+        for (const t of BELEG_NK_TYPEN) {
+          merged[t.key] = {
+            kuerzel: parsed[t.key]?.kuerzel ?? t.defaultKuerzel,
+            freifeld: parsed[t.key]?.freifeld ?? "",
+            naechster: parsed[t.key]?.naechster ?? t.defaultNaechster,
+            mindestlaenge: parsed[t.key]?.mindestlaenge ?? t.defaultMindest,
+          };
+        }
+        setBelege(merged);
+      } catch {
+        const merged: Record<string, BelegNk> = {};
+        for (const t of BELEG_NK_TYPEN) {
+          merged[t.key] = { kuerzel: t.defaultKuerzel, freifeld: "", naechster: t.defaultNaechster, mindestlaenge: t.defaultMindest };
+        }
+        setBelege(merged);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  function updateBeleg(key: string, field: keyof BelegNk, value: string | number) {
+    setBelege((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+  }
+
+  async function save() {
+    setSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nkKundenNaechster: kundenNaechster,
+        nkLieferantenNaechster: lieferantenNaechster,
+        nkBelege: JSON.stringify(belege),
+      }),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">Nummernkreise</h2>
+
+      {/* Belege */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-6">Belege</h3>
+
+        <div className="space-y-6">
+          {BELEG_NK_TYPEN.map((typ) => {
+            const b = belege[typ.key];
+            if (!b) return null;
+            return (
+              <div key={typ.key}>
+                <p className="text-sm font-medium text-gray-900 mb-2">{typ.label}</p>
+                <div className="flex items-end gap-3 flex-wrap">
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Kürzel</label>
+                    <Input className="w-20 text-center" value={b.kuerzel}
+                      onChange={(e) => updateBeleg(typ.key, "kuerzel", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Freifeld</label>
+                    <div className="flex items-center gap-1">
+                      <Input className="w-36" value={b.freifeld} placeholder="Bspw. {JJ}{MM}"
+                        onChange={(e) => updateBeleg(typ.key, "freifeld", e.target.value)} />
+                      <span className="text-gray-400 text-xs">{"{}"}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Nächster Wert</label>
+                    <Input className="w-28 text-right" type="number" value={b.naechster}
+                      onChange={(e) => updateBeleg(typ.key, "naechster", parseInt(e.target.value) || 0)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Mindestlänge</label>
+                    <select className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700"
+                      value={b.mindestlaenge}
+                      onChange={(e) => updateBeleg(typ.key, "mindestlaenge", parseInt(e.target.value))}>
+                      {MINDESTLAENGE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Kontakte */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-6">Kontakte</h3>
+
+        <div className="flex gap-8 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-900 mb-2">Kunden</p>
+            <label className="text-[11px] text-gray-400 mb-1 block">Nächster Wert</label>
+            <Input className="w-36 text-right" type="number" value={kundenNaechster}
+              onChange={(e) => setKundenNaechster(parseInt(e.target.value) || 0)} />
+            <p className="text-[11px] text-gray-400 mt-1">Wert zwischen 10000 und 69999</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900 mb-2">Lieferanten</p>
+            <label className="text-[11px] text-gray-400 mb-1 block">Nächster Wert</label>
+            <Input className="w-36 text-right" type="number" value={lieferantenNaechster}
+              onChange={(e) => setLieferantenNaechster(parseInt(e.target.value) || 0)} />
+            <p className="text-[11px] text-gray-400 mt-1">Wert zwischen 70000 und 99999</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Speichern */}
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
+          {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+        </Button>
+      </div>
     </div>
   );
 }
