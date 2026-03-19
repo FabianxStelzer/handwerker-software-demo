@@ -70,6 +70,15 @@ export async function PUT(req: NextRequest) {
           aiAufmassProviderId: body.aiAufmassProviderId !== undefined ? (body.aiAufmassProviderId || null) : undefined,
           aiChatSystemPrompt: body.aiChatSystemPrompt !== undefined ? (body.aiChatSystemPrompt || null) : undefined,
           aiAufmassSystemPrompt: body.aiAufmassSystemPrompt !== undefined ? (body.aiAufmassSystemPrompt || null) : undefined,
+          preisAufBelegen: body.preisAufBelegen !== undefined ? (body.preisAufBelegen || null) : undefined,
+          unternehmenstyp: body.unternehmenstyp !== undefined ? (body.unternehmenstyp || null) : undefined,
+          gewinnermittlung: body.gewinnermittlung !== undefined ? (body.gewinnermittlung || null) : undefined,
+          bundesland: body.bundesland !== undefined ? (body.bundesland || null) : undefined,
+          besteuerung: body.besteuerung !== undefined ? (body.besteuerung || null) : undefined,
+          euUmsatzsteuer: body.euUmsatzsteuer !== undefined ? (body.euUmsatzsteuer || null) : undefined,
+          pvNullsteuer: body.pvNullsteuer !== undefined ? !!body.pvNullsteuer : undefined,
+          kontenrahmen: body.kontenrahmen !== undefined ? (body.kontenrahmen || null) : undefined,
+          hatSteuerberater: body.hatSteuerberater !== undefined ? !!body.hatSteuerberater : undefined,
         },
       });
     }

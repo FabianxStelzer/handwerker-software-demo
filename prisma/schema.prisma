@@ -153,6 +153,17 @@ model CompanySettings {
   aiAufmassProviderId String?
   aiChatSystemPrompt  String?
   aiAufmassSystemPrompt String?
+
+  preisAufBelegen     String?   // netto, brutto, umsatzsteuerfrei
+  unternehmenstyp     String?   // einzelunternehmen, gmbh, gbr, ug, ohg, kg, ag, ev, freelancer
+  gewinnermittlung    String?   // euer, bilanzierung
+  bundesland          String?
+  besteuerung         String?   // ist, soll
+  euUmsatzsteuer      String?   // deutsch, eu-zielland
+  pvNullsteuer        Boolean   @default(false)
+  kontenrahmen        String?   // skr03, skr04
+  hatSteuerberater    Boolean   @default(false)
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

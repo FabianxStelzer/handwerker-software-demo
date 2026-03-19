@@ -1458,8 +1458,6 @@ function BuchhaltungSettingsTab() {
     );
   }
 
-  const section = BUCH_SECTIONS.find((s) => s.key === activeSection);
-
   return (
     <div className="space-y-4">
       <button
@@ -1469,11 +1467,266 @@ function BuchhaltungSettingsTab() {
         ← Zurück zur Übersicht
       </button>
 
+      {activeSection === "allgemein" && <BuchAllgemeinSection />}
+      {activeSection !== "allgemein" && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
+          </h3>
+          <p className="text-sm text-gray-500 mb-6">
+            Einstellungen für {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}.
+          </p>
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">Inhalte werden konfiguriert...</p>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ── Allgemeine Einstellungen ──────────────────────────────────
+
+const BUNDESLAENDER = [
+  "Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen",
+  "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen",
+  "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen",
+  "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen",
+];
+
+const UNTERNEHMENSTYPEN = [
+  { value: "einzelunternehmen", label: "Einzelunternehmen" },
+  { value: "freelancer", label: "Freiberufler" },
+  { value: "gbr", label: "GbR" },
+  { value: "gmbh", label: "GmbH" },
+  { value: "ug", label: "UG (haftungsbeschränkt)" },
+  { value: "ohg", label: "OHG" },
+  { value: "kg", label: "KG" },
+  { value: "gmbh-co-kg", label: "GmbH & Co. KG" },
+  { value: "ag", label: "AG" },
+  { value: "ev", label: "e.V." },
+];
+
+function BuchAllgemeinSection() {
+  const [data, setData] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/company")
+      .then((r) => r.json())
+      .then((s) => {
+        setData({
+          name: s.name || "",
+          preisAufBelegen: s.preisAufBelegen || "netto",
+          unternehmenstyp: s.unternehmenstyp || "einzelunternehmen",
+          gewinnermittlung: s.gewinnermittlung || "euer",
+          bundesland: s.bundesland || "",
+          vatId: s.vatId || "",
+          taxId: s.taxId || "",
+          besteuerung: s.besteuerung || "",
+          euUmsatzsteuer: s.euUmsatzsteuer || "",
+          pvNullsteuer: !!s.pvNullsteuer,
+          kontenrahmen: s.kontenrahmen || "skr04",
+          hatSteuerberater: !!s.hatSteuerberater,
+        });
+        setLoading(false);
+      });
+  }, []);
+
+  function upd(key: string, val: any) {
+    setData((d) => ({ ...d, [key]: val }));
+    setSaved(false);
+  }
+
+  async function save() {
+    setSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  function Radio({ name, value, checked, onChange, label, desc }: { name: string; value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
+    return (
+      <label className="flex items-start gap-2.5 cursor-pointer group">
+        <input type="radio" name={name} value={value} checked={checked} onChange={onChange}
+          className="mt-0.5 h-4 w-4 accent-[#354360]" />
+        <span>
+          <span className="text-sm text-gray-700 group-hover:text-gray-900">{label}</span>
+          {desc && <span className="block text-xs text-gray-400 mt-0.5">{desc}</span>}
+        </span>
+      </label>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Allgemeine Einstellungen</h2>
+        <span className="text-xs text-gray-400">* Pflichtfelder</span>
+      </div>
+
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{section?.label}</h3>
-        <p className="text-sm text-gray-500 mb-6">Einstellungen für {section?.label}.</p>
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-sm">Inhalte werden konfiguriert...</p>
+        <div className="max-w-2xl space-y-8">
+          {/* Firmenname */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-2 text-right">Firmenname*</label>
+            <Input value={data.name} onChange={(e) => upd("name", e.target.value)} />
+          </div>
+
+          {/* Preise auf Belegen */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Preise auf Belegen</label>
+            <div>
+              <p className="text-xs text-gray-500 mb-3">
+                Bei Bruttopreisen ist die Umsatzsteuer bereits enthalten. Bei Nettopreisen wird die Steuer in Ihren Belegen getrennt berechnet und aufgeführt. Oder ist Ihr Unternehmen umsatzsteuerbefreit? Dann wählen Sie die entsprechende Option.
+              </p>
+              <div className="space-y-2">
+                <Radio name="preisAufBelegen" value="netto" checked={data.preisAufBelegen === "netto"} onChange={() => upd("preisAufBelegen", "netto")} label="Netto-Preise (USt. wird getrennt ausgewiesen)" />
+                <Radio name="preisAufBelegen" value="brutto" checked={data.preisAufBelegen === "brutto"} onChange={() => upd("preisAufBelegen", "brutto")} label="Brutto-Preise (USt. ist im Preis enthalten)" />
+                <Radio name="preisAufBelegen" value="umsatzsteuerfrei" checked={data.preisAufBelegen === "umsatzsteuerfrei"} onChange={() => upd("preisAufBelegen", "umsatzsteuerfrei")} label="Umsatzsteuerbefreit" />
+              </div>
+            </div>
+          </div>
+
+          {/* Unternehmenstyp */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-center">
+            <label className="text-sm font-medium text-gray-700 text-right">Unternehmenstyp</label>
+            <NativeSelect value={data.unternehmenstyp} onChange={(e) => upd("unternehmenstyp", e.target.value)} className="max-w-sm">
+              {UNTERNEHMENSTYPEN.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </NativeSelect>
+          </div>
+
+          {/* Gewinnermittlung */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Gewinnermittlung</label>
+            <div className="space-y-2">
+              <Radio name="gewinnermittlung" value="euer" checked={data.gewinnermittlung === "euer"} onChange={() => upd("gewinnermittlung", "euer")} label="EÜR" />
+              <Radio name="gewinnermittlung" value="bilanzierung" checked={data.gewinnermittlung === "bilanzierung"} onChange={() => upd("gewinnermittlung", "bilanzierung")} label="Bilanzierung" />
+            </div>
+          </div>
+
+          {/* Bundesland */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-center">
+            <label className="text-sm font-medium text-gray-700 text-right">Bundesland</label>
+            <NativeSelect value={data.bundesland} onChange={(e) => upd("bundesland", e.target.value)} className="max-w-sm">
+              <option value="">Bitte wählen</option>
+              {BUNDESLAENDER.map((b) => <option key={b} value={b}>{b}</option>)}
+            </NativeSelect>
+          </div>
+
+          {/* USt-IdNr. */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-center">
+            <label className="text-sm font-medium text-gray-700 text-right">USt-IdNr.</label>
+            <Input value={data.vatId} onChange={(e) => upd("vatId", e.target.value)} placeholder="DE..." className="max-w-sm" />
+          </div>
+
+          {/* Steuernummer */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-center">
+            <label className="text-sm font-medium text-gray-700 text-right">Steuernummer</label>
+            <Input value={data.taxId} onChange={(e) => upd("taxId", e.target.value)} placeholder="z.B. 211/277/40167" className="max-w-sm" />
+          </div>
+
+          {/* Besteuerung */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Besteuerung</label>
+            <div className="space-y-2">
+              <Radio name="besteuerung" value="ist" checked={data.besteuerung === "ist"} onChange={() => upd("besteuerung", "ist")}
+                label="USt wird erst mit Zahlungseingang abgeführt (Ist-Versteuerung)" />
+              <Radio name="besteuerung" value="soll" checked={data.besteuerung === "soll"} onChange={() => upd("besteuerung", "soll")}
+                label="USt wird sofort mit Rechnungsstellung abgeführt (Soll-Versteuerung)" />
+            </div>
+          </div>
+
+          {/* Steuerliche Meldungen */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Steuerliche Meldungen</label>
+            <p className="text-xs text-gray-500">
+              Die Einstellungen zur Umsatzsteuer-Voranmeldung und der Zusammenfassenden Meldung legen Sie <strong>direkt in den Einstellungen für steuerliche Meldungen</strong> fest.
+            </p>
+          </div>
+
+          {/* Umsatzsteuer EU-Ausland */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Umsatzsteuer bei Privatpersonen im EU-Ausland</label>
+            <div>
+              <p className="text-xs text-gray-500 mb-3">
+                Seit dem 01.07.2021 müssen Sie entscheiden, welche Umsatzsteuer-Sätze für Belege an Privatpersonen ins EU-Ausland angewandt werden sollen.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <p className="text-xs text-blue-800">
+                  Unterhalb einer <strong>Umsatzschwelle von 10.000 €</strong> als <strong>Summe aller Umsätze</strong> in EU-Zielländer besteht eine Wahlmöglichkeit, darüber muss stets die Umsatzsteuer des EU-Ziellands angewandt werden.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Radio name="euUmsatzsteuer" value="deutsch" checked={data.euUmsatzsteuer === "deutsch"} onChange={() => upd("euUmsatzsteuer", "deutsch")}
+                  label="Deutsche Umsatzsteuer"
+                  desc="Umsätze werden automatisch in der Umsatzsteuer-Zahllast (ELSTER) berücksichtigt." />
+                <Radio name="euUmsatzsteuer" value="eu-zielland" checked={data.euUmsatzsteuer === "eu-zielland"} onChange={() => upd("euUmsatzsteuer", "eu-zielland")}
+                  label="EU-Zielland-Steuer"
+                  desc="Umsätze müssen entweder manuell beim Bundeszentralamt für Steuern durch das One-Stop-Shop-Verfahren oder individuell im Zielland gemeldet werden." />
+              </div>
+            </div>
+          </div>
+
+          {/* Nullsteuer Photovoltaik */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Nullsteuer bei Photovoltaikanlagen</label>
+            <div>
+              <p className="text-xs text-gray-500 mb-3">
+                Seit dem <strong>01.01.2023</strong> gilt mit dem Jahressteuergesetz 2022 eine ermäßigte Steuer von 0 % auf Umsätze durch Produkte und Services mit Photovoltaikanlagen. Für diese ist eine gesonderte Buchungskategorie bei der <strong>Belegerstellung</strong> erforderlich.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <p className="text-xs text-blue-800">
+                  Betrifft Umsätze nach §12 Abs. 3 UStG.
+                </p>
+              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" checked={data.pvNullsteuer} onChange={(e) => upd("pvNullsteuer", e.target.checked)}
+                  className="h-4 w-4 accent-[#354360] rounded" />
+                <span className="text-sm text-gray-700">Ja, Buchungskategorie &quot;Photovoltaikanlagen&quot; anzeigen.</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t my-6" />
+
+          {/* Kontenrahmen */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-center">
+            <label className="text-sm font-medium text-gray-700 text-right">Kontenrahmen</label>
+            <NativeSelect value={data.kontenrahmen} onChange={(e) => upd("kontenrahmen", e.target.value)} className="max-w-sm">
+              <option value="skr03">SKR 03</option>
+              <option value="skr04">SKR 04</option>
+            </NativeSelect>
+          </div>
+
+          {/* Steuerkanzlei */}
+          <div className="grid grid-cols-[180px_1fr] gap-x-6 items-start">
+            <label className="text-sm font-medium text-gray-700 pt-1 text-right">Steuerkanzlei</label>
+            <div className="space-y-2">
+              <Radio name="hatSteuerberater" value="nein" checked={!data.hatSteuerberater} onChange={() => upd("hatSteuerberater", false)}
+                label="Ich habe keinen Steuerberater/keine Steuerberaterin" />
+              <Radio name="hatSteuerberater" value="ja" checked={data.hatSteuerberater} onChange={() => upd("hatSteuerberater", true)}
+                label="Ich habe einen Steuerberater/eine Steuerberaterin" />
+            </div>
+          </div>
+
+          {/* Speichern */}
+          <div className="flex justify-end pt-4">
+            <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
+              {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
