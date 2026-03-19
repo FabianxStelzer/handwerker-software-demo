@@ -109,7 +109,7 @@ async function testConnection(body: any) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-        body: JSON.stringify({ model: model || "claude-sonnet-4-20250514", max_tokens: 5, messages: [{ role: "user", content: "Antworte nur mit: OK" }] }),
+        body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 5, messages: [{ role: "user", content: "Antworte nur mit: OK" }] }),
       });
       if (!res.ok) { const e = await res.text(); return NextResponse.json({ success: false, error: `Anthropic Fehler: ${res.status} – ${e.slice(0, 200)}` }); }
       return NextResponse.json({ success: true, message: "Claude Verbindung erfolgreich" });

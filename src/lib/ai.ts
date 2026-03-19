@@ -72,7 +72,7 @@ async function callAnthropic(
   const chatMsgs = messages.filter((m) => m.role !== "system");
 
   const body: any = {
-    model: provider.model || "claude-sonnet-4-20250514",
+    model: provider.model || "claude-sonnet-4-6",
     max_tokens: 4096,
     messages: chatMsgs.map((m) => ({ role: m.role, content: m.content })),
   };

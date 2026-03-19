@@ -879,6 +879,7 @@ const PROVIDER_PRESETS: Record<string, { label: string; icon: string; color: str
   anthropic: {
     label: "Claude (Anthropic)", icon: "🟣", color: "purple",
     models: [
+      "claude-sonnet-4-6",
       "claude-sonnet-4-20250514",
       "claude-opus-4-20250514",
       "claude-3-7-sonnet-20250219",
