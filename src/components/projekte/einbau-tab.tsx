@@ -38,18 +38,8 @@ interface Annotation {
 }
 
 const COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#000000", "#f97316", "#a855f7"];
-const STROKE_WIDTHS = [
-  { label: "Dünn", value: 0.15 },
-  { label: "Normal", value: 0.3 },
-  { label: "Dick", value: 0.6 },
-  { label: "Sehr dick", value: 1.2 },
-];
-const FONT_SIZES = [
-  { label: "Klein", value: 2 },
-  { label: "Normal", value: 3.5 },
-  { label: "Groß", value: 5 },
-  { label: "Sehr groß", value: 7 },
-];
+const STROKE_RANGE = { min: 0.08, max: 2, step: 0.02 };
+const FONT_RANGE = { min: 1, max: 10, step: 0.5 };
 
 // ── PDF.js lazy loader ──────────────────────────────────────
 
@@ -114,6 +104,8 @@ function SvgOverlay({
   const strokeRef = useRef<{ x: number; y: number }[]>([]);
   const [drawing, setDrawing] = useState(false);
   const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [inlineText, setInlineText] = useState<{ x: number; y: number; value: string } | null>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
 
   function getPos(e: React.MouseEvent): { x: number; y: number } | null {
     const svg = svgRef.current;
@@ -122,7 +114,15 @@ function SvgOverlay({
     return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
   }
 
+  function commitInlineText() {
+    if (inlineText && inlineText.value.trim()) {
+      onAdd({ id: `ann-${Date.now()}`, type: "text", x: inlineText.x, y: inlineText.y, text: inlineText.value, color, fontSize });
+    }
+    setInlineText(null);
+  }
+
   function handleMouseDown(e: React.MouseEvent) {
+    if (inlineText) return;
     const pos = getPos(e);
     if (!pos) return;
 
@@ -133,10 +133,8 @@ function SvgOverlay({
       if (currentPathRef.current) currentPathRef.current.setAttribute("d", `M${pos.x} ${pos.y}`);
       e.preventDefault();
     } else if (tool === "text") {
-      const text = prompt("Text eingeben:");
-      if (text?.trim()) {
-        onAdd({ id: `ann-${Date.now()}`, type: "text", x: pos.x, y: pos.y, text, color, fontSize });
-      }
+      setInlineText({ x: pos.x, y: pos.y, value: "" });
+      requestAnimationFrame(() => inlineInputRef.current?.focus());
     } else if (tool === "none") {
       onSelect(null);
     }
@@ -180,12 +178,12 @@ function SvgOverlay({
   }
 
   const cursor = placingMarker ? "crosshair" : tool === "draw" ? "crosshair" : tool === "text" ? "text" : "default";
+  const hasInteraction = tool !== "none" || placingMarker || inlineText !== null;
 
   return (
     <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
-      style={{ cursor, pointerEvents: (tool !== "none" || placingMarker) ? "auto" : "none", zIndex: 15 }}
+      style={{ cursor, pointerEvents: hasInteraction ? "auto" : "none", zIndex: 15 }}
       onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-      {/* Completed annotations */}
       {annotations.map((ann) => {
         if (ann.type === "path" && ann.points && ann.points.length > 1) {
           const d = ann.points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
@@ -211,9 +209,37 @@ function SvgOverlay({
         }
         return null;
       })}
-      {/* Current drawing stroke (live) */}
+      {/* Live stroke */}
       <path ref={currentPathRef} d="" stroke={color} strokeWidth={strokeWidth}
         fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {/* Inline text input */}
+      {inlineText && (
+        <foreignObject x={`${inlineText.x}%`} y={`${inlineText.y - fontSize * 1.1}%`} width="40%" height={`${fontSize * 2}%`} style={{ overflow: "visible" }}>
+          <input
+            ref={inlineInputRef}
+            type="text"
+            autoFocus
+            value={inlineText.value}
+            onChange={(e) => setInlineText({ ...inlineText, value: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter") commitInlineText(); if (e.key === "Escape") setInlineText(null); }}
+            onBlur={commitInlineText}
+            style={{
+              fontSize: `${fontSize * 3.5}px`,
+              fontWeight: "bold",
+              fontFamily: "sans-serif",
+              color,
+              background: "rgba(255,255,255,0.85)",
+              border: `2px solid ${color}`,
+              borderRadius: "4px",
+              padding: "2px 6px",
+              outline: "none",
+              width: "auto",
+              minWidth: "80px",
+            }}
+            placeholder="Text eingeben…"
+          />
+        </foreignObject>
+      )}
     </svg>
   );
 }
@@ -451,7 +477,6 @@ function PlanViewer({
       {/* Toolbar row 2: Options (when tool active or annotation selected) */}
       {(tool !== "none" || selectedAnn) && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap bg-gray-50 rounded-lg px-2 py-1.5">
-          {/* Colors */}
           <span className="text-[10px] text-gray-500 mr-1">Farbe:</span>
           {COLORS.map((c) => (
             <button key={c} className={`h-5 w-5 rounded-full border-2 transition-transform ${color === c ? "scale-125 border-gray-800" : "border-gray-300 hover:scale-110"}`}
@@ -461,46 +486,42 @@ function PlanViewer({
               }} />
           ))}
 
-          {/* Stroke width (draw mode) */}
-          {(tool === "draw" || (selectedAnn?.type === "path")) && (
+          {(tool === "draw" || selectedAnn?.type === "path") && (
             <>
               <div className="h-4 border-l border-gray-300 mx-1" />
               <span className="text-[10px] text-gray-500 mr-1">Stärke:</span>
-              {STROKE_WIDTHS.map((sw) => (
-                <button key={sw.value} className={`px-1.5 py-0.5 rounded text-[10px] ${strokeWidth === sw.value ? "bg-gray-800 text-white" : "bg-white border border-gray-200 hover:bg-gray-100"}`}
-                  onClick={() => {
-                    setStrokeWidth(sw.value);
-                    if (selectedAnn?.type === "path") ann.update(selectedAnn.id, { strokeWidth: sw.value });
-                  }}>{sw.label}</button>
-              ))}
+              <input type="range" min={STROKE_RANGE.min} max={STROKE_RANGE.max} step={STROKE_RANGE.step}
+                value={strokeWidth} onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setStrokeWidth(v);
+                  if (selectedAnn?.type === "path") ann.update(selectedAnn.id, { strokeWidth: v });
+                }}
+                className="w-24 h-1.5 accent-gray-800 cursor-pointer" />
+              <span className="text-[10px] text-gray-500 w-8">{strokeWidth.toFixed(2)}</span>
             </>
           )}
 
-          {/* Font size (text mode or text selected) */}
           {(tool === "text" || selectedAnn?.type === "text") && (
             <>
               <div className="h-4 border-l border-gray-300 mx-1" />
               <span className="text-[10px] text-gray-500 mr-1">Größe:</span>
-              {FONT_SIZES.map((fs) => (
-                <button key={fs.value} className={`px-1.5 py-0.5 rounded text-[10px] ${fontSize === fs.value ? "bg-gray-800 text-white" : "bg-white border border-gray-200 hover:bg-gray-100"}`}
-                  onClick={() => {
-                    setFontSize(fs.value);
-                    if (selectedAnn?.type === "text") ann.update(selectedAnn.id, { fontSize: fs.value });
-                  }}>{fs.label}</button>
-              ))}
+              <input type="range" min={FONT_RANGE.min} max={FONT_RANGE.max} step={FONT_RANGE.step}
+                value={fontSize} onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setFontSize(v);
+                  if (selectedAnn?.type === "text") ann.update(selectedAnn.id, { fontSize: v });
+                }}
+                className="w-24 h-1.5 accent-gray-800 cursor-pointer" />
+              <span className="text-[10px] text-gray-500 w-8">{fontSize.toFixed(1)}</span>
             </>
           )}
 
-          {/* Selected text actions */}
           {selectedAnn?.type === "text" && (
             <>
               <div className="h-4 border-l border-gray-300 mx-1" />
-              <Button variant="outline" size="sm" className="gap-1 text-[10px] h-6" onClick={() => {
-                const t = prompt("Text bearbeiten:", selectedAnn.text);
-                if (t !== null) ann.update(selectedAnn.id, { text: t });
-              }}>
-                <Type className="h-3 w-3" />Bearbeiten
-              </Button>
+              <input type="text" value={selectedAnn.text || ""} onChange={(e) => ann.update(selectedAnn.id, { text: e.target.value })}
+                className="text-[11px] h-6 px-1.5 border border-gray-300 rounded bg-white min-w-[100px]"
+                placeholder="Text…" />
               <Button variant="outline" size="sm" className="gap-1 text-[10px] h-6 text-red-500" onClick={() => { ann.remove(selectedAnn.id); setSelectedAnnId(null); }}>
                 <Trash2 className="h-3 w-3" />
               </Button>
