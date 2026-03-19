@@ -5,6 +5,7 @@ import {
   Upload, MapPin, Trash2, X, ChevronLeft, FileText, User,
   ZoomIn, ZoomOut, Maximize, Download, Printer,
   Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus, Wrench, Pen, Camera,
+  ClipboardList, Search, Plus, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +49,9 @@ function parseBeschreibung(b: string): { leistung: string; material: string } {
 }
 
 const COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#000000", "#f97316", "#a855f7"];
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+}
 const STROKE_RANGE = { min: 0.08, max: 2, step: 0.02 };
 
 // ── PDF.js lazy loader ──────────────────────────────────────
@@ -261,7 +265,8 @@ async function exportPlanToCanvas(
   }
 
   // Draw note markers (orange)
-  for (const note of noteAnnotations) {
+  for (let i = 0; i < noteAnnotations.length; i++) {
+    const note = noteAnnotations[i];
     const nx = ((note.x || 0) / 100) * rect.width;
     const ny = ((note.y || 0) / 100) * rect.height;
     ctx.beginPath();
@@ -272,10 +277,10 @@ async function exportPlanToCanvas(
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.fillStyle = "white";
-    ctx.font = `bold ${Math.round(markerR * 0.8)}px sans-serif`;
+    ctx.font = `bold ${Math.round(markerR * 1.1)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("N", nx, ny - markerR);
+    ctx.fillText(`${i + 1}`, nx, ny - markerR);
   }
 
   return canvas;
@@ -288,6 +293,7 @@ function PlanViewer({
   markers, selectedMarkerId, placingMarker,
   onPlaceMarker, onSelectMarker, onDeactivateMarker,
   placingNote, onDeactivateNote,
+  onSummary,
   url, dateiName,
 }: {
   planId: string;
@@ -303,6 +309,7 @@ function PlanViewer({
   onDeactivateMarker: () => void;
   placingNote: boolean;
   onDeactivateNote: () => void;
+  onSummary: () => void;
   url: string;
   dateiName: string;
 }) {
@@ -492,6 +499,9 @@ function PlanViewer({
         <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => handleExport("print")} disabled={exporting}>
           <Printer className="h-3.5 w-3.5" />
         </Button>
+        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={onSummary} disabled={exporting}>
+          <ClipboardList className="h-3.5 w-3.5" />Zusammenfassung
+        </Button>
       </div>
 
       {/* Drawing options */}
@@ -647,6 +657,7 @@ function PdfCanvasViewer(props: {
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
   placingNote: boolean; onDeactivateNote: () => void;
+  onSummary: () => void;
 }) {
   const [pdfReady, setPdfReady] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -692,6 +703,7 @@ function PdfCanvasViewer(props: {
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
       placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
+      onSummary={props.onSummary}
       url={props.url} dateiName={props.dateiName}>
       {pdfError && <div className="p-6 text-center"><p className="text-sm text-red-400">{pdfError}</p>
         <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}><RotateCw className="h-3.5 w-3.5 mr-1" />Laden</Button></div>}
@@ -709,6 +721,7 @@ function ImageViewerComp(props: {
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
   placingNote: boolean; onDeactivateNote: () => void;
+  onSummary: () => void;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -717,6 +730,7 @@ function ImageViewerComp(props: {
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
       placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
+      onSummary={props.onSummary}
       url={props.url} dateiName={props.dateiName}>
       <img src={props.url} alt={props.dateiName} className="w-full h-auto block relative z-[1]" draggable={false} style={{ pointerEvents: "none" }} />
     </PlanViewer>
@@ -724,6 +738,12 @@ function ImageViewerComp(props: {
 }
 
 // ── Main component ──────────────────────────────────────────
+
+interface ProjectMaterial {
+  id: string; name: string; description?: string; imageUrl?: string;
+  unit: string; quantityPlanned: number; quantityUsed: number;
+  isAdditional: boolean; pricePerUnit: number;
+}
 
 export function EinbauTab({ project }: { project: any }) {
   const [plans, setPlans] = useState<EinbauPlan[]>([]);
@@ -739,8 +759,16 @@ export function EinbauTab({ project }: { project: any }) {
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [newMarkerPos, setNewMarkerPos] = useState<{ x: number; y: number } | null>(null);
   const [markerLeistung, setMarkerLeistung] = useState("");
-  const [markerMaterial, setMarkerMaterial] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [projectMaterials, setProjectMaterials] = useState<ProjectMaterial[]>([]);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
+  const [materialQuantities, setMaterialQuantities] = useState<Record<string, number>>({});
+  const [materialSearch, setMaterialSearch] = useState("");
+  const [extraMaterialName, setExtraMaterialName] = useState("");
+  const [extraMaterialMenge, setExtraMaterialMenge] = useState("");
+  const [extraMaterialEinheit, setExtraMaterialEinheit] = useState("STUECK");
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
 
 
   const load = useCallback(async () => {
@@ -751,6 +779,17 @@ export function EinbauTab({ project }: { project: any }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadMaterials = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projekte/${project.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProjectMaterials(data.materials || []);
+      }
+    } catch { /* ignore */ }
+  }, [project.id]);
+
+  useEffect(() => { loadMaterials(); }, [loadMaterials]);
 
   async function refreshPlan(planId: string) {
     const all = await fetch(`/api/projekte/${project.id}/einbau`).then((r) => r.json());
@@ -780,7 +819,18 @@ export function EinbauTab({ project }: { project: any }) {
   async function createMarker() {
     if (!viewPlan || !newMarkerPos) return;
     setSaving(true);
-    const beschreibung = formatBeschreibung(markerLeistung, markerMaterial);
+
+    const matLines: string[] = [];
+    for (const mid of selectedMaterialIds) {
+      const pm = projectMaterials.find((m) => m.id === mid);
+      if (pm) {
+        const qty = materialQuantities[mid] || 1;
+        matLines.push(`${pm.name} × ${qty} ${pm.unit}`);
+      }
+    }
+    const materialStr = matLines.join("\n");
+    const beschreibung = formatBeschreibung(markerLeistung, materialStr);
+
     await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "marker", planId: viewPlan.id, xPercent: newMarkerPos.x, yPercent: newMarkerPos.y, beschreibung }) });
     const u = await refreshPlan(viewPlan.id);
@@ -788,9 +838,109 @@ export function EinbauTab({ project }: { project: any }) {
     setMarkerDialogOpen(false); setNewMarkerPos(null); setSaving(false);
   }
 
+  async function addExtraMaterial() {
+    if (!extraMaterialName.trim()) return;
+    try {
+      await fetch(`/api/projekte/${project.id}/materialien`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: extraMaterialName.trim(),
+          isAdditional: true,
+          unit: extraMaterialEinheit,
+          quantityPlanned: parseFloat(extraMaterialMenge) || 1,
+        }),
+      });
+      await loadMaterials();
+      setExtraMaterialName(""); setExtraMaterialMenge(""); setExtraMaterialEinheit("STUECK");
+    } catch { /* ignore */ }
+  }
+
+  function toggleMaterial(id: string) {
+    setSelectedMaterialIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    if (!materialQuantities[id]) setMaterialQuantities((prev) => ({ ...prev, [id]: 1 }));
+  }
+
   async function deleteMarker(markerId: string) {
     await fetch(`/api/projekte/${project.id}/einbau`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markerId }) });
     setSelectedMarker(null); await refreshPlan(viewPlan!.id);
+  }
+
+  async function generateSummary() {
+    if (!viewPlan) return;
+    setSummaryGenerating(true);
+    try {
+      const annKey = `einbau-ann-${viewPlan.id}`;
+      let noteAnns: Annotation[] = [];
+      try {
+        const s = localStorage.getItem(annKey);
+        if (s) noteAnns = (JSON.parse(s) as Annotation[]).filter((a) => a.type === "note");
+      } catch { /* ignore */ }
+
+      const w = window.open("", "_blank");
+      if (!w) { alert("Popup blockiert – bitte Popups erlauben."); setSummaryGenerating(false); return; }
+
+      const mrkrs = viewPlan.markers;
+      let html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Zusammenfassung – ${viewPlan.titel}</title>
+        <style>
+          @media print { @page { margin: 15mm; } }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; color: #111; font-size: 13px; }
+          h1 { font-size: 18px; margin-bottom: 4px; }
+          h2 { font-size: 15px; margin-top: 24px; margin-bottom: 8px; border-bottom: 2px solid #2563eb; padding-bottom: 4px; }
+          h3 { font-size: 14px; margin-top: 20px; margin-bottom: 6px; border-bottom: 2px solid #f97316; padding-bottom: 4px; }
+          .meta { color: #666; font-size: 11px; margin-bottom: 16px; }
+          .plan-img { max-width: 100%; border: 1px solid #ddd; border-radius: 8px; margin: 12px 0; }
+          .point { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; }
+          .point-blue { background: #eff6ff; border-left: 4px solid #2563eb; }
+          .point-orange { background: #fff7ed; border-left: 4px solid #f97316; }
+          .point-num { font-weight: 700; margin-bottom: 4px; }
+          .point-label { font-size: 11px; color: #666; }
+          .point-content { margin-top: 4px; white-space: pre-wrap; }
+          .note-img { max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 6px; }
+          .btn-dl { display: inline-block; margin: 16px 0; padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+          .btn-dl:hover { background: #1d4ed8; }
+          @media print { .no-print { display: none !important; } }
+        </style></head><body>`;
+
+      html += `<h1>${viewPlan.titel}</h1>`;
+      html += `<div class="meta">${project.name || ""} · Erstellt am ${new Date(viewPlan.createdAt).toLocaleDateString("de-DE")}</div>`;
+      html += `<img class="plan-img" src="${viewPlan.dateiUrl}" />`;
+
+      if (mrkrs.length > 0) {
+        html += `<h2>Material & Leistungen (${mrkrs.length})</h2>`;
+        mrkrs.forEach((m, i) => {
+          const p = parseBeschreibung(m.beschreibung || "");
+          html += `<div class="point point-blue">`;
+          html += `<div class="point-num">Punkt #${i + 1}</div>`;
+          html += `<div class="point-label">${m.mitarbeiterName || "Unbekannt"} · ${new Date(m.createdAt).toLocaleDateString("de-DE")}</div>`;
+          if (p.leistung) html += `<div class="point-content"><strong>Leistung:</strong> ${escapeHtml(p.leistung)}</div>`;
+          if (p.material) html += `<div class="point-content"><strong>Material:</strong> ${escapeHtml(p.material)}</div>`;
+          html += `</div>`;
+        });
+      }
+
+      if (noteAnns.length > 0) {
+        html += `<h3>Notizen (${noteAnns.length})</h3>`;
+        noteAnns.forEach((n, i) => {
+          html += `<div class="point point-orange">`;
+          html += `<div class="point-num">Notiz #${i + 1}: ${escapeHtml(n.title || "")}</div>`;
+          if (n.description) html += `<div class="point-content">${escapeHtml(n.description)}</div>`;
+          if (n.image) html += `<img class="note-img" src="${n.image}" />`;
+          html += `</div>`;
+        });
+      }
+
+      html += `<button class="btn-dl no-print" onclick="window.print()">Drucken / Als PDF speichern</button>`;
+      html += `</body></html>`;
+
+      w.document.write(html);
+      w.document.close();
+    } catch (e) { console.error("Summary error:", e); }
+    setSummaryGenerating(false);
   }
 
 
@@ -801,11 +951,17 @@ export function EinbauTab({ project }: { project: any }) {
     const vProps = {
       url: viewPlan.dateiUrl, dateiName: viewPlan.dateiName, planId: viewPlan.id,
       placingMarker, markers: viewPlan.markers, selectedMarkerId: selectedMarker?.id || null,
-      onPlaceMarker: (x: number, y: number) => { setNewMarkerPos({ x, y }); setMarkerLeistung(""); setMarkerMaterial(""); setMarkerDialogOpen(true); setPlacingMarker(false); },
+      onPlaceMarker: (x: number, y: number) => {
+        setNewMarkerPos({ x, y }); setMarkerLeistung("");
+        setSelectedMaterialIds(new Set()); setMaterialQuantities({}); setMaterialSearch("");
+        setExtraMaterialName(""); setExtraMaterialMenge(""); setExtraMaterialEinheit("STUECK");
+        setMarkerDialogOpen(true); setPlacingMarker(false);
+      },
       onSelectMarker: (m: Marker) => { setSelectedMarker(m); setPlacingMarker(false); },
       onDeactivateMarker: () => setPlacingMarker(false),
       placingNote,
       onDeactivateNote: () => setPlacingNote(false),
+      onSummary: generateSummary,
     };
 
     const selectedParsed = selectedMarker ? parseBeschreibung(selectedMarker.beschreibung || "") : null;
@@ -880,18 +1036,72 @@ export function EinbauTab({ project }: { project: any }) {
         </div>
 
         <Dialog open={markerDialogOpen} onOpenChange={setMarkerDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-blue-600" />Material & Leistungen</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-2">
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Leistung – Was wurde gemacht?</label>
                 <Textarea value={markerLeistung} onChange={(e) => setMarkerLeistung(e.target.value)} placeholder="z.B. Fußbodenheizung verlegt…" rows={3} autoFocus />
               </div>
+
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Verwendete Materialien</label>
-                <Textarea value={markerMaterial} onChange={(e) => setMarkerMaterial(e.target.value)} placeholder="z.B. 50m Heizrohr 16mm, 10 Klemmen…" rows={2} />
-                <p className="text-[10px] text-gray-400 mt-1">Materialien können im Reiter „Material" verwaltet werden.</p>
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                  <Input value={materialSearch} onChange={(e) => setMaterialSearch(e.target.value)}
+                    placeholder="Material suchen…" className="pl-8 text-xs h-9" />
+                </div>
+                <div className="border rounded-lg max-h-[200px] overflow-y-auto">
+                  {projectMaterials.filter((m) =>
+                    !materialSearch || m.name.toLowerCase().includes(materialSearch.toLowerCase())
+                  ).length === 0 ? (
+                    <p className="text-xs text-gray-400 p-3 text-center">Keine Materialien gefunden</p>
+                  ) : (
+                    projectMaterials.filter((m) =>
+                      !materialSearch || m.name.toLowerCase().includes(materialSearch.toLowerCase())
+                    ).map((m) => {
+                      const selected = selectedMaterialIds.has(m.id);
+                      return (
+                        <div key={m.id} className={`flex items-center gap-2 px-3 py-2 border-b last:border-b-0 cursor-pointer transition-colors ${selected ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                          onClick={() => toggleMaterial(m.id)}>
+                          <div className={`flex h-5 w-5 items-center justify-center rounded border-2 shrink-0 ${selected ? "bg-blue-600 border-blue-600 text-white" : "border-gray-300"}`}>
+                            {selected && <Check className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{m.name}</p>
+                            <p className="text-[10px] text-gray-400">Geplant: {m.quantityPlanned} {m.unit}{m.isAdditional ? " · Zusätzlich" : ""}</p>
+                          </div>
+                          {selected && (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Input type="number" min={1} value={materialQuantities[m.id] || 1}
+                                onChange={(e) => setMaterialQuantities((prev) => ({ ...prev, [m.id]: parseInt(e.target.value) || 1 }))}
+                                className="w-16 h-7 text-xs text-center" />
+                              <span className="text-[10px] text-gray-500">{m.unit}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
+
+              <div className="border-t pt-3">
+                <label className="text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Nicht aufgelistetes Material hinzufügen</label>
+                <div className="flex gap-2">
+                  <Input value={extraMaterialName} onChange={(e) => setExtraMaterialName(e.target.value)} placeholder="Materialname" className="text-xs h-8 flex-1" />
+                  <Input value={extraMaterialMenge} onChange={(e) => setExtraMaterialMenge(e.target.value)} placeholder="Menge" type="number" min={1} className="text-xs h-8 w-20" />
+                  <select value={extraMaterialEinheit} onChange={(e) => setExtraMaterialEinheit(e.target.value)} className="text-xs h-8 border rounded-md px-2">
+                    <option value="STUECK">Stk</option><option value="METER">m</option><option value="QUADRATMETER">m²</option>
+                    <option value="KUBIKMETER">m³</option><option value="KILOGRAMM">kg</option><option value="LITER">l</option><option value="PAUSCHAL">psch</option>
+                  </select>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={addExtraMaterial} disabled={!extraMaterialName.trim()}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Wird als „Zusätzliches Material" im Material-Reiter angelegt.</p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => { setMarkerDialogOpen(false); setNewMarkerPos(null); }}>Abbrechen</Button>
                 <Button onClick={createMarker} disabled={saving}>{saving ? "Speichern…" : "Erstellen"}</Button>
