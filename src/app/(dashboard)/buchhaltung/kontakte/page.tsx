@@ -320,7 +320,7 @@ export default function KontaktePage() {
                 </tr>
               ) : (
                 filtered.map((k) => {
-                  const link = k.typ === "kunde" ? `/kunden/${k.raw.id}` : null;
+                    const link = k.typ === "kunde" ? `/kunden/${k.raw.id}` : `/buchhaltung/kontakte/lieferant/${k.raw.id}`;
                   return (
                     <tr key={k.id} className="border-b border-gray-100 hover:bg-gray-50/50 group">
                       <td className="px-3 py-3">
@@ -333,13 +333,9 @@ export default function KontaktePage() {
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-500 font-mono">{k.nr}</td>
                       <td className="px-3 py-3">
-                        {link ? (
-                          <Link href={link} className="text-sm font-medium text-gray-900 hover:text-blue-600 truncate block max-w-[200px]">
-                            {k.name}
-                          </Link>
-                        ) : (
-                          <span className="text-sm font-medium text-gray-900 truncate block max-w-[200px]">{k.name}</span>
-                        )}
+                        <Link href={link} className="text-sm font-medium text-gray-900 hover:text-blue-600 truncate block max-w-[200px]">
+                          {k.name}
+                        </Link>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-500 truncate max-w-[150px]">{k.strasse || "–"}</td>
                       <td className="px-3 py-3 text-sm text-gray-500 truncate max-w-[120px]">{k.ort || "–"}</td>

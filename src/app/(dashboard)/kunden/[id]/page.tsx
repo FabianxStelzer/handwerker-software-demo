@@ -4,8 +4,8 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Save, Pencil, X, Plus, Search, FileText, Calendar,
-  Receipt, FileCheck, ChevronRight,
+  ArrowLeft, Save, Pencil, X, Plus, FileText,
+  Receipt, FileCheck, ChevronRight, FolderKanban, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { LineChart } from "@/components/charts/line-chart";
+
+const STATUS_COLORS: Record<string, string> = {
+  PLANUNG: "bg-gray-100 text-gray-700", AKTIV: "bg-green-100 text-green-700",
+  PAUSIERT: "bg-amber-100 text-amber-700", ABGESCHLOSSEN: "bg-blue-100 text-blue-700",
+  ENTWURF: "bg-gray-100 text-gray-700", VERSENDET: "bg-blue-100 text-blue-700",
+  ANGENOMMEN: "bg-green-100 text-green-700", ABGELEHNT: "bg-red-100 text-red-700",
+  BEZAHLT: "bg-green-100 text-green-700", UEBERFAELLIG: "bg-red-100 text-red-700",
+};
+const STATUS_LABELS: Record<string, string> = {
+  PLANUNG: "Planung", AKTIV: "In Arbeit", PAUSIERT: "Pausiert", ABGESCHLOSSEN: "Abgeschlossen",
+  ENTWURF: "Entwurf", VERSENDET: "Versendet", ANGENOMMEN: "Angenommen", ABGELEHNT: "Abgelehnt",
+  BEZAHLT: "Bezahlt", UEBERFAELLIG: "Überfällig",
+};
 
 interface InvoiceInfo {
   id: string;
@@ -57,20 +71,6 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function formatDateLong(d: string) {
-  return new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "long", year: "numeric" });
-}
-
-const MONTHS_SHORT = ["Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez", "Jan", "Feb", "Mär"];
-
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  BEZAHLT: { label: "bezahlt", color: "text-green-600" },
-  VERSENDET: { label: "offen", color: "text-amber-600" },
-  ENTWURF: { label: "Entwurf", color: "text-gray-500" },
-  UEBERFAELLIG: { label: "überfällig", color: "text-red-600" },
-  ANGENOMMEN: { label: "angenommen", color: "text-green-600" },
-  ABGELEHNT: { label: "abgelehnt", color: "text-red-600" },
-};
 
 export default function KundenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -80,7 +80,6 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"aktivitaeten" | "umsatz">("aktivitaeten");
-  const [actSearch, setActSearch] = useState("");
 
   useEffect(() => {
     fetch(`/api/kunden/${id}`)
@@ -124,68 +123,8 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
   const contactName = `${customer.firstName} ${customer.lastName}`;
   const address = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 
-  // Build timeline from invoices, quotations, orders
-  interface TimelineEntry {
-    id: string;
-    datum: string;
-    typ: string;
-    typIcon: "rechnung" | "angebot" | "auftrag";
-    nummer: string;
-    betrag: number;
-    status: string;
-    statusColor: string;
-    link: string | null;
-  }
-
-  const timeline: TimelineEntry[] = [];
-
-  for (const inv of customer.invoices || []) {
-    const s = STATUS_MAP[inv.status] || { label: inv.status, color: "text-gray-500" };
-    timeline.push({
-      id: `inv-${inv.id}`,
-      datum: inv.paidDate || inv.createdAt,
-      typ: "Rechnung",
-      typIcon: "rechnung",
-      nummer: inv.invoiceNumber,
-      betrag: inv.grossTotal,
-      status: s.label,
-      statusColor: s.color,
-      link: `/rechnungen/${inv.id}`,
-    });
-  }
-
-  for (const q of customer.quotations || []) {
-    const s = STATUS_MAP[q.status] || { label: q.status, color: "text-gray-500" };
-    timeline.push({
-      id: `q-${q.id}`,
-      datum: q.createdAt,
-      typ: "Angebot",
-      typIcon: "angebot",
-      nummer: q.quotationNumber,
-      betrag: q.grossTotal,
-      status: s.label,
-      statusColor: s.color,
-      link: null,
-    });
-  }
-
-  timeline.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
-
-  const filteredTimeline = actSearch.trim()
-    ? timeline.filter((t) => t.nummer.toLowerCase().includes(actSearch.toLowerCase()) || t.typ.toLowerCase().includes(actSearch.toLowerCase()))
-    : timeline;
-
-  // Group by date
-  const grouped: { dateLabel: string; items: TimelineEntry[] }[] = [];
-  const today = new Date().toDateString();
-  for (const entry of filteredTimeline) {
-    const d = new Date(entry.datum);
-    const dateStr = d.toDateString();
-    const label = dateStr === today ? `Heute, ${formatDateLong(entry.datum)}` : formatDateLong(entry.datum);
-    const existing = grouped.find((g) => g.dateLabel === label);
-    if (existing) existing.items.push(entry);
-    else grouped.push({ dateLabel: label, items: [entry] });
-  }
+  const activeProjects = customer.projects.filter((p: any) => p.status === "AKTIV" || p.status === "PLANUNG");
+  const completedProjects = customer.projects.filter((p: any) => p.status === "ABGESCHLOSSEN");
 
   // Monthly chart data
   const now = new Date();
@@ -300,104 +239,116 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
         {/* Right main content */}
         <div className="lg:col-span-8">
           {activeTab === "aktivitaeten" && (
-            <div>
-              {/* Search + Actions */}
-              <div className="flex items-center gap-3 mb-5">
-                <Button variant="outline" size="sm" className="gap-1.5 border-[#9eb552] text-[#9eb552] hover:bg-[#9eb552]/10">
-                  <Plus className="h-4 w-4" />Hinzufügen
-                </Button>
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    value={actSearch}
-                    onChange={(e) => setActSearch(e.target.value)}
-                    placeholder="Suche in Aktivitäten"
-                    className="pl-9 h-9 text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="space-y-0">
-                {grouped.length === 0 && (
-                  <div className="text-center py-12 text-gray-400">
-                    <Calendar className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">Keine Aktivitäten vorhanden</p>
-                  </div>
-                )}
-
-                {grouped.map((group) => {
-                  const isToday = group.dateLabel.startsWith("Heute");
-                  return (
-                    <div key={group.dateLabel} className="relative">
-                      {/* Date header */}
-                      <div className="flex items-center gap-2.5 py-3">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-md ${isToday ? "bg-green-100" : "bg-gray-100"}`}>
-                          <Calendar className={`h-3.5 w-3.5 ${isToday ? "text-green-600" : "text-gray-500"}`} />
-                        </div>
-                        <span className={`text-sm font-semibold ${isToday ? "text-green-700" : "text-gray-700"}`}>
-                          {group.dateLabel}
-                        </span>
-                      </div>
-
-                      {/* Entries */}
-                      <div className="ml-3.5 border-l-2 border-gray-200 pl-6 pb-2">
-                        {group.items.length === 0 ? (
-                          <p className="text-xs text-gray-400 py-2">Keine Einträge für heute.</p>
-                        ) : (
-                          group.items.map((entry) => (
-                            <div key={entry.id} className="flex items-center gap-3 py-2.5 group">
-                              <div className="relative -ml-[31px]">
-                                <div className="h-2 w-2 rounded-full bg-gray-400 ring-2 ring-white" />
+            <div className="space-y-5">
+              {/* Aktuelle Projekte */}
+              <Card>
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4 text-blue-500" />
+                    Aktuelle Projekte ({activeProjects.length})
+                  </h3>
+                  {activeProjects.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-4 text-center">Keine aktiven Projekte</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {activeProjects.map((p: any) => (
+                        <Link key={p.id} href={`/projekte/${p.id}`} className="block group">
+                          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">{p.name}</p>
+                              {p.description && <p className="text-xs text-gray-500 truncate mt-0.5">{p.description}</p>}
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge className={STATUS_COLORS[p.status] || "bg-gray-100 text-gray-700"}>{STATUS_LABELS[p.status] || p.status}</Badge>
+                                {p.startDate && <span className="text-xs text-gray-400">Start: {formatDate(p.startDate)}</span>}
                               </div>
-                              <div className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 shrink-0">
-                                {entry.typIcon === "rechnung" && <Receipt className="h-3.5 w-3.5 text-gray-500" />}
-                                {entry.typIcon === "angebot" && <FileCheck className="h-3.5 w-3.5 text-gray-500" />}
-                                {entry.typIcon === "auftrag" && <FileText className="h-3.5 w-3.5 text-gray-500" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-900">
-                                  <span className="font-medium">{entry.typ}</span>
-                                </p>
-                                <p className="text-xs text-gray-500">{entry.nummer}</p>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-sm font-semibold text-gray-900">{formatCurrency(entry.betrag)}</p>
-                                <p className={`text-xs font-medium ${entry.statusColor}`}>{entry.status}</p>
-                              </div>
-                              {entry.link && (
-                                <Link href={entry.link} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <ChevronRight className="h-4 w-4 text-gray-400" />
-                                </Link>
-                              )}
                             </div>
-                          ))
-                        )}
-                      </div>
+                            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500 shrink-0 ml-3" />
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                  );
-                })}
+                  )}
+                </CardContent>
+              </Card>
 
-                {/* Show "today" if no entries today */}
-                {grouped.length > 0 && !grouped[0]?.dateLabel.startsWith("Heute") && (
-                  <div className="relative mb-2">
-                    <div className="flex items-center gap-2.5 py-3">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-green-100">
-                        <Calendar className="h-3.5 w-3.5 text-green-600" />
-                      </div>
-                      <span className="text-sm font-semibold text-green-700">
-                        Heute, {formatDateLong(new Date().toISOString())}
-                      </span>
+              {/* Angebote */}
+              {customer.quotations.length > 0 && (
+                <Card>
+                  <CardContent className="p-5">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FileCheck className="h-4 w-4 text-green-500" />
+                      Angebote ({customer.quotations.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {customer.quotations.map((q: any) => (
+                        <div key={q.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{q.quotationNumber}</p>
+                              <p className="text-xs text-gray-500">{formatDate(q.createdAt)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-sm font-semibold text-gray-900">{formatCurrency(q.grossTotal)}</span>
+                            <Badge className={STATUS_COLORS[q.status] || "bg-gray-100 text-gray-700"}>{STATUS_LABELS[q.status] || q.status}</Badge>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="ml-3.5 border-l-2 border-gray-200 pl-6 pb-2">
-                      <div className="flex items-center gap-3 py-2 text-gray-400">
-                        <div className="relative -ml-[31px]"><div className="h-2 w-2 rounded-full bg-gray-300 ring-2 ring-white" /></div>
-                        <p className="text-xs">Keine Einträge für heute.</p>
-                      </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Aufträge & Rechnungen */}
+              {customer.orders.length > 0 && (
+                <Card>
+                  <CardContent className="p-5">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-amber-500" />
+                      Aufträge & Rechnungen ({customer.orders.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {customer.orders.map((o: any) => (
+                        <div key={o.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{o.orderNumber}</p>
+                            {o.invoice && <p className="text-xs text-gray-500">Rechnung: {o.invoice.invoiceNumber}</p>}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-sm font-semibold text-gray-900">{formatCurrency(o.grossTotal)}</span>
+                            <Badge className={STATUS_COLORS[o.status] || "bg-gray-100 text-gray-700"}>{STATUS_LABELS[o.status] || o.status}</Badge>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Abgeschlossene Projekte */}
+              {completedProjects.length > 0 && (
+                <Card>
+                  <CardContent className="p-5">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                      Abgeschlossene Projekte ({completedProjects.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {completedProjects.map((p: any) => (
+                        <Link key={p.id} href={`/projekte/${p.id}`} className="block group">
+                          <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-700 group-hover:text-blue-600 truncate">{p.name}</p>
+                              <p className="text-xs text-gray-400">{p.projectNumber}</p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 ml-3" />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
