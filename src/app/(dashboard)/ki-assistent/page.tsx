@@ -35,13 +35,21 @@ export default function KIAssistentPage() {
 
   const userId = session?.user?.id;
 
+  const [chatProviderId, setChatProviderId] = useState<string | null>(null);
+
   useEffect(() => {
-    fetch("/api/ai-providers")
-      .then((r) => r.json())
-      .then((data: AiProviderOption[]) => setProviders(data.filter((p) => p.isActive)));
+    Promise.all([
+      fetch("/api/ai-providers").then((r) => r.json()),
+      fetch("/api/settings/company").then((r) => r.json()),
+    ]).then(([providerData, settings]) => {
+      setProviders((providerData as AiProviderOption[]).filter((p) => p.isActive));
+      if (settings?.aiChatProviderId) setChatProviderId(settings.aiChatProviderId);
+    });
   }, []);
 
-  const activeProvider = providers.find((p) => p.isDefault) || providers[0];
+  const activeProvider = (chatProviderId ? providers.find((p) => p.id === chatProviderId) : null)
+    || providers.find((p) => p.isDefault)
+    || providers[0];
 
   useEffect(() => {
     if (!userId) return;
