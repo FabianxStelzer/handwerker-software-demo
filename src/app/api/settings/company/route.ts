@@ -79,6 +79,7 @@ export async function PUT(req: NextRequest) {
           pvNullsteuer: body.pvNullsteuer !== undefined ? !!body.pvNullsteuer : undefined,
           kontenrahmen: body.kontenrahmen !== undefined ? (body.kontenrahmen || null) : undefined,
           hatSteuerberater: body.hatSteuerberater !== undefined ? !!body.hatSteuerberater : undefined,
+          kanzleiAnbindung: body.kanzleiAnbindung !== undefined ? (body.kanzleiAnbindung || null) : undefined,
         },
       });
     }

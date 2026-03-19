@@ -1469,7 +1469,8 @@ function BuchhaltungSettingsTab() {
 
       {activeSection === "allgemein" && <BuchAllgemeinSection />}
       {activeSection === "benutzer" && <BuchBenutzerSection />}
-      {!["allgemein", "benutzer"].includes(activeSection!) && (
+      {activeSection === "steuerberater" && <BuchSteuerberaterSection />}
+      {!["allgemein", "benutzer", "steuerberater"].includes(activeSection!) && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
@@ -2043,6 +2044,125 @@ function BuchBenutzerSection() {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Mein Steuerberater ────────────────────────────────────────
+
+const KANZLEI_OPTIONS = [
+  {
+    value: "keine",
+    label: "Ich nutze keine direkte Anbindung.",
+    desc: "Sie können die Beleg- und/oder Buchhaltungsdaten (DATEV-Format) im Bereich Export herunterladen.",
+  },
+  {
+    value: "datev",
+    label: "DATEV-Datenservices",
+    desc: "Vor der Aktivierung muss Ihre Steuerkanzlei Ihnen in DATEV die Rechte freischalten.",
+  },
+  {
+    value: "addison",
+    label: "ADDISON OneClick",
+    desc: "Bitte besprechen Sie die Anmeldung bei ADDISON mit Ihrer Steuerkanzlei.",
+  },
+  {
+    value: "agenda",
+    label: "Agenda Connect",
+    desc: "Bitte besprechen Sie die Anmeldung bei Agenda mit Ihrer Steuerkanzlei.",
+  },
+] as const;
+
+function BuchSteuerberaterSection() {
+  const [anbindung, setAnbindung] = useState("keine");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/company").then((r) => r.json()).then((d) => {
+      if (d.kanzleiAnbindung) setAnbindung(d.kanzleiAnbindung);
+      setLoading(false);
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kanzleiAnbindung: anbindung }),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">Mein Steuerberater</h2>
+
+      {/* Steuerberater in der Benutzerverwaltung */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-2">Steuerberater in der Benutzerverwaltung</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          In der Benutzerverwaltung können Sie weitere Steuerberater einladen oder auch die aktuelle Zusammenarbeit beenden.
+        </p>
+        <button
+          onClick={() => {
+            const tab = document.querySelector('[data-state="active"][role="tabpanel"]');
+            if (tab) {
+              const parent = tab.closest("[data-state]");
+              if (parent) {
+                const benutzerTrigger = document.querySelector('[value="benutzer"]') as HTMLElement | null;
+                benutzerTrigger?.click?.();
+              }
+            }
+          }}
+          className="text-sm font-medium text-[#354360] uppercase tracking-wide hover:text-[#212f46]"
+        >
+          Zur Benutzerverwaltung
+        </button>
+      </Card>
+
+      {/* Anbindung Kanzleisoftware */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-900">Anbindung Kanzleisoftware</h3>
+        </div>
+        <p className="text-sm text-gray-600 mb-5">
+          Mit folgenden Schnittstellen können Sie Ihre Buchhaltungsdaten an Ihre Steuerkanzlei übertragen.
+        </p>
+
+        <div className="space-y-4">
+          {KANZLEI_OPTIONS.map((opt) => (
+            <label key={opt.value} className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="radio"
+                name="kanzleiAnbindung"
+                value={opt.value}
+                checked={anbindung === opt.value}
+                onChange={() => setAnbindung(opt.value)}
+                className="mt-0.5 h-4 w-4 accent-[#354360]"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900 group-hover:text-[#354360]">{opt.label}</span>
+                <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex justify-end pt-6">
+          <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
+            {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

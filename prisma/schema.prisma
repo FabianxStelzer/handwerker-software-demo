@@ -163,6 +163,7 @@ model CompanySettings {
   pvNullsteuer        Boolean   @default(false)
   kontenrahmen        String?   // skr03, skr04
   hatSteuerberater    Boolean   @default(false)
+  kanzleiAnbindung    String?   // keine, datev, addison, agenda
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
