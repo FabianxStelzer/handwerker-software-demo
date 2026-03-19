@@ -73,14 +73,45 @@ export async function extractFileContent(
 
 const DATA_DIR = process.env.DATA_DIR || process.env.UPLOAD_DIR || path.join(process.cwd(), "data");
 
+const MIME_MAP: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+export function resolveUploadPath(fileUrl: string): string {
+  const urlPath = fileUrl.replace(/^\/api\/uploads\//, "");
+  const segments = urlPath.split("/");
+  return path.join(DATA_DIR, "uploads", ...segments);
+}
+
+export async function loadFileBuffer(fileUrl: string): Promise<Buffer | null> {
+  try {
+    return await readFile(resolveUploadPath(fileUrl));
+  } catch {
+    return null;
+  }
+}
+
+export function getMimeType(fileName: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  return MIME_MAP[ext] || "application/octet-stream";
+}
+
+export function isVisualFile(fileName: string): boolean {
+  const ext = path.extname(fileName).toLowerCase();
+  return [".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext);
+}
+
 export async function extractFileFromUrl(
   fileUrl: string,
   fileName: string
 ): Promise<string> {
   try {
-    const urlPath = fileUrl.replace(/^\/api\/uploads\//, "");
-    const segments = urlPath.split("/");
-    const filePath = path.join(DATA_DIR, "uploads", ...segments);
+    const filePath = resolveUploadPath(fileUrl);
     const buffer = await readFile(filePath);
     return extractFileContent(buffer, fileName);
   } catch (e: any) {

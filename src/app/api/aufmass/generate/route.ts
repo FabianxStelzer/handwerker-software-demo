@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { chatWithAi } from "@/lib/ai";
-import { extractFileFromUrl } from "@/lib/file-extract";
+import { chatWithAi, AiFileAttachment } from "@/lib/ai";
+import { extractFileFromUrl, loadFileBuffer, getMimeType, isVisualFile } from "@/lib/file-extract";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB per file
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -20,11 +22,27 @@ export async function POST(req: NextRequest) {
 
   if (!aufmass) return NextResponse.json({ error: "Aufmaß nicht gefunden" }, { status: 404 });
 
-  // Alle Dateien lesen und Inhalt extrahieren
-  const dateiInhalte: string[] = [];
+  const fileAttachments: AiFileAttachment[] = [];
+  const textDateiInhalte: string[] = [];
+
   for (const datei of aufmass.dateien) {
-    const content = await extractFileFromUrl(datei.dateiUrl, datei.dateiName);
-    dateiInhalte.push(`\n═══ Datei: ${datei.dateiName} (${datei.dateiTyp.toUpperCase()}) ═══\n${content}`);
+    if (isVisualFile(datei.dateiName)) {
+      const buffer = await loadFileBuffer(datei.dateiUrl);
+      if (buffer && buffer.length <= MAX_FILE_SIZE) {
+        fileAttachments.push({
+          data: buffer,
+          fileName: datei.dateiName,
+          mimeType: getMimeType(datei.dateiName),
+        });
+      } else if (buffer) {
+        textDateiInhalte.push(`\n═══ ${datei.dateiName} ═══\n[Datei zu groß für direkte Analyse: ${(buffer.length / 1024 / 1024).toFixed(1)} MB]`);
+      } else {
+        textDateiInhalte.push(`\n═══ ${datei.dateiName} ═══\n[Datei konnte nicht geladen werden]`);
+      }
+    } else {
+      const content = await extractFileFromUrl(datei.dateiUrl, datei.dateiName);
+      textDateiInhalte.push(`\n═══ Datei: ${datei.dateiName} (${datei.dateiTyp.toUpperCase()}) ═══\n${content}`);
+    }
   }
 
   const positionenInfo = aufmass.positionen.length > 0
@@ -35,9 +53,13 @@ export async function POST(req: NextRequest) {
     ? `\nProjekt: ${aufmass.project.name}`
     : "";
 
-  const dateienInfo = dateiInhalte.length > 0
-    ? `\n\n────────── HOCHGELADENE DATEIEN (${dateiInhalte.length} Stück) ──────────${dateiInhalte.join("\n")}\n────────── ENDE DER DATEIEN ──────────`
-    : "\n\n(Keine Dateien hochgeladen)";
+  const textDateienBlock = textDateiInhalte.length > 0
+    ? `\n\n────────── TEXT-DATEIEN ──────────${textDateiInhalte.join("\n")}\n────────── ENDE TEXT-DATEIEN ──────────`
+    : "";
+
+  const fileHint = fileAttachments.length > 0
+    ? `\n\nEs wurden ${fileAttachments.length} Datei(en) als Dokument/Bild angehängt (PDFs, Bilder). Analysiere diese visuell – lies den Plankopf, Schriftfeld, Raumbezeichnungen, Maße und alle sichtbaren Informationen.`
+    : "";
 
   const userAnweisung = frage || aufmass.kiAnweisung || "Erstelle ein allgemeines Aufmaß basierend auf den hochgeladenen Dateien.";
 
@@ -47,13 +69,13 @@ Folgende Informationen liegen zu diesem Aufmaß vor:
 
 Titel: ${aufmass.titel}
 ${aufmass.beschreibung ? `Beschreibung: ${aufmass.beschreibung}` : ""}${projektInfo}
-${dateienInfo}
+${fileHint}${textDateienBlock}
 ${positionenInfo}
 
 ────────── AUFGABE ──────────
 ${userAnweisung}
 
-WICHTIG: Durchsuche ALLE oben genannten Dateien sorgfältig, um die Aufgabe zu beantworten. Wenn nach konkreten Informationen gefragt wird (z.B. Anzahl Garagen, Raumgrößen, Materialmengen), suche die Antwort in den Dateiinhalten. Zitiere relevante Stellen aus den Dateien.
+WICHTIG: Analysiere ALLE angehängten Dokumente und Dateien sorgfältig. Bei PDFs/Bauplänen: Lies den Plankopf/Schriftfeld (Bauherr, Architekt, Projektnummer), Raumbezeichnungen, Maße und alle sichtbaren Details. Zitiere relevante Informationen.
 
 Wenn es um ein Aufmaß geht, erstelle eine detaillierte Aufstellung mit:
 - Berechnungen (z.B. Wärmepumpen-Leistung, Rohrlängen, Fußbodenheizung)
@@ -65,8 +87,8 @@ Formatiere das Ergebnis übersichtlich.`;
 
   try {
     const result = await chatWithAi([
-      { role: "system", content: "Du bist ein erfahrener Handwerksmeister und Sachverständiger. Antworte auf Deutsch. Du analysierst Baupläne, Leistungsverzeichnisse und GAEB-Dateien. Durchsuche alle bereitgestellten Dateiinhalte gründlich, bevor du antwortest." },
-      { role: "user", content: prompt },
+      { role: "system", content: "Du bist ein erfahrener Handwerksmeister und Sachverständiger. Antworte auf Deutsch. Du analysierst Baupläne, Leistungsverzeichnisse und GAEB-Dateien. Wenn dir PDFs oder Bilder als Anhang bereitgestellt werden, analysiere diese visuell und gründlich." },
+      { role: "user", content: prompt, files: fileAttachments },
     ], undefined, "aufmass");
 
     const updated = await prisma.aufmass.update({

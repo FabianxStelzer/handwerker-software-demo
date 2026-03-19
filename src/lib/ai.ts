@@ -1,8 +1,15 @@
 import { prisma } from "@/lib/prisma";
 
+export interface AiFileAttachment {
+  data: Buffer;
+  fileName: string;
+  mimeType: string;
+}
+
 export interface AiMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  files?: AiFileAttachment[];
 }
 
 export interface AiResponse {
@@ -62,6 +69,36 @@ export async function chatWithAi(
   }
 }
 
+function buildAnthropicContent(msg: AiMessage): any {
+  if (!msg.files || msg.files.length === 0) {
+    return msg.content;
+  }
+
+  const blocks: any[] = [];
+
+  for (const file of msg.files) {
+    const b64 = file.data.toString("base64");
+
+    if (file.mimeType === "application/pdf") {
+      blocks.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: b64 },
+      });
+    } else if (file.mimeType.startsWith("image/")) {
+      blocks.push({
+        type: "image",
+        source: { type: "base64", media_type: file.mimeType, data: b64 },
+      });
+    }
+  }
+
+  if (msg.content) {
+    blocks.push({ type: "text", text: msg.content });
+  }
+
+  return blocks;
+}
+
 async function callAnthropic(
   provider: { apiKey: string | null; model: string | null; provider: string },
   messages: AiMessage[]
@@ -73,8 +110,11 @@ async function callAnthropic(
 
   const body: any = {
     model: provider.model || "claude-sonnet-4-6",
-    max_tokens: 4096,
-    messages: chatMsgs.map((m) => ({ role: m.role, content: m.content })),
+    max_tokens: 8192,
+    messages: chatMsgs.map((m) => ({
+      role: m.role,
+      content: buildAnthropicContent(m),
+    })),
   };
   if (systemMsg) body.system = systemMsg.content;
 
@@ -95,10 +135,34 @@ async function callAnthropic(
 
   const data = await res.json();
   return {
-    content: data.content?.[0]?.text || "",
+    content: data.content?.map((b: any) => b.text || "").join("") || "",
     model: data.model || provider.model || "claude",
     provider: "anthropic",
   };
+}
+
+function buildOpenAIContent(msg: AiMessage): any {
+  if (!msg.files || msg.files.length === 0) {
+    return msg.content;
+  }
+
+  const parts: any[] = [];
+
+  for (const file of msg.files) {
+    if (file.mimeType.startsWith("image/")) {
+      const b64 = file.data.toString("base64");
+      parts.push({
+        type: "image_url",
+        image_url: { url: `data:${file.mimeType};base64,${b64}` },
+      });
+    }
+  }
+
+  if (msg.content) {
+    parts.push({ type: "text", text: msg.content });
+  }
+
+  return parts.length > 0 ? parts : msg.content;
 }
 
 async function callOpenAI(
@@ -115,8 +179,8 @@ async function callOpenAI(
     },
     body: JSON.stringify({
       model: provider.model || "gpt-4o-mini",
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      max_tokens: 4096,
+      messages: messages.map((m) => ({ role: m.role, content: buildOpenAIContent(m) })),
+      max_tokens: 8192,
     }),
   });
 
@@ -133,6 +197,25 @@ async function callOpenAI(
   };
 }
 
+function buildGoogleContent(msg: AiMessage): any[] {
+  const parts: any[] = [];
+
+  if (msg.files) {
+    for (const file of msg.files) {
+      const b64 = file.data.toString("base64");
+      parts.push({
+        inline_data: { mime_type: file.mimeType, data: b64 },
+      });
+    }
+  }
+
+  if (msg.content) {
+    parts.push({ text: msg.content });
+  }
+
+  return parts;
+}
+
 async function callGoogle(
   provider: { apiKey: string | null; model: string | null; provider: string },
   messages: AiMessage[]
@@ -146,7 +229,7 @@ async function callGoogle(
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+      parts: buildGoogleContent(m),
     }));
 
   const body: any = { contents };
@@ -182,14 +265,21 @@ async function callOllama(
   const base = provider.apiUrl || "http://localhost:11434";
   const model = provider.model || "llama3.1";
 
+  const ollamaMsgs = messages.map((m) => {
+    const msg: any = { role: m.role, content: m.content };
+    if (m.files) {
+      const images = m.files
+        .filter((f) => f.mimeType.startsWith("image/"))
+        .map((f) => f.data.toString("base64"));
+      if (images.length > 0) msg.images = images;
+    }
+    return msg;
+  });
+
   const res = await fetch(`${base}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      stream: false,
-    }),
+    body: JSON.stringify({ model, messages: ollamaMsgs, stream: false }),
   });
 
   if (!res.ok) {
