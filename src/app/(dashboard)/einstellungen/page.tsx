@@ -911,6 +911,10 @@ function KiModelleTab() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editApiKey, setEditApiKey] = useState("");
+  const [editApiUrl, setEditApiUrl] = useState("");
+  const [editModel, setEditModel] = useState("");
 
   const load = React.useCallback(async () => {
     const res = await fetch("/api/ai-providers");
@@ -936,9 +940,20 @@ function KiModelleTab() {
       }),
     });
     if (res.ok) {
+      const newProvider = await res.json();
       await load();
       setAddOpen(false);
       setAddApiKey(""); setAddName(""); setAddModel("");
+      // Automatisch Verbindung testen
+      setTesting(newProvider.id);
+      const testRes = await fetch("/api/ai-providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test", providerId: newProvider.id }),
+      });
+      const testData = await testRes.json();
+      setTestResult({ id: newProvider.id, success: testData.success, message: testData.message || testData.error });
+      setTesting(null);
     }
     setSaving(false);
   }
@@ -949,12 +964,37 @@ function KiModelleTab() {
     const res = await fetch("/api/ai-providers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "test", provider: p.provider, apiKey: p.apiKey, apiUrl: p.apiUrl, model: p.model }),
+      body: JSON.stringify({ action: "test", providerId: p.id }),
     });
     const data = await res.json();
     setTestResult({ id: p.id, success: data.success, message: data.message || data.error });
     if (data.models) setOllamaModels(data.models);
     setTesting(null);
+  }
+
+  function startEditing(p: AiProvider) {
+    setEditingId(p.id);
+    setEditApiKey("");
+    setEditApiUrl(p.apiUrl || "http://localhost:11434");
+    setEditModel(p.model || "");
+    setTestResult(null);
+  }
+
+  async function saveEdit(p: AiProvider) {
+    setSaving(true);
+    const body: any = { id: p.id };
+    if (editApiKey) body.apiKey = editApiKey;
+    if (editApiUrl && p.isLocal) body.apiUrl = editApiUrl;
+    if (editModel) body.model = editModel;
+    await fetch("/api/ai-providers", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    await load();
+    setEditingId(null);
+    setEditApiKey("");
+    setSaving(false);
   }
 
   async function testNewConnection() {
@@ -1047,6 +1087,7 @@ function KiModelleTab() {
             {providers.map((p) => {
               const preset = PROVIDER_PRESETS[p.provider];
               const result = testResult?.id === p.id ? testResult : null;
+              const isEditing = editingId === p.id;
               return (
                 <div key={p.id} className={`border rounded-lg p-4 ${!p.isActive ? "opacity-50" : ""} ${p.isDefault ? "border-blue-300 bg-blue-50/30" : ""}`}>
                   <div className="flex items-center justify-between">
@@ -1063,9 +1104,12 @@ function KiModelleTab() {
                         {p.apiUrl && <p className="text-[10px] text-gray-400 font-mono">URL: {p.apiUrl}</p>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => testConnection(p)} disabled={testing === p.id}>
-                        {testing === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}Test
+                        {testing === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}Verbindung testen
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => isEditing ? setEditingId(null) : startEditing(p)}>
+                        <Eye className="h-3 w-3" />{isEditing ? "Schließen" : "Bearbeiten"}
                       </Button>
                       {!p.isDefault && (
                         <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => setDefault(p.id)}>
@@ -1080,6 +1124,49 @@ function KiModelleTab() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Edit Form */}
+                  {isEditing && (
+                    <div className="mt-3 pt-3 border-t space-y-3">
+                      {preset?.needsApiKey && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-700 mb-1 block">API-Key ändern</label>
+                          <Input type="password" value={editApiKey} onChange={(e) => setEditApiKey(e.target.value)}
+                            placeholder="Neuen API-Key eingeben…"
+                            className="text-sm font-mono" />
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {p.provider === "anthropic" && <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei Anthropic erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                            {p.provider === "openai" && <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei OpenAI erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                            {p.provider === "google" && <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei Google erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                          </p>
+                        </div>
+                      )}
+                      {p.isLocal && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-700 mb-1 block">Server-URL</label>
+                          <Input value={editApiUrl} onChange={(e) => setEditApiUrl(e.target.value)} className="text-sm font-mono" />
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Modell</label>
+                        <NativeSelect value={editModel} onChange={(e) => setEditModel(e.target.value)} className="text-sm h-10">
+                          {(preset?.models || []).map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                          {p.model && !(preset?.models || []).includes(p.model) && (
+                            <option value={p.model}>{p.model}</option>
+                          )}
+                        </NativeSelect>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" className="gap-1.5 text-xs" onClick={() => saveEdit(p)} disabled={saving}>
+                          <Save className="h-3 w-3" />{saving ? "Speichere…" : "Speichern"}
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingId(null)}>Abbrechen</Button>
+                      </div>
+                    </div>
+                  )}
+
                   {result && (
                     <div className={`mt-2 px-3 py-2 rounded text-xs flex items-center gap-1.5 ${result.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                       {result.success ? <Check className="h-3.5 w-3.5" /> : <XIcon className="h-3.5 w-3.5" />}
@@ -1159,7 +1246,7 @@ function KiModelleTab() {
                 {testing === "new" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}Verbindung testen
               </Button>
               <Button size="sm" className="gap-1.5 text-xs" onClick={addProviderFn} disabled={saving || (PROVIDER_PRESETS[addProvider].needsApiKey && !addApiKey)}>
-                {saving ? "Speichere…" : "Hinzufügen"}
+                {saving ? <><Loader2 className="h-3 w-3 animate-spin" />Verbindung wird hergestellt…</> : <><Zap className="h-3.5 w-3.5" />Verbindung herstellen & Speichern</>}
               </Button>
               <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAddOpen(false)}>Abbrechen</Button>
             </div>

@@ -83,7 +83,16 @@ export async function DELETE(req: NextRequest) {
 }
 
 async function testConnection(body: any) {
-  const { provider, apiKey, apiUrl, model } = body;
+  let { provider, apiKey, apiUrl, model } = body;
+
+  if (body.providerId) {
+    const existing = await prisma.aiProvider.findUnique({ where: { id: body.providerId } });
+    if (!existing) return NextResponse.json({ success: false, error: "Provider nicht gefunden" });
+    provider = existing.provider;
+    apiKey = existing.apiKey;
+    apiUrl = existing.apiUrl;
+    model = existing.model;
+  }
 
   try {
     if (provider === "openai") {
