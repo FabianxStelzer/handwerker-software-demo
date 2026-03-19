@@ -287,6 +287,7 @@ function PlanViewer({
   planId, contentRef, svgRef, children, pdfReady,
   markers, selectedMarkerId, placingMarker,
   onPlaceMarker, onSelectMarker, onDeactivateMarker,
+  placingNote, onDeactivateNote,
   url, dateiName,
 }: {
   planId: string;
@@ -300,6 +301,8 @@ function PlanViewer({
   onPlaceMarker: (x: number, y: number) => void;
   onSelectMarker: (m: Marker) => void;
   onDeactivateMarker: () => void;
+  placingNote: boolean;
+  onDeactivateNote: () => void;
   url: string;
   dateiName: string;
 }) {
@@ -309,7 +312,6 @@ function PlanViewer({
   const [strokeWidth, setStrokeWidth] = useState(0.3);
   const [exporting, setExporting] = useState(false);
 
-  const [placingNote, setPlacingNote] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [notePos, setNotePos] = useState<{ x: number; y: number } | null>(null);
   const [noteTitle, setNoteTitle] = useState("");
@@ -342,17 +344,12 @@ function PlanViewer({
   function activateTool(t: "draw" | "eraser") {
     if (tool === t) { setTool("none"); return; }
     setTool(t);
-    setPlacingNote(false);
+    onDeactivateNote();
     onDeactivateMarker();
   }
 
-  function toggleNoteMode() {
-    setPlacingNote(!placingNote);
-    setTool("none");
-    onDeactivateMarker();
-  }
-
-  useEffect(() => { if (placingMarker) { setTool("none"); setPlacingNote(false); } }, [placingMarker]);
+  useEffect(() => { if (placingMarker) { setTool("none"); onDeactivateNote(); } }, [placingMarker, onDeactivateNote]);
+  useEffect(() => { if (placingNote) { setTool("none"); } }, [placingNote]);
 
   function handlePlaceNote(x: number, y: number) {
     setNotePos({ x, y });
@@ -360,7 +357,7 @@ function PlanViewer({
     setNoteDesc("");
     setNoteImage(null);
     setNoteDialogOpen(true);
-    setPlacingNote(false);
+    onDeactivateNote();
   }
 
   function saveNote() {
@@ -480,14 +477,6 @@ function PlanViewer({
         </Button>
         <Button variant={tool === "eraser" ? "default" : "outline"} size="sm" className="gap-1 text-xs" onClick={() => activateTool("eraser")}>
           <Eraser className="h-3.5 w-3.5" />Radierer
-        </Button>
-
-        <div className="h-4 border-l border-gray-300 mx-0.5" />
-
-        <Button variant={placingNote ? "default" : "outline"} size="sm"
-          className={`gap-1 text-xs ${!placingNote ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "bg-orange-500 hover:bg-orange-600"}`}
-          onClick={toggleNoteMode}>
-          <StickyNote className="h-3.5 w-3.5" />{placingNote ? "Klicke auf Plan..." : "Notiz"}
         </Button>
 
         {ann.annotations.filter((a) => a.type === "path").length > 0 && (
@@ -643,6 +632,7 @@ function PdfCanvasViewer(props: {
   url: string; dateiName: string; planId: string;
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
+  placingNote: boolean; onDeactivateNote: () => void;
 }) {
   const [pdfReady, setPdfReady] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -687,6 +677,7 @@ function PdfCanvasViewer(props: {
     <PlanViewer planId={props.planId} contentRef={contentRef} svgRef={svgRef} pdfReady={pdfReady}
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
+      placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
       url={props.url} dateiName={props.dateiName}>
       {pdfError && <div className="p-6 text-center"><p className="text-sm text-red-400">{pdfError}</p>
         <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}><RotateCw className="h-3.5 w-3.5 mr-1" />Laden</Button></div>}
@@ -703,6 +694,7 @@ function ImageViewerComp(props: {
   url: string; dateiName: string; planId: string;
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
+  placingNote: boolean; onDeactivateNote: () => void;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -710,6 +702,7 @@ function ImageViewerComp(props: {
     <PlanViewer planId={props.planId} contentRef={contentRef} svgRef={svgRef} pdfReady={true}
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
+      placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
       url={props.url} dateiName={props.dateiName}>
       <img src={props.url} alt={props.dateiName} className="w-full h-auto block relative z-[1]" draggable={false} style={{ pointerEvents: "none" }} />
     </PlanViewer>
@@ -727,6 +720,7 @@ export function EinbauTab({ project }: { project: any }) {
 
   const [viewPlan, setViewPlan] = useState<EinbauPlan | null>(null);
   const [placingMarker, setPlacingMarker] = useState(false);
+  const [placingNote, setPlacingNote] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [newMarkerPos, setNewMarkerPos] = useState<{ x: number; y: number } | null>(null);
@@ -796,6 +790,8 @@ export function EinbauTab({ project }: { project: any }) {
       onPlaceMarker: (x: number, y: number) => { setNewMarkerPos({ x, y }); setMarkerLeistung(""); setMarkerMaterial(""); setMarkerDialogOpen(true); setPlacingMarker(false); },
       onSelectMarker: (m: Marker) => { setSelectedMarker(m); setPlacingMarker(false); },
       onDeactivateMarker: () => setPlacingMarker(false),
+      placingNote,
+      onDeactivateNote: () => setPlacingNote(false),
     };
 
     const selectedParsed = selectedMarker ? parseBeschreibung(selectedMarker.beschreibung || "") : null;
@@ -804,14 +800,21 @@ export function EinbauTab({ project }: { project: any }) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => { setViewPlan(null); setSelectedMarker(null); setPlacingMarker(false); }}>
+            <Button variant="ghost" size="sm" onClick={() => { setViewPlan(null); setSelectedMarker(null); setPlacingMarker(false); setPlacingNote(false); }}>
               <ChevronLeft className="h-4 w-4 mr-1" />Zurück</Button>
             <h3 className="text-sm font-bold text-gray-900">{viewPlan.titel}</h3>
           </div>
-          <Button variant={placingMarker ? "default" : "outline"} size="sm" className="gap-1.5 text-xs"
-            onClick={() => { setPlacingMarker(!placingMarker); setSelectedMarker(null); }}>
-            <Wrench className="h-3.5 w-3.5" />{placingMarker ? "Klicke auf Plan..." : "Material & Leistungen"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant={placingNote ? "default" : "outline"} size="sm"
+              className={`gap-1.5 text-xs ${!placingNote ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "bg-orange-500 hover:bg-orange-600"}`}
+              onClick={() => { setPlacingNote(!placingNote); setPlacingMarker(false); setSelectedMarker(null); }}>
+              <StickyNote className="h-3.5 w-3.5" />{placingNote ? "Klicke auf Plan..." : "Notiz"}
+            </Button>
+            <Button variant={placingMarker ? "default" : "outline"} size="sm" className="gap-1.5 text-xs"
+              onClick={() => { setPlacingMarker(!placingMarker); setPlacingNote(false); setSelectedMarker(null); }}>
+              <Wrench className="h-3.5 w-3.5" />{placingMarker ? "Klicke auf Plan..." : "Material & Leistungen"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
