@@ -4,10 +4,11 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, MapPin, Trash2, X, ChevronLeft, FileText, User,
   ZoomIn, ZoomOut, Maximize, Download, Printer,
-  Pencil, Type, Undo2, Eraser, Move, RotateCw,
+  Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -25,18 +26,18 @@ interface EinbauPlan {
 
 interface Annotation {
   id: string;
-  type: "path" | "text";
+  type: "path" | "note";
   points?: { x: number; y: number }[];
   x?: number; y?: number;
-  text?: string;
+  title?: string;
+  description?: string;
+  image?: string;
   color: string;
   strokeWidth?: number;
-  fontSize?: number;
 }
 
 const COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#000000", "#f97316", "#a855f7"];
 const STROKE_RANGE = { min: 0.08, max: 2, step: 0.02 };
-const FONT_RANGE = { min: 1, max: 10, step: 0.5 };
 
 // ── PDF.js lazy loader ──────────────────────────────────────
 
@@ -81,28 +82,28 @@ function useAnnotations(planId: string) {
 // ── SVG drawing overlay ─────────────────────────────────────
 
 function SvgOverlay({
-  annotations, tool, color, strokeWidth, fontSize,
-  selectedId, onSelect, onAdd, onUpdate,
-  placingMarker, onPlaceMarker, svgRefOut,
+  annotations, tool, color, strokeWidth,
+  onAdd, onRemove,
+  placingMarker, onPlaceMarker,
+  placingNote, onPlaceNote,
+  svgRefOut,
 }: {
   annotations: Annotation[];
-  tool: "none" | "draw" | "text";
-  color: string; strokeWidth: number; fontSize: number;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  tool: "none" | "draw" | "eraser";
+  color: string; strokeWidth: number;
   onAdd: (a: Annotation) => void;
-  onUpdate: (id: string, patch: Partial<Annotation>) => void;
+  onRemove: (id: string) => void;
   placingMarker: boolean;
   onPlaceMarker: (x: number, y: number) => void;
+  placingNote: boolean;
+  onPlaceNote: (x: number, y: number) => void;
   svgRefOut: React.RefObject<SVGSVGElement | null>;
 }) {
   const svgRef = svgRefOut || useRef<SVGSVGElement>(null);
   const currentPathRef = useRef<SVGPathElement>(null);
   const strokeRef = useRef<{ x: number; y: number }[]>([]);
   const [drawing, setDrawing] = useState(false);
-  const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
-  const [inlineText, setInlineText] = useState<{ x: number; y: number; value: string } | null>(null);
-  const inlineInputRef = useRef<HTMLInputElement>(null);
+  const [hoveredEraseId, setHoveredEraseId] = useState<string | null>(null);
 
   function getPos(e: React.MouseEvent): { x: number; y: number } | null {
     const svg = svgRef.current;
@@ -111,29 +112,16 @@ function SvgOverlay({
     return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
   }
 
-  function commitInlineText() {
-    if (inlineText && inlineText.value.trim()) {
-      onAdd({ id: `ann-${Date.now()}`, type: "text", x: inlineText.x, y: inlineText.y, text: inlineText.value, color, fontSize });
-    }
-    setInlineText(null);
-  }
-
   function handleMouseDown(e: React.MouseEvent) {
-    if (inlineText) return;
     const pos = getPos(e);
     if (!pos) return;
-
     if (placingMarker) { onPlaceMarker(pos.x, pos.y); return; }
+    if (placingNote) { onPlaceNote(pos.x, pos.y); return; }
     if (tool === "draw") {
       strokeRef.current = [pos];
       setDrawing(true);
       if (currentPathRef.current) currentPathRef.current.setAttribute("d", `M${pos.x} ${pos.y}`);
       e.preventDefault();
-    } else if (tool === "text") {
-      setInlineText({ x: pos.x, y: pos.y, value: "" });
-      requestAnimationFrame(() => inlineInputRef.current?.focus());
-    } else if (tool === "none") {
-      onSelect(null);
     }
   }
 
@@ -144,12 +132,6 @@ function SvgOverlay({
       strokeRef.current.push(pos);
       const d = strokeRef.current.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
       if (currentPathRef.current) currentPathRef.current.setAttribute("d", d);
-    } else if (dragging) {
-      const pos = getPos(e);
-      if (!pos) return;
-      const dx = pos.x - dragging.startX;
-      const dy = pos.y - dragging.startY;
-      onUpdate(dragging.id, { x: dragging.origX + dx, y: dragging.origY + dy });
     }
   }
 
@@ -162,89 +144,39 @@ function SvgOverlay({
       strokeRef.current = [];
       if (currentPathRef.current) currentPathRef.current.setAttribute("d", "");
     }
-    if (dragging) setDragging(null);
   }
 
-  function startDrag(e: React.MouseEvent, ann: Annotation) {
-    e.stopPropagation();
-    if (tool !== "none") return;
-    const pos = getPos(e);
-    if (!pos) return;
-    onSelect(ann.id);
-    setDragging({ id: ann.id, startX: pos.x, startY: pos.y, origX: ann.x || 0, origY: ann.y || 0 });
-  }
-
-  const cursor = placingMarker ? "crosshair" : tool === "draw" ? "crosshair" : tool === "text" ? "text" : "default";
-  const hasInteraction = tool !== "none" || placingMarker || inlineText !== null;
+  const isEraser = tool === "eraser";
+  const cursor = (placingMarker || placingNote) ? "crosshair" : tool === "draw" ? "crosshair" : isEraser ? "pointer" : "default";
+  const hasInteraction = tool !== "none" || placingMarker || placingNote;
 
   return (
-    <div className="absolute inset-0 w-full h-full" style={{ zIndex: 15, pointerEvents: "none" }}>
-      <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
-        style={{ cursor, pointerEvents: hasInteraction ? "auto" : "none" }}
-        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-        {annotations.map((ann) => {
-          if (ann.type === "path" && ann.points && ann.points.length > 1) {
-            const d = ann.points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
-            return <path key={ann.id} d={d} stroke={ann.color} strokeWidth={ann.strokeWidth || 0.3}
+    <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
+      style={{ cursor, pointerEvents: hasInteraction ? "auto" : "none", zIndex: 15 }}
+      onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+      {annotations.filter((a) => a.type === "path").map((ann) => {
+        if (!ann.points || ann.points.length < 2) return null;
+        const d = ann.points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
+        const isHovered = isEraser && hoveredEraseId === ann.id;
+        return (
+          <g key={ann.id}>
+            {isEraser && (
+              <path d={d} stroke="transparent" strokeWidth={Math.max((ann.strokeWidth || 0.3) * 8, 3)}
+                fill="none" style={{ pointerEvents: "auto", cursor: "pointer" }}
+                onMouseEnter={() => setHoveredEraseId(ann.id)}
+                onMouseLeave={() => setHoveredEraseId(null)}
+                onClick={(e) => { e.stopPropagation(); onRemove(ann.id); }} />
+            )}
+            <path d={d} stroke={isHovered ? "#ef4444" : ann.color} strokeWidth={ann.strokeWidth || 0.3}
               fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
-              style={{ pointerEvents: "none" }} />;
-          }
-          if (ann.type === "text") {
-            const isSelected = selectedId === ann.id;
-            return (
-              <g key={ann.id} style={{ pointerEvents: "auto", cursor: "move" }}
-                onMouseDown={(e) => startDrag(e, ann)}>
-                {isSelected && (
-                  <rect x={(ann.x || 0) - 0.5} y={(ann.y || 0) - (ann.fontSize || 3.5)}
-                    width="20" height={(ann.fontSize || 3.5) * 1.3}
-                    fill="none" stroke="#3b82f6" strokeWidth="0.15" strokeDasharray="0.4" rx="0.3" />
-                )}
-                <text x={ann.x || 0} y={ann.y || 0} fill={ann.color}
-                  fontSize={ann.fontSize || 3.5} fontWeight="bold" fontFamily="sans-serif"
-                  dominantBaseline="auto">{ann.text}</text>
-              </g>
-            );
-          }
-          return null;
-        })}
-        <path ref={currentPathRef} d="" stroke={color} strokeWidth={strokeWidth}
-          fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </svg>
-      {inlineText && (
-        <div style={{
-          position: "absolute",
-          left: `${inlineText.x}%`,
-          top: `${inlineText.y}%`,
-          transform: "translateY(-100%)",
-          zIndex: 25,
-          pointerEvents: "auto",
-        }}>
-          <input
-            ref={inlineInputRef}
-            type="text"
-            autoFocus
-            value={inlineText.value}
-            onChange={(e) => setInlineText({ ...inlineText, value: e.target.value })}
-            onKeyDown={(e) => { if (e.key === "Enter") commitInlineText(); if (e.key === "Escape") setInlineText(null); }}
-            onBlur={commitInlineText}
-            style={{
-              fontSize: `${Math.max(fontSize * 4, 14)}px`,
-              fontWeight: "bold",
-              fontFamily: "sans-serif",
-              color,
-              background: "rgba(255,255,255,0.9)",
-              border: `2px solid ${color}`,
-              borderRadius: "4px",
-              padding: "4px 8px",
-              outline: "none",
-              minWidth: "120px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            }}
-            placeholder="Text eingeben…"
-          />
-        </div>
-      )}
-    </div>
+              opacity={isHovered ? 0.4 : 1}
+              style={{ pointerEvents: "none" }} />
+          </g>
+        );
+      })}
+      <path ref={currentPathRef} d="" stroke={color} strokeWidth={strokeWidth}
+        fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }
 
@@ -254,6 +186,7 @@ async function exportPlanToCanvas(
   contentEl: HTMLDivElement,
   svgEl: SVGSVGElement,
   markers: Marker[],
+  noteAnnotations: Annotation[],
 ): Promise<HTMLCanvasElement> {
   const rect = contentEl.getBoundingClientRect();
   const scale = 2;
@@ -316,6 +249,24 @@ async function exportPlanToCanvas(
     ctx.fillText(`${i + 1}`, mx, my - markerR);
   }
 
+  // Draw note markers (orange)
+  for (const note of noteAnnotations) {
+    const nx = ((note.x || 0) / 100) * rect.width;
+    const ny = ((note.y || 0) / 100) * rect.height;
+    ctx.beginPath();
+    ctx.arc(nx, ny - markerR, markerR, 0, Math.PI * 2);
+    ctx.fillStyle = "#f97316";
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = "white";
+    ctx.font = `bold ${Math.round(markerR * 0.8)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("N", nx, ny - markerR);
+  }
+
   return canvas;
 }
 
@@ -342,19 +293,25 @@ function PlanViewer({
   dateiName: string;
 }) {
   const [zoom, setZoom] = useState(1);
-  const [tool, setTool] = useState<"none" | "draw" | "text">("none");
+  const [tool, setTool] = useState<"none" | "draw" | "eraser">("none");
   const [color, setColor] = useState("#ef4444");
   const [strokeWidth, setStrokeWidth] = useState(0.3);
-  const [fontSize, setFontSize] = useState(3.5);
-  const [selectedAnnId, setSelectedAnnId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  const [placingNote, setPlacingNote] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [notePos, setNotePos] = useState<{ x: number; y: number } | null>(null);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteDesc, setNoteDesc] = useState("");
+  const [noteImage, setNoteImage] = useState<string | null>(null);
+  const [viewNote, setViewNote] = useState<Annotation | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const noteFileRef = useRef<HTMLInputElement>(null);
   const ann = useAnnotations(planId);
 
-  const selectedAnn = ann.annotations.find((a) => a.id === selectedAnnId) || null;
+  const noteAnnotations = ann.annotations.filter((a) => a.type === "note");
 
-  // Ctrl+Scroll zoom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -365,21 +322,60 @@ function PlanViewer({
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  function activateTool(t: "draw" | "text") {
+  function activateTool(t: "draw" | "eraser") {
     if (tool === t) { setTool("none"); return; }
     setTool(t);
-    setSelectedAnnId(null);
+    setPlacingNote(false);
     onDeactivateMarker();
   }
 
-  // Deactivate draw tools when marker mode activates
-  useEffect(() => { if (placingMarker) { setTool("none"); setSelectedAnnId(null); } }, [placingMarker]);
+  function toggleNoteMode() {
+    setPlacingNote(!placingNote);
+    setTool("none");
+    onDeactivateMarker();
+  }
+
+  useEffect(() => { if (placingMarker) { setTool("none"); setPlacingNote(false); } }, [placingMarker]);
+
+  function handlePlaceNote(x: number, y: number) {
+    setNotePos({ x, y });
+    setNoteTitle("");
+    setNoteDesc("");
+    setNoteImage(null);
+    setNoteDialogOpen(true);
+    setPlacingNote(false);
+  }
+
+  function saveNote() {
+    if (!notePos || !noteTitle.trim()) return;
+    ann.add({
+      id: `ann-${Date.now()}`,
+      type: "note",
+      x: notePos.x,
+      y: notePos.y,
+      title: noteTitle.trim(),
+      description: noteDesc.trim() || undefined,
+      image: noteImage || undefined,
+      color: "#f97316",
+    });
+    setNoteDialogOpen(false);
+    setNotePos(null);
+  }
+
+  function handleNoteImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setNoteImage(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
 
   async function handleExport(mode: "download" | "print") {
     if (!contentRef.current || !svgRef.current) return;
     setExporting(true);
     try {
-      const canvas = await exportPlanToCanvas(contentRef.current, svgRef.current, markers);
+      const canvas = await exportPlanToCanvas(contentRef.current, svgRef.current, markers, noteAnnotations);
       if (mode === "download") {
         const link = document.createElement("a");
         link.download = dateiName.replace(/\.\w+$/, "") + "_annotiert.png";
@@ -399,7 +395,7 @@ function PlanViewer({
 
   return (
     <div>
-      {/* Toolbar row 1: Zoom + tools */}
+      {/* Toolbar */}
       <div className="flex items-center gap-1 mb-1.5 flex-wrap">
         <Button variant="outline" size="sm" onClick={() => setZoom((z) => Math.max(z - 0.25, 0.25))}><ZoomOut className="h-3.5 w-3.5" /></Button>
         <span className="text-xs font-medium text-gray-700 w-12 text-center">{Math.round(zoom * 100)}%</span>
@@ -411,15 +407,20 @@ function PlanViewer({
         <Button variant={tool === "draw" ? "default" : "outline"} size="sm" className="gap-1 text-xs" onClick={() => activateTool("draw")}>
           <Pencil className="h-3.5 w-3.5" />Zeichnen
         </Button>
-        <Button variant={tool === "text" ? "default" : "outline"} size="sm" className="gap-1 text-xs" onClick={() => activateTool("text")}>
-          <Type className="h-3.5 w-3.5" />Text
+        <Button variant={tool === "eraser" ? "default" : "outline"} size="sm" className="gap-1 text-xs" onClick={() => activateTool("eraser")}>
+          <Eraser className="h-3.5 w-3.5" />Radierer
         </Button>
 
-        {ann.annotations.length > 0 && (
-          <>
-            <Button variant="outline" size="sm" onClick={ann.undo}><Undo2 className="h-3.5 w-3.5" /></Button>
-            <Button variant="outline" size="sm" className="text-red-500" onClick={ann.clear}><Eraser className="h-3.5 w-3.5" /></Button>
-          </>
+        <div className="h-4 border-l border-gray-300 mx-0.5" />
+
+        <Button variant={placingNote ? "default" : "outline"} size="sm"
+          className={`gap-1 text-xs ${!placingNote ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "bg-orange-500 hover:bg-orange-600"}`}
+          onClick={toggleNoteMode}>
+          <StickyNote className="h-3.5 w-3.5" />{placingNote ? "Klicke auf Plan..." : "Notiz"}
+        </Button>
+
+        {ann.annotations.filter((a) => a.type === "path").length > 0 && (
+          <Button variant="outline" size="sm" onClick={ann.undo} title="Letzte Zeichnung rückgängig"><Undo2 className="h-3.5 w-3.5" /></Button>
         )}
 
         <div className="flex-1" />
@@ -431,60 +432,27 @@ function PlanViewer({
         </Button>
       </div>
 
-      {/* Toolbar row 2: Options (when tool active or annotation selected) */}
-      {(tool !== "none" || selectedAnn) && (
+      {/* Drawing options */}
+      {tool === "draw" && (
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap bg-gray-50 rounded-lg px-2 py-1.5">
           <span className="text-[10px] text-gray-500 mr-1">Farbe:</span>
           {COLORS.map((c) => (
             <button key={c} className={`h-5 w-5 rounded-full border-2 transition-transform ${color === c ? "scale-125 border-gray-800" : "border-gray-300 hover:scale-110"}`}
-              style={{ backgroundColor: c }} onClick={() => {
-                setColor(c);
-                if (selectedAnn) ann.update(selectedAnn.id, { color: c });
-              }} />
+              style={{ backgroundColor: c }} onClick={() => setColor(c)} />
           ))}
+          <div className="h-4 border-l border-gray-300 mx-1" />
+          <span className="text-[10px] text-gray-500 mr-1">Stärke:</span>
+          <input type="range" min={STROKE_RANGE.min} max={STROKE_RANGE.max} step={STROKE_RANGE.step}
+            value={strokeWidth} onChange={(e) => setStrokeWidth(parseFloat(e.target.value))}
+            className="w-24 h-1.5 accent-gray-800 cursor-pointer" />
+          <span className="text-[10px] text-gray-500 w-8">{strokeWidth.toFixed(2)}</span>
+        </div>
+      )}
 
-          {(tool === "draw" || selectedAnn?.type === "path") && (
-            <>
-              <div className="h-4 border-l border-gray-300 mx-1" />
-              <span className="text-[10px] text-gray-500 mr-1">Stärke:</span>
-              <input type="range" min={STROKE_RANGE.min} max={STROKE_RANGE.max} step={STROKE_RANGE.step}
-                value={strokeWidth} onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  setStrokeWidth(v);
-                  if (selectedAnn?.type === "path") ann.update(selectedAnn.id, { strokeWidth: v });
-                }}
-                className="w-24 h-1.5 accent-gray-800 cursor-pointer" />
-              <span className="text-[10px] text-gray-500 w-8">{strokeWidth.toFixed(2)}</span>
-            </>
-          )}
-
-          {(tool === "text" || selectedAnn?.type === "text") && (
-            <>
-              <div className="h-4 border-l border-gray-300 mx-1" />
-              <span className="text-[10px] text-gray-500 mr-1">Größe:</span>
-              <input type="range" min={FONT_RANGE.min} max={FONT_RANGE.max} step={FONT_RANGE.step}
-                value={fontSize} onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  setFontSize(v);
-                  if (selectedAnn?.type === "text") ann.update(selectedAnn.id, { fontSize: v });
-                }}
-                className="w-24 h-1.5 accent-gray-800 cursor-pointer" />
-              <span className="text-[10px] text-gray-500 w-8">{fontSize.toFixed(1)}</span>
-            </>
-          )}
-
-          {selectedAnn?.type === "text" && (
-            <>
-              <div className="h-4 border-l border-gray-300 mx-1" />
-              <input type="text" value={selectedAnn.text || ""} onChange={(e) => ann.update(selectedAnn.id, { text: e.target.value })}
-                className="text-[11px] h-6 px-1.5 border border-gray-300 rounded bg-white min-w-[100px]"
-                placeholder="Text…" />
-              <Button variant="outline" size="sm" className="gap-1 text-[10px] h-6 text-red-500" onClick={() => { ann.remove(selectedAnn.id); setSelectedAnnId(null); }}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-              <span className="text-[10px] text-gray-400 ml-1"><Move className="h-3 w-3 inline" /> Ziehen zum Verschieben</span>
-            </>
-          )}
+      {tool === "eraser" && (
+        <div className="flex items-center gap-1.5 mb-1.5 bg-red-50 rounded-lg px-3 py-1.5">
+          <Eraser className="h-3.5 w-3.5 text-red-500" />
+          <span className="text-xs text-red-600">Klicke auf einen Strich, um ihn zu entfernen</span>
         </div>
       )}
 
@@ -493,23 +461,21 @@ function PlanViewer({
         <div ref={contentRef as any} className="relative mx-auto" style={{ width: `${zoom * 100}%` }}>
           {children}
 
-          {/* SVG drawing overlay */}
           <SvgOverlay
             svgRefOut={svgRef}
             annotations={ann.annotations}
             tool={tool}
             color={color}
             strokeWidth={strokeWidth}
-            fontSize={fontSize}
-            selectedId={selectedAnnId}
-            onSelect={setSelectedAnnId}
             onAdd={ann.add}
-            onUpdate={ann.update}
+            onRemove={ann.remove}
             placingMarker={placingMarker}
             onPlaceMarker={onPlaceMarker}
+            placingNote={placingNote}
+            onPlaceNote={handlePlaceNote}
           />
 
-          {/* Markers */}
+          {/* Markers (blue) + Note markers (orange) */}
           <div className="absolute inset-0" style={{ pointerEvents: "none", zIndex: 20 }}>
             {markers.map((marker, i) => (
               <button key={marker.id} className={`absolute transition-transform ${selectedMarkerId === marker.id ? "z-30 scale-125" : "z-20 hover:scale-110"}`}
@@ -521,9 +487,68 @@ function PlanViewer({
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-blue-600 mx-auto -mt-0.5" />
               </button>
             ))}
+            {noteAnnotations.map((note) => (
+              <button key={note.id} className="absolute z-20 transition-transform hover:scale-110"
+                style={{ left: `${note.x}%`, top: `${note.y}%`, transform: "translate(-50%, -100%)", pointerEvents: "auto" }}
+                onClick={(e) => { e.stopPropagation(); setViewNote(note); }}>
+                <div className={`flex items-center justify-center h-7 w-7 rounded-full shadow-lg border-2 text-xs font-bold ${
+                  viewNote?.id === note.id ? "bg-orange-600 border-white text-white" : "bg-white border-orange-500 text-orange-500"
+                }`}><StickyNote className="h-3.5 w-3.5" /></div>
+                <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-orange-500 mx-auto -mt-0.5" />
+              </button>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* New note dialog */}
+      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5 text-orange-500" />Neue Notiz</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Titel *" autoFocus />
+            <Textarea value={noteDesc} onChange={(e) => setNoteDesc(e.target.value)} placeholder="Beschreibung (optional)" rows={3} />
+            <div>
+              <input ref={noteFileRef} type="file" accept="image/*" className="hidden" onChange={handleNoteImage} />
+              {noteImage ? (
+                <div className="relative">
+                  <img src={noteImage} alt="Vorschau" className="w-full max-h-40 object-contain rounded-lg border" />
+                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-white/80" onClick={() => setNoteImage(null)}><X className="h-3.5 w-3.5" /></Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs w-full" onClick={() => noteFileRef.current?.click()}>
+                  <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
+                </Button>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setNoteDialogOpen(false); setNotePos(null); }}>Abbrechen</Button>
+              <Button className="bg-orange-500 hover:bg-orange-600" onClick={saveNote} disabled={!noteTitle.trim()}>Speichern</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View note dialog */}
+      <Dialog open={!!viewNote} onOpenChange={(open) => { if (!open) setViewNote(null); }}>
+        <DialogContent>
+          {viewNote && (
+            <>
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5 text-orange-500" />{viewNote.title}</DialogTitle></DialogHeader>
+              <div className="space-y-3 mt-2">
+                {viewNote.description && <p className="text-sm text-gray-700 whitespace-pre-wrap">{viewNote.description}</p>}
+                {viewNote.image && <img src={viewNote.image} alt="Notiz-Bild" className="w-full max-h-60 object-contain rounded-lg border" />}
+                {!viewNote.description && !viewNote.image && <p className="text-sm text-gray-400">Keine Beschreibung</p>}
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" className="gap-1 text-xs text-red-500" onClick={() => { ann.remove(viewNote.id); setViewNote(null); }}>
+                    <Trash2 className="h-3.5 w-3.5" />Notiz löschen
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
