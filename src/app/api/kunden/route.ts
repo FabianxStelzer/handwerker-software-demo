@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
           { company: { contains: search, mode: "insensitive" as const } },
           { email: { contains: search, mode: "insensitive" as const } },
           { city: { contains: search, mode: "insensitive" as const } },
+          { customerNumber: { contains: search, mode: "insensitive" as const } },
         ],
       }
     : {};
@@ -25,11 +26,25 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(customers);
 }
 
+async function getNextCustomerNumber(): Promise<string> {
+  const settings = await prisma.companySettings.findFirst();
+  const nextVal = settings?.nkKundenNaechster ?? 10064;
+
+  await prisma.companySettings.updateMany({
+    data: { nkKundenNaechster: nextVal + 1 },
+  });
+
+  return String(nextVal);
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
+  const customerNumber = await getNextCustomerNumber();
+
   const customer = await prisma.customer.create({
     data: {
+      customerNumber,
       type: body.type || "PRIVAT",
       company: body.company || null,
       firstName: body.firstName,

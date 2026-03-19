@@ -8,14 +8,29 @@ export async function GET() {
   return NextResponse.json(vendors);
 }
 
+async function getNextVendorNumber(): Promise<string> {
+  const settings = await prisma.companySettings.findFirst();
+  const nextVal = settings?.nkLieferantenNaechster ?? 70089;
+
+  await prisma.companySettings.updateMany({
+    data: { nkLieferantenNaechster: nextVal + 1 },
+  });
+
+  return String(nextVal);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, taxId, vatId, street, zip, city, email, phone, notes } = body;
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name erforderlich" }, { status: 400 });
   }
+
+  const vendorNumber = await getNextVendorNumber();
+
   const vendor = await prisma.vendor.create({
     data: {
+      vendorNumber,
       name: name.trim(),
       taxId: taxId?.trim() || null,
       vatId: vatId?.trim() || null,
