@@ -878,22 +878,65 @@ interface AiProvider {
 const PROVIDER_PRESETS: Record<string, { label: string; icon: string; color: string; models: string[]; needsApiKey: boolean; needsApiUrl: boolean }> = {
   anthropic: {
     label: "Claude (Anthropic)", icon: "🟣", color: "purple",
-    models: ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+    models: [
+      "claude-sonnet-4-20250514",
+      "claude-opus-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-5-haiku-20241022",
+      "claude-3-opus-20240229",
+      "claude-3-haiku-20240307",
+    ],
     needsApiKey: true, needsApiUrl: false,
   },
   google: {
     label: "Gemini (Google)", icon: "🔵", color: "blue",
-    models: ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"],
+    models: [
+      "gemini-2.5-pro-preview-05-06",
+      "gemini-2.5-flash-preview-04-17",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+    ],
     needsApiKey: true, needsApiUrl: false,
   },
   openai: {
     label: "ChatGPT (OpenAI)", icon: "🟢", color: "green",
-    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    models: [
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "gpt-4o",
+      "gpt-4o-mini",
+      "o4-mini",
+      "o3",
+      "o3-mini",
+      "o1",
+      "o1-mini",
+      "gpt-4-turbo",
+      "gpt-3.5-turbo",
+    ],
     needsApiKey: true, needsApiUrl: false,
   },
   ollama: {
     label: "Ollama (Lokal)", icon: "🖥️", color: "gray",
-    models: ["llama3.1", "mistral", "codellama", "gemma2", "phi3"],
+    models: [
+      "llama3.3",
+      "llama3.2",
+      "llama3.1",
+      "gemma3",
+      "gemma2",
+      "qwen2.5",
+      "mistral",
+      "mixtral",
+      "codellama",
+      "deepseek-r1",
+      "deepseek-coder-v2",
+      "phi4",
+      "phi3",
+      "command-r",
+    ],
     needsApiKey: false, needsApiUrl: true,
   },
 };
@@ -1212,14 +1255,21 @@ function KiModelleTab() {
                       )}
                       <div>
                         <label className="text-xs font-medium text-gray-700 mb-1 block">Modell</label>
-                        <NativeSelect value={editModel} onChange={(e) => setEditModel(e.target.value)} className="text-sm h-10">
+                        <Input
+                          list={`edit-models-${p.id}`}
+                          value={editModel}
+                          onChange={(e) => setEditModel(e.target.value)}
+                          placeholder={p.model || "Modellname eingeben"}
+                          className="text-sm"
+                        />
+                        <datalist id={`edit-models-${p.id}`}>
                           {(preset?.models || []).map((m) => (
-                            <option key={m} value={m}>{m}</option>
+                            <option key={m} value={m} />
                           ))}
                           {p.model && !(preset?.models || []).includes(p.model) && (
-                            <option value={p.model}>{p.model}</option>
+                            <option value={p.model} />
                           )}
-                        </NativeSelect>
+                        </datalist>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button size="sm" className="gap-1.5 text-xs" onClick={() => saveEdit(p)} disabled={saving}>
@@ -1266,14 +1316,22 @@ function KiModelleTab() {
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Modell</label>
-                <NativeSelect value={addModel} onChange={(e) => setAddModel(e.target.value)} className="text-sm h-10">
+                <Input
+                  list={`models-${addProvider}`}
+                  value={addModel}
+                  onChange={(e) => setAddModel(e.target.value)}
+                  placeholder={PROVIDER_PRESETS[addProvider].models[0]}
+                  className="text-sm"
+                />
+                <datalist id={`models-${addProvider}`}>
                   {PROVIDER_PRESETS[addProvider].models.map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m} />
                   ))}
                   {ollamaModels.filter((m) => !PROVIDER_PRESETS[addProvider].models.includes(m)).map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m} />
                   ))}
-                </NativeSelect>
+                </datalist>
+                <p className="text-[10px] text-gray-400 mt-1">Wähle ein Modell aus der Liste oder gib einen eigenen Modellnamen ein</p>
               </div>
             </div>
 
