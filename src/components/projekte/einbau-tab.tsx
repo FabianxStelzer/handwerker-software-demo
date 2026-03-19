@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, MapPin, Trash2, X, ChevronLeft, FileText, User,
   ZoomIn, ZoomOut, Maximize, Download, Printer,
-  Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus,
+  Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus, Wrench, Pen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +34,17 @@ interface Annotation {
   image?: string;
   color: string;
   strokeWidth?: number;
+}
+
+const MATERIAL_SEP = "\n---MATERIAL---\n";
+function formatBeschreibung(leistung: string, material: string): string {
+  if (material.trim()) return leistung + MATERIAL_SEP + material;
+  return leistung;
+}
+function parseBeschreibung(b: string): { leistung: string; material: string } {
+  const idx = b.indexOf(MATERIAL_SEP);
+  if (idx >= 0) return { leistung: b.slice(0, idx), material: b.slice(idx + MATERIAL_SEP.length) };
+  return { leistung: b, material: "" };
 }
 
 const COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#000000", "#f97316", "#a855f7"];
@@ -304,10 +315,16 @@ function PlanViewer({
   const [noteTitle, setNoteTitle] = useState("");
   const [noteDesc, setNoteDesc] = useState("");
   const [noteImage, setNoteImage] = useState<string | null>(null);
-  const [viewNote, setViewNote] = useState<Annotation | null>(null);
+
+  const [editNoteOpen, setEditNoteOpen] = useState(false);
+  const [editNoteId, setEditNoteId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editImage, setEditImage] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const noteFileRef = useRef<HTMLInputElement>(null);
+  const editNoteFileRef = useRef<HTMLInputElement>(null);
   const ann = useAnnotations(planId);
 
   const noteAnnotations = ann.annotations.filter((a) => a.type === "note");
@@ -369,6 +386,60 @@ function PlanViewer({
     reader.onload = () => setNoteImage(reader.result as string);
     reader.readAsDataURL(file);
     e.target.value = "";
+  }
+
+  function handleEditNoteImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditImage(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  function openEditNote(note: Annotation) {
+    setEditNoteId(note.id);
+    setEditTitle(note.title || "");
+    setEditDesc(note.description || "");
+    setEditImage(note.image || null);
+    setEditNoteOpen(true);
+  }
+
+  function saveEditNote() {
+    if (!editNoteId || !editTitle.trim()) return;
+    ann.update(editNoteId, { title: editTitle.trim(), description: editDesc.trim() || undefined, image: editImage || undefined });
+    setEditNoteOpen(false);
+    setEditNoteId(null);
+  }
+
+  function handleNoteMouseDown(e: React.MouseEvent, note: Annotation) {
+    e.preventDefault();
+    e.stopPropagation();
+    const cEl = contentRef.current;
+    if (!cEl) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = note.x || 0;
+    const origY = note.y || 0;
+    let moved = false;
+    function onMove(ev: MouseEvent) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      if (!moved) return;
+      const rect = cEl!.getBoundingClientRect();
+      ann.update(note.id, {
+        x: Math.max(0, Math.min(100, origX + (dx / rect.width) * 100)),
+        y: Math.max(0, Math.min(100, origY + (dy / rect.height) * 100)),
+      });
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (!moved) openEditNote(note);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   }
 
   async function handleExport(mode: "download" | "print") {
@@ -488,14 +559,14 @@ function PlanViewer({
               </button>
             ))}
             {noteAnnotations.map((note) => (
-              <button key={note.id} className="absolute z-20 transition-transform hover:scale-110"
-                style={{ left: `${note.x}%`, top: `${note.y}%`, transform: "translate(-50%, -100%)", pointerEvents: "auto" }}
-                onClick={(e) => { e.stopPropagation(); setViewNote(note); }}>
+              <div key={note.id} className="absolute z-20 transition-transform hover:scale-110"
+                style={{ left: `${note.x}%`, top: `${note.y}%`, transform: "translate(-50%, -100%)", pointerEvents: "auto", cursor: "grab" }}
+                onMouseDown={(e) => handleNoteMouseDown(e, note)} title={note.title || "Notiz"}>
                 <div className={`flex items-center justify-center h-7 w-7 rounded-full shadow-lg border-2 text-xs font-bold ${
-                  viewNote?.id === note.id ? "bg-orange-600 border-white text-white" : "bg-white border-orange-500 text-orange-500"
+                  editNoteId === note.id ? "bg-orange-600 border-white text-white" : "bg-white border-orange-500 text-orange-500"
                 }`}><StickyNote className="h-3.5 w-3.5" /></div>
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-orange-500 mx-auto -mt-0.5" />
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -529,24 +600,37 @@ function PlanViewer({
         </DialogContent>
       </Dialog>
 
-      {/* View note dialog */}
-      <Dialog open={!!viewNote} onOpenChange={(open) => { if (!open) setViewNote(null); }}>
+      {/* Edit note dialog */}
+      <Dialog open={editNoteOpen} onOpenChange={(open) => { if (!open) { setEditNoteOpen(false); setEditNoteId(null); } }}>
         <DialogContent>
-          {viewNote && (
-            <>
-              <DialogHeader><DialogTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5 text-orange-500" />{viewNote.title}</DialogTitle></DialogHeader>
-              <div className="space-y-3 mt-2">
-                {viewNote.description && <p className="text-sm text-gray-700 whitespace-pre-wrap">{viewNote.description}</p>}
-                {viewNote.image && <img src={viewNote.image} alt="Notiz-Bild" className="w-full max-h-60 object-contain rounded-lg border" />}
-                {!viewNote.description && !viewNote.image && <p className="text-sm text-gray-400">Keine Beschreibung</p>}
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm" className="gap-1 text-xs text-red-500" onClick={() => { ann.remove(viewNote.id); setViewNote(null); }}>
-                    <Trash2 className="h-3.5 w-3.5" />Notiz löschen
-                  </Button>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Pen className="h-4 w-4 text-orange-500" />Notiz bearbeiten</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Titel *" autoFocus />
+            <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Beschreibung (optional)" rows={3} />
+            <div>
+              <input ref={editNoteFileRef} type="file" accept="image/*" className="hidden" onChange={handleEditNoteImage} />
+              {editImage ? (
+                <div className="relative">
+                  <img src={editImage} alt="Vorschau" className="w-full max-h-40 object-contain rounded-lg border" />
+                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-white/80" onClick={() => setEditImage(null)}><X className="h-3.5 w-3.5" /></Button>
                 </div>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs w-full" onClick={() => editNoteFileRef.current?.click()}>
+                  <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
+                </Button>
+              )}
+            </div>
+            <div className="flex justify-between">
+              <Button variant="outline" size="sm" className="gap-1 text-xs text-red-500"
+                onClick={() => { if (editNoteId) ann.remove(editNoteId); setEditNoteOpen(false); setEditNoteId(null); }}>
+                <Trash2 className="h-3.5 w-3.5" />Löschen
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setEditNoteOpen(false); setEditNoteId(null); }}>Abbrechen</Button>
+                <Button className="bg-orange-500 hover:bg-orange-600" onClick={saveEditNote} disabled={!editTitle.trim()}>Speichern</Button>
               </div>
-            </>
-          )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -646,7 +730,8 @@ export function EinbauTab({ project }: { project: any }) {
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [newMarkerPos, setNewMarkerPos] = useState<{ x: number; y: number } | null>(null);
-  const [markerBeschreibung, setMarkerBeschreibung] = useState("");
+  const [markerLeistung, setMarkerLeistung] = useState("");
+  const [markerMaterial, setMarkerMaterial] = useState("");
   const [saving, setSaving] = useState(false);
 
 
@@ -687,8 +772,9 @@ export function EinbauTab({ project }: { project: any }) {
   async function createMarker() {
     if (!viewPlan || !newMarkerPos) return;
     setSaving(true);
+    const beschreibung = formatBeschreibung(markerLeistung, markerMaterial);
     await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "marker", planId: viewPlan.id, xPercent: newMarkerPos.x, yPercent: newMarkerPos.y, beschreibung: markerBeschreibung }) });
+      body: JSON.stringify({ action: "marker", planId: viewPlan.id, xPercent: newMarkerPos.x, yPercent: newMarkerPos.y, beschreibung }) });
     const u = await refreshPlan(viewPlan.id);
     if (u) setSelectedMarker(u.markers[u.markers.length - 1]);
     setMarkerDialogOpen(false); setNewMarkerPos(null); setSaving(false);
@@ -707,10 +793,12 @@ export function EinbauTab({ project }: { project: any }) {
     const vProps = {
       url: viewPlan.dateiUrl, dateiName: viewPlan.dateiName, planId: viewPlan.id,
       placingMarker, markers: viewPlan.markers, selectedMarkerId: selectedMarker?.id || null,
-      onPlaceMarker: (x: number, y: number) => { setNewMarkerPos({ x, y }); setMarkerBeschreibung(""); setMarkerDialogOpen(true); setPlacingMarker(false); },
+      onPlaceMarker: (x: number, y: number) => { setNewMarkerPos({ x, y }); setMarkerLeistung(""); setMarkerMaterial(""); setMarkerDialogOpen(true); setPlacingMarker(false); },
       onSelectMarker: (m: Marker) => { setSelectedMarker(m); setPlacingMarker(false); },
       onDeactivateMarker: () => setPlacingMarker(false),
     };
+
+    const selectedParsed = selectedMarker ? parseBeschreibung(selectedMarker.beschreibung || "") : null;
 
     return (
       <div className="space-y-4">
@@ -722,7 +810,7 @@ export function EinbauTab({ project }: { project: any }) {
           </div>
           <Button variant={placingMarker ? "default" : "outline"} size="sm" className="gap-1.5 text-xs"
             onClick={() => { setPlacingMarker(!placingMarker); setSelectedMarker(null); }}>
-            <MapPin className="h-3.5 w-3.5" />{placingMarker ? "Klicke auf Plan..." : "Punkt setzen"}
+            <Wrench className="h-3.5 w-3.5" />{placingMarker ? "Klicke auf Plan..." : "Material & Leistungen"}
           </Button>
         </div>
 
@@ -731,10 +819,10 @@ export function EinbauTab({ project }: { project: any }) {
             {isImage ? <ImageViewerComp {...vProps} /> : <PdfCanvasViewer {...vProps} />}
           </div>
           <div className="lg:col-span-4 space-y-3">
-            {selectedMarker ? (
+            {selectedMarker && selectedParsed ? (
               <Card><CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-bold text-gray-900">Punkt #{viewPlan.markers.indexOf(selectedMarker) + 1}</h4>
+                  <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><Wrench className="h-4 w-4 text-blue-600" />Punkt #{viewPlan.markers.indexOf(selectedMarker) + 1}</h4>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteMarker(selectedMarker.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedMarker(null)}><X className="h-3.5 w-3.5" /></Button>
@@ -742,10 +830,18 @@ export function EinbauTab({ project }: { project: any }) {
                 </div>
                 <div className="flex items-center gap-2 mb-3 text-xs text-gray-500"><User className="h-3.5 w-3.5" />
                   <span>{selectedMarker.mitarbeiterName || "Unbekannt"} · {new Date(selectedMarker.createdAt).toLocaleDateString("de-DE")}</span></div>
-                <div className="mb-4"><label className="text-xs font-medium text-gray-700">Durchgeführte Arbeit</label>
-                  <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{selectedMarker.beschreibung || "–"}</p></div>
-              </CardContent></Card>
-            ) : (
+                <div className="mb-3">
+                  <label className="text-xs font-medium text-gray-700">Leistung</label>
+                  <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{selectedParsed.leistung || "–"}</p>
+                </div>
+                {selectedParsed.material && (
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-gray-700">Material</label>
+                    <p className="text-sm text-gray-900 mt-1 bg-blue-50 border border-blue-100 rounded-lg p-2 whitespace-pre-wrap">{selectedParsed.material}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">→ Reiter „Material" für vollständige Verwaltung</p>
+                  </div>
+                )}
+              </CardContent></Card>) : (
               <Card><CardContent className="p-6 text-center"><MapPin className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-xs text-gray-500">{placingMarker ? "Klicke auf den Bauplan" : "Wähle einen Punkt oder setze einen neuen"}</p>
               </CardContent></Card>
@@ -768,9 +864,18 @@ export function EinbauTab({ project }: { project: any }) {
         </div>
 
         <Dialog open={markerDialogOpen} onOpenChange={setMarkerDialogOpen}>
-          <DialogContent><DialogHeader><DialogTitle>Neuer Einbau-Punkt</DialogTitle></DialogHeader>
+          <DialogContent>
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-blue-600" />Material & Leistungen</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-2">
-              <Textarea value={markerBeschreibung} onChange={(e) => setMarkerBeschreibung(e.target.value)} placeholder="Was wurde gemacht?" rows={3} autoFocus />
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Leistung – Was wurde gemacht?</label>
+                <Textarea value={markerLeistung} onChange={(e) => setMarkerLeistung(e.target.value)} placeholder="z.B. Fußbodenheizung verlegt…" rows={3} autoFocus />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Verwendete Materialien</label>
+                <Textarea value={markerMaterial} onChange={(e) => setMarkerMaterial(e.target.value)} placeholder="z.B. 50m Heizrohr 16mm, 10 Klemmen…" rows={2} />
+                <p className="text-[10px] text-gray-400 mt-1">Materialien können im Reiter „Material" verwaltet werden.</p>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => { setMarkerDialogOpen(false); setNewMarkerPos(null); }}>Abbrechen</Button>
                 <Button onClick={createMarker} disabled={saving}>{saving ? "Speichern…" : "Erstellen"}</Button>
