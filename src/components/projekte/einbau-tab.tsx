@@ -769,6 +769,10 @@ export function EinbauTab({ project }: { project: any }) {
   const [extraMaterialMenge, setExtraMaterialMenge] = useState("");
   const [extraMaterialEinheit, setExtraMaterialEinheit] = useState("STUECK");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+  const viewPlanAnn = useAnnotations(viewPlan?.id || "");
+  const noteAnnotations = viewPlanAnn.annotations.filter((a) => a.type === "note");
 
 
   const load = useCallback(async () => {
@@ -1013,21 +1017,66 @@ export function EinbauTab({ project }: { project: any }) {
                     <p className="text-[10px] text-gray-400 mt-1">→ Reiter „Material" für vollständige Verwaltung</p>
                   </div>
                 )}
-              </CardContent></Card>) : (
+              </CardContent></Card>
+            ) : selectedNoteId && noteAnnotations.find((n) => n.id === selectedNoteId) ? (() => {
+              const note = noteAnnotations.find((n) => n.id === selectedNoteId)!;
+              const noteIdx = noteAnnotations.indexOf(note);
+              return (
+                <Card><CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><StickyNote className="h-4 w-4 text-orange-500" />Notiz #{noteIdx + 1}</h4>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => { viewPlanAnn.remove(note.id); setSelectedNoteId(null); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedNoteId(null)}><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-gray-700">Titel</label>
+                    <p className="text-sm text-gray-900 mt-1 bg-orange-50 rounded-lg p-2 font-medium">{note.title || "–"}</p>
+                  </div>
+                  {note.description && (
+                    <div className="mb-3">
+                      <label className="text-xs font-medium text-gray-700">Beschreibung</label>
+                      <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{note.description}</p>
+                    </div>
+                  )}
+                  {note.image && (
+                    <div className="mb-3">
+                      <label className="text-xs font-medium text-gray-700">Bild</label>
+                      <img src={note.image} alt="Notiz-Bild" className="mt-1 w-full max-h-48 object-contain rounded-lg border" />
+                    </div>
+                  )}
+                </CardContent></Card>
+              );
+            })() : (
               <Card><CardContent className="p-6 text-center"><MapPin className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">{placingMarker ? "Klicke auf den Bauplan" : "Wähle einen Punkt oder setze einen neuen"}</p>
+                <p className="text-xs text-gray-500">{placingMarker || placingNote ? "Klicke auf den Bauplan" : "Wähle einen Punkt oder setze einen neuen"}</p>
               </CardContent></Card>
             )}
-            {viewPlan.markers.length > 0 && (
+            {(viewPlan.markers.length > 0 || noteAnnotations.length > 0) && (
               <Card><CardContent className="p-4">
-                <h4 className="text-xs font-bold text-gray-900 mb-2">Alle Punkte ({viewPlan.markers.length})</h4>
-                <div className="space-y-1 max-h-[250px] overflow-y-auto">
+                <h4 className="text-xs font-bold text-gray-900 mb-2">Alle Punkte ({viewPlan.markers.length + noteAnnotations.length})</h4>
+                <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                  {viewPlan.markers.length > 0 && (
+                    <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide px-2 pt-1">Material & Leistungen</p>
+                  )}
                   {viewPlan.markers.map((m, i) => (
                     <button key={m.id} className={`w-full text-left p-2 rounded-lg text-xs transition-colors ${selectedMarker?.id === m.id ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"}`}
-                      onClick={() => { setSelectedMarker(m); setPlacingMarker(false); }}>
+                      onClick={() => { setSelectedMarker(m); setSelectedNoteId(null); setPlacingMarker(false); }}>
                       <div className="flex items-center gap-2">
                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shrink-0">{i + 1}</div>
-                        <div className="flex-1 min-w-0"><p className="text-gray-900 truncate">{m.beschreibung || "–"}</p><p className="text-[10px] text-gray-400">{m.mitarbeiterName}</p></div>
+                        <div className="flex-1 min-w-0"><p className="text-gray-900 truncate">{parseBeschreibung(m.beschreibung || "").leistung || "–"}</p><p className="text-[10px] text-gray-400">{m.mitarbeiterName}</p></div>
+                      </div>
+                    </button>))}
+                  {noteAnnotations.length > 0 && (
+                    <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wide px-2 pt-2">Notizen</p>
+                  )}
+                  {noteAnnotations.map((n, i) => (
+                    <button key={n.id} className={`w-full text-left p-2 rounded-lg text-xs transition-colors ${selectedNoteId === n.id ? "bg-orange-50 border border-orange-200" : "hover:bg-gray-50"}`}
+                      onClick={() => { setSelectedNoteId(n.id); setSelectedMarker(null); }}>
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold shrink-0">{i + 1}</div>
+                        <div className="flex-1 min-w-0"><p className="text-gray-900 truncate">{n.title || "–"}</p>{n.description && <p className="text-[10px] text-gray-400 truncate">{n.description}</p>}</div>
                       </div>
                     </button>))}
                 </div>
