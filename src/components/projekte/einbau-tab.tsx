@@ -838,6 +838,20 @@ export function EinbauTab({ project }: { project: any }) {
 
     await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "marker", planId: viewPlan.id, xPercent: newMarkerPos.x, yPercent: newMarkerPos.y, beschreibung }) });
+
+    for (const mid of selectedMaterialIds) {
+      const pm = projectMaterials.find((m) => m.id === mid);
+      if (pm) {
+        const qty = materialQuantities[mid] || 1;
+        await fetch(`/api/projekte/${project.id}/materialien`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: pm.id, quantityUsed: (pm.quantityUsed || 0) + qty }),
+        });
+      }
+    }
+    await loadMaterials();
+
     const u = await refreshPlan(viewPlan.id);
     if (u) setSelectedMarker(u.markers[u.markers.length - 1]);
     setMarkerDialogOpen(false); setNewMarkerPos(null); setSaving(false);
