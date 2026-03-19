@@ -67,9 +67,10 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (href: string) => {
+  const isActive = (href: string, exact?: boolean) => {
     if (href === "/") return pathname === "/";
-    return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(href + "/");
   };
 
   const initials = user?.name
@@ -122,6 +123,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
         {navigation.map((item) => {
           if (item.children) {
             const open = isGroupOpen(pathname, item);
+            const parentExact = isActive(item.href, true);
             return (
               <div key={item.name} className="space-y-0.5">
                 <Link
@@ -129,11 +131,11 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
                   onClick={() => setMobileOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive(item.href) ? "text-white" : "text-gray-300 hover:text-white"
+                    parentExact ? "text-white" : open ? "text-gray-200" : "text-gray-300 hover:text-white"
                   )}
-                  style={isActive(item.href) ? { backgroundColor: "#9eb552" } : undefined}
-                  onMouseEnter={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-                  onMouseLeave={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = ""; }}
+                  style={parentExact ? { backgroundColor: "#9eb552" } : open ? { backgroundColor: "rgba(255,255,255,0.06)" } : undefined}
+                  onMouseEnter={(e) => { if (!parentExact) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+                  onMouseLeave={(e) => { if (!parentExact) e.currentTarget.style.backgroundColor = open ? "rgba(255,255,255,0.06)" : ""; }}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {item.name}
@@ -141,23 +143,26 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
                 </Link>
                 {open && (
                   <div className="ml-4 pl-2 border-l border-white/15 space-y-0.5">
-                    {item.children.map((child) => (
+                    {item.children.map((child) => {
+                      const childActive = isActive(child.href, true);
+                      return (
                       <Link
                         key={child.name}
                         href={child.href}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
                           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                          isActive(child.href) ? "text-white" : "text-gray-400 hover:text-white"
+                          childActive ? "text-white" : "text-gray-400 hover:text-white"
                         )}
-                        style={isActive(child.href) ? { backgroundColor: "rgba(158,181,82,0.7)" } : undefined}
-                        onMouseEnter={(e) => { if (!isActive(child.href)) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-                        onMouseLeave={(e) => { if (!isActive(child.href)) e.currentTarget.style.backgroundColor = ""; }}
+                        style={childActive ? { backgroundColor: "rgba(158,181,82,0.7)" } : undefined}
+                        onMouseEnter={(e) => { if (!childActive) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+                        onMouseLeave={(e) => { if (!childActive) e.currentTarget.style.backgroundColor = ""; }}
                       >
                         <child.icon className="h-4 w-4 shrink-0" />
                         {child.name}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

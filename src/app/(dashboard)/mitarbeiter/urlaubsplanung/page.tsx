@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/select";
 import {
   CalendarDays,
   Plus,
@@ -226,7 +227,7 @@ export default function UrlaubsplanungPage() {
   const [allUsers, setAllUsers] = useState<UserInfo[]>([]);
   const [calendarVacations, setCalendarVacations] = useState<VacationRequest[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ startDate: "", endDate: "", reason: "" });
+  const [form, setForm] = useState({ startDate: "", endDate: "", reason: "", forUserId: "" });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -266,14 +267,15 @@ export default function UrlaubsplanungPage() {
     if (!userId || !form.startDate || !form.endDate) return;
     setSubmitting(true);
 
+    const targetUserId = (isAdmin && form.forUserId) ? form.forUserId : userId;
     const days = calcWorkdays(form.startDate, form.endDate);
-    await fetch(`/api/mitarbeiter/${userId}/urlaub`, {
+    await fetch(`/api/mitarbeiter/${targetUserId}/urlaub`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, days }),
+      body: JSON.stringify({ startDate: form.startDate, endDate: form.endDate, reason: form.reason, days }),
     });
 
-    setForm({ startDate: "", endDate: "", reason: "" });
+    setForm({ startDate: "", endDate: "", reason: "", forUserId: "" });
     setShowForm(false);
     setSubmitting(false);
     loadData();
@@ -309,6 +311,14 @@ export default function UrlaubsplanungPage() {
       )
     : [];
 
+  const allRecentRequests = isAdmin
+    ? allUsers.flatMap((u) =>
+        (u.vacationRequests || [])
+          .filter((r) => r.status !== "AUSSTEHEND")
+          .map((r) => ({ ...r, user: { firstName: u.firstName, lastName: u.lastName }, userId: u.id }))
+      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20)
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -327,6 +337,21 @@ export default function UrlaubsplanungPage() {
           <CardContent className="p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Neuer Urlaubsantrag</h3>
             <form onSubmit={handleSubmit} className="space-y-3 max-w-md">
+              {isAdmin && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Für Mitarbeiter</label>
+                  <NativeSelect
+                    value={form.forUserId}
+                    onChange={(e) => setForm({ ...form, forUserId: e.target.value })}
+                    className="mt-1"
+                  >
+                    <option value="">Für mich selbst</option>
+                    {allUsers.map((u) => (
+                      <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600">Von</label>
@@ -451,6 +476,39 @@ export default function UrlaubsplanungPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAdmin && allRecentRequests.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Bearbeitete Anträge (alle Mitarbeiter)</h3>
+            <div className="space-y-2">
+              {allRecentRequests.map((req) => {
+                const conf = STATUS_CONFIG[req.status] || STATUS_CONFIG.AUSSTEHEND;
+                const StatusIcon = conf.icon;
+                return (
+                  <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${conf.color}`}>
+                        <StatusIcon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {req.user?.firstName} {req.user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(req.startDate)} – {formatDate(req.endDate)} · {req.days} Tage
+                          {req.reason && <> · {req.reason}</>}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={conf.color}>{conf.label}</Badge>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
