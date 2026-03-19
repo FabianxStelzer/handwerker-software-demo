@@ -961,6 +961,8 @@ function KiModelleTab() {
   const [editModel, setEditModel] = useState("");
   const [aiChatProviderId, setAiChatProviderId] = useState("");
   const [aiAufmassProviderId, setAiAufmassProviderId] = useState("");
+  const [aiChatSystemPrompt, setAiChatSystemPrompt] = useState("");
+  const [aiAufmassSystemPrompt, setAiAufmassSystemPrompt] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignSaved, setAssignSaved] = useState(false);
 
@@ -974,6 +976,8 @@ function KiModelleTab() {
       const s = await settingsRes.json();
       setAiChatProviderId(s.aiChatProviderId || "");
       setAiAufmassProviderId(s.aiAufmassProviderId || "");
+      setAiChatSystemPrompt(s.aiChatSystemPrompt || "");
+      setAiAufmassSystemPrompt(s.aiAufmassSystemPrompt || "");
     }
     setLoading(false);
   }, []);
@@ -985,7 +989,12 @@ function KiModelleTab() {
     await fetch("/api/settings/company", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ aiChatProviderId: aiChatProviderId || null, aiAufmassProviderId: aiAufmassProviderId || null }),
+      body: JSON.stringify({
+        aiChatProviderId: aiChatProviderId || null,
+        aiAufmassProviderId: aiAufmassProviderId || null,
+        aiChatSystemPrompt: aiChatSystemPrompt || null,
+        aiAufmassSystemPrompt: aiAufmassSystemPrompt || null,
+      }),
     });
     setAssignSaving(false);
     setAssignSaved(true);
@@ -1139,29 +1148,53 @@ function KiModelleTab() {
           <h3 className="text-sm font-bold text-gray-900 mb-3">KI-Zuordnung pro Funktion</h3>
           <p className="text-xs text-gray-500 mb-3">Lege fest, welches KI-Modell für welche Funktion verwendet wird. Wenn nichts ausgewählt ist, wird das Standard-Modell verwendet.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-blue-600" />KI-Assistent (Chat)
-              </label>
-              <NativeSelect value={aiChatProviderId} onChange={(e) => setAiChatProviderId(e.target.value)} className="text-sm h-10">
-                <option value="">Standard-Modell verwenden</option>
-                {providers.filter((p) => p.isActive).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
-                ))}
-              </NativeSelect>
-              <p className="text-[10px] text-gray-400 mt-1">Wird für den KI-Assistenten und Chat verwendet</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />KI-Assistent (Chat)
+                </label>
+                <NativeSelect value={aiChatProviderId} onChange={(e) => setAiChatProviderId(e.target.value)} className="text-sm h-10">
+                  <option value="">Standard-Modell verwenden</option>
+                  {providers.filter((p) => p.isActive).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Anweisungen für den Chat</label>
+                <Textarea
+                  value={aiChatSystemPrompt}
+                  onChange={(e) => setAiChatSystemPrompt(e.target.value)}
+                  placeholder="z.B. Antworte immer kurz und präzise. Verwende Fachbegriffe. Beziehe dich auf DIN-Normen..."
+                  rows={3}
+                  className="text-sm"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Zusätzliche Anweisungen, die der KI im Chat mitgegeben werden</p>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                <Ruler className="h-3.5 w-3.5 text-green-600" />Aufmaß (Analyse & Generierung)
-              </label>
-              <NativeSelect value={aiAufmassProviderId} onChange={(e) => setAiAufmassProviderId(e.target.value)} className="text-sm h-10">
-                <option value="">Standard-Modell verwenden</option>
-                {providers.filter((p) => p.isActive).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
-                ))}
-              </NativeSelect>
-              <p className="text-[10px] text-gray-400 mt-1">Wird für die Aufmaß-KI und Dateianalyse verwendet</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                  <Ruler className="h-3.5 w-3.5 text-green-600" />Aufmaß (Analyse & Generierung)
+                </label>
+                <NativeSelect value={aiAufmassProviderId} onChange={(e) => setAiAufmassProviderId(e.target.value)} className="text-sm h-10">
+                  <option value="">Standard-Modell verwenden</option>
+                  {providers.filter((p) => p.isActive).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Anweisungen für das Aufmaß</label>
+                <Textarea
+                  value={aiAufmassSystemPrompt}
+                  onChange={(e) => setAiAufmassSystemPrompt(e.target.value)}
+                  placeholder="z.B. Gib nur die Antwort ohne Erklärung. Gebäudetyp: Einfamilienhaus. Heizlast nach DIN 12831 berechnen. Stundensatz: 65€/h..."
+                  rows={3}
+                  className="text-sm"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Eckdaten und Regeln für die Aufmaß-KI (z.B. Antwortformat, Berechnungsgrundlagen, Firmendaten)</p>
+              </div>
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2">

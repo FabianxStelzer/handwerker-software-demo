@@ -151,6 +151,8 @@ model CompanySettings {
   gocardlessSecretKey String?
   aiChatProviderId    String?
   aiAufmassProviderId String?
+  aiChatSystemPrompt  String?
+  aiAufmassSystemPrompt String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

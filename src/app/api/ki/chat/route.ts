@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { chatWithAi } from "@/lib/ai";
+import { chatWithAi, getSystemPromptForFunction } from "@/lib/ai";
 import { extractFileContent } from "@/lib/file-extract";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
@@ -86,11 +86,12 @@ export async function POST(req: NextRequest) {
       take: 20,
     });
 
+    const customPrompt = await getSystemPromptForFunction("chat");
+    const basePrompt = "Du bist ein hilfreicher Assistent für Handwerksbetriebe. Antworte auf Deutsch. Du kennst dich mit DIN-Normen, Baurecht, handwerklichen Berechnungen, Heizung, Sanitär, Elektro und Bau aus. Wenn der Benutzer eine Datei hochlädt, analysiere den Inhalt gründlich und beantworte Fragen dazu.";
     const aiMessages = [
       {
         role: "system" as const,
-        content:
-          "Du bist ein hilfreicher Assistent für Handwerksbetriebe. Antworte auf Deutsch. Du kennst dich mit DIN-Normen, Baurecht, handwerklichen Berechnungen, Heizung, Sanitär, Elektro und Bau aus. Wenn der Benutzer eine Datei hochlädt, analysiere den Inhalt gründlich und beantworte Fragen dazu.",
+        content: customPrompt ? `${basePrompt}\n\nZusätzliche Anweisungen:\n${customPrompt}` : basePrompt,
       },
       ...prevMessages.map((m) => {
         let msgContent = m.content;

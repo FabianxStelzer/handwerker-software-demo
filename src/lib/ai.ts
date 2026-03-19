@@ -20,12 +20,19 @@ export interface AiResponse {
 
 export type AiFunction = "chat" | "aufmass";
 
-export async function getProviderForFunction(fn: AiFunction) {
+export async function getSettingsForFunction(fn: AiFunction) {
   const settings = await prisma.companySettings.findFirst();
-  const assignedId = fn === "chat" ? settings?.aiChatProviderId : settings?.aiAufmassProviderId;
+  return {
+    providerId: fn === "chat" ? settings?.aiChatProviderId : settings?.aiAufmassProviderId,
+    systemPrompt: fn === "chat" ? settings?.aiChatSystemPrompt : settings?.aiAufmassSystemPrompt,
+  };
+}
 
-  if (assignedId) {
-    const assigned = await prisma.aiProvider.findFirst({ where: { id: assignedId, isActive: true } });
+export async function getProviderForFunction(fn: AiFunction) {
+  const { providerId } = await getSettingsForFunction(fn);
+
+  if (providerId) {
+    const assigned = await prisma.aiProvider.findFirst({ where: { id: providerId, isActive: true } });
     if (assigned) return assigned;
   }
 
@@ -39,6 +46,11 @@ export async function getProviderForFunction(fn: AiFunction) {
     });
   }
   return provider;
+}
+
+export async function getSystemPromptForFunction(fn: AiFunction): Promise<string | null> {
+  const { systemPrompt } = await getSettingsForFunction(fn);
+  return systemPrompt || null;
 }
 
 export async function chatWithAi(

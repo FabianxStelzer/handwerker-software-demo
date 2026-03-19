@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { chatWithAi, AiFileAttachment } from "@/lib/ai";
+import { chatWithAi, getSystemPromptForFunction, AiFileAttachment } from "@/lib/ai";
 import { extractFileFromUrl, loadFileBuffer, getMimeType, isVisualFile } from "@/lib/file-extract";
 
 export const runtime = "nodejs";
@@ -86,8 +86,11 @@ Wenn es um ein Aufmaß geht, erstelle eine detaillierte Aufstellung mit:
 Formatiere das Ergebnis übersichtlich.`;
 
   try {
+    const customPrompt = await getSystemPromptForFunction("aufmass");
+    const baseSystemPrompt = "Du bist ein erfahrener Handwerksmeister und Sachverständiger. Antworte auf Deutsch. Du analysierst Baupläne, Leistungsverzeichnisse und GAEB-Dateien. Wenn dir PDFs oder Bilder als Anhang bereitgestellt werden, analysiere diese visuell und gründlich.";
+
     const result = await chatWithAi([
-      { role: "system", content: "Du bist ein erfahrener Handwerksmeister und Sachverständiger. Antworte auf Deutsch. Du analysierst Baupläne, Leistungsverzeichnisse und GAEB-Dateien. Wenn dir PDFs oder Bilder als Anhang bereitgestellt werden, analysiere diese visuell und gründlich." },
+      { role: "system", content: customPrompt ? `${baseSystemPrompt}\n\nZusätzliche Anweisungen:\n${customPrompt}` : baseSystemPrompt },
       { role: "user", content: prompt, files: fileAttachments },
     ], undefined, "aufmass");
 

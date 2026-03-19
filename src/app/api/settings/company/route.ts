@@ -68,6 +68,8 @@ export async function PUT(req: NextRequest) {
           gocardlessSecretKey: body.gocardlessSecretKey !== undefined ? body.gocardlessSecretKey : undefined,
           aiChatProviderId: body.aiChatProviderId !== undefined ? (body.aiChatProviderId || null) : undefined,
           aiAufmassProviderId: body.aiAufmassProviderId !== undefined ? (body.aiAufmassProviderId || null) : undefined,
+          aiChatSystemPrompt: body.aiChatSystemPrompt !== undefined ? (body.aiChatSystemPrompt || null) : undefined,
+          aiAufmassSystemPrompt: body.aiAufmassSystemPrompt !== undefined ? (body.aiAufmassSystemPrompt || null) : undefined,
         },
       });
     }
