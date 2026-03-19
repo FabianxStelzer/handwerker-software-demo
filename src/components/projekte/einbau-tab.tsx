@@ -2,23 +2,21 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
-  Upload, MapPin, Plus, Trash2, X, ChevronLeft, FileText, User,
+  Upload, MapPin, Trash2, X, ChevronLeft, FileText, User,
   ZoomIn, ZoomOut, Maximize, Download, Printer,
   Pencil, Type, Undo2, Eraser, Move, RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ── Types ───────────────────────────────────────────────────
 
-interface MarkerMaterial { id: string; name: string; menge: number; einheit: string; }
 interface Marker {
   id: string; xPercent: number; yPercent: number; beschreibung: string;
   mitarbeiterId: string | null; mitarbeiterName: string | null;
-  materialien: MarkerMaterial[]; createdAt: string;
+  createdAt: string;
 }
 interface EinbauPlan {
   id: string; titel: string; dateiUrl: string; dateiName: string;
@@ -180,40 +178,47 @@ function SvgOverlay({
   const hasInteraction = tool !== "none" || placingMarker || inlineText !== null;
 
   return (
-    <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
-      style={{ cursor, pointerEvents: hasInteraction ? "auto" : "none", zIndex: 15 }}
-      onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
-      {annotations.map((ann) => {
-        if (ann.type === "path" && ann.points && ann.points.length > 1) {
-          const d = ann.points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
-          return <path key={ann.id} d={d} stroke={ann.color} strokeWidth={ann.strokeWidth || 0.3}
-            fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }} />;
-        }
-        if (ann.type === "text") {
-          const isSelected = selectedId === ann.id;
-          return (
-            <g key={ann.id} style={{ pointerEvents: "auto", cursor: "move" }}
-              onMouseDown={(e) => startDrag(e, ann)}>
-              {isSelected && (
-                <rect x={(ann.x || 0) - 0.5} y={(ann.y || 0) - (ann.fontSize || 3.5)}
-                  width="20" height={(ann.fontSize || 3.5) * 1.3}
-                  fill="none" stroke="#3b82f6" strokeWidth="0.15" strokeDasharray="0.4" rx="0.3" />
-              )}
-              <text x={ann.x || 0} y={ann.y || 0} fill={ann.color}
-                fontSize={ann.fontSize || 3.5} fontWeight="bold" fontFamily="sans-serif"
-                dominantBaseline="auto">{ann.text}</text>
-            </g>
-          );
-        }
-        return null;
-      })}
-      {/* Live stroke */}
-      <path ref={currentPathRef} d="" stroke={color} strokeWidth={strokeWidth}
-        fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      {/* Inline text input */}
+    <div className="absolute inset-0 w-full h-full" style={{ zIndex: 15, pointerEvents: "none" }}>
+      <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"
+        style={{ cursor, pointerEvents: hasInteraction ? "auto" : "none" }}
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        {annotations.map((ann) => {
+          if (ann.type === "path" && ann.points && ann.points.length > 1) {
+            const d = ann.points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
+            return <path key={ann.id} d={d} stroke={ann.color} strokeWidth={ann.strokeWidth || 0.3}
+              fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "none" }} />;
+          }
+          if (ann.type === "text") {
+            const isSelected = selectedId === ann.id;
+            return (
+              <g key={ann.id} style={{ pointerEvents: "auto", cursor: "move" }}
+                onMouseDown={(e) => startDrag(e, ann)}>
+                {isSelected && (
+                  <rect x={(ann.x || 0) - 0.5} y={(ann.y || 0) - (ann.fontSize || 3.5)}
+                    width="20" height={(ann.fontSize || 3.5) * 1.3}
+                    fill="none" stroke="#3b82f6" strokeWidth="0.15" strokeDasharray="0.4" rx="0.3" />
+                )}
+                <text x={ann.x || 0} y={ann.y || 0} fill={ann.color}
+                  fontSize={ann.fontSize || 3.5} fontWeight="bold" fontFamily="sans-serif"
+                  dominantBaseline="auto">{ann.text}</text>
+              </g>
+            );
+          }
+          return null;
+        })}
+        <path ref={currentPathRef} d="" stroke={color} strokeWidth={strokeWidth}
+          fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
       {inlineText && (
-        <foreignObject x={`${inlineText.x}%`} y={`${inlineText.y - fontSize * 1.1}%`} width="40%" height={`${fontSize * 2}%`} style={{ overflow: "visible" }}>
+        <div style={{
+          position: "absolute",
+          left: `${inlineText.x}%`,
+          top: `${inlineText.y}%`,
+          transform: "translateY(-100%)",
+          zIndex: 25,
+          pointerEvents: "auto",
+        }}>
           <input
             ref={inlineInputRef}
             type="text"
@@ -223,23 +228,23 @@ function SvgOverlay({
             onKeyDown={(e) => { if (e.key === "Enter") commitInlineText(); if (e.key === "Escape") setInlineText(null); }}
             onBlur={commitInlineText}
             style={{
-              fontSize: `${fontSize * 3.5}px`,
+              fontSize: `${Math.max(fontSize * 4, 14)}px`,
               fontWeight: "bold",
               fontFamily: "sans-serif",
               color,
-              background: "rgba(255,255,255,0.85)",
+              background: "rgba(255,255,255,0.9)",
               border: `2px solid ${color}`,
               borderRadius: "4px",
-              padding: "2px 6px",
+              padding: "4px 8px",
               outline: "none",
-              width: "auto",
-              minWidth: "80px",
+              minWidth: "120px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
             }}
             placeholder="Text eingeben…"
           />
-        </foreignObject>
+        </div>
       )}
-    </svg>
+    </div>
   );
 }
 
@@ -291,23 +296,24 @@ async function exportPlanToCanvas(
     URL.revokeObjectURL(url);
   } catch { /* SVG export failed, skip */ }
 
-  // Draw markers
+  // Draw markers (small, proportional to image)
+  const markerR = Math.max(Math.min(rect.width * 0.008, 10), 5);
   for (let i = 0; i < markers.length; i++) {
     const m = markers[i];
     const mx = (m.xPercent / 100) * rect.width;
     const my = (m.yPercent / 100) * rect.height;
     ctx.beginPath();
-    ctx.arc(mx, my - 14, 14, 0, Math.PI * 2);
+    ctx.arc(mx, my - markerR, markerR, 0, Math.PI * 2);
     ctx.fillStyle = "#2563eb";
     ctx.fill();
     ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.fillStyle = "white";
-    ctx.font = "bold 12px sans-serif";
+    ctx.font = `bold ${Math.round(markerR * 1.1)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${i + 1}`, mx, my - 14);
+    ctx.fillText(`${i + 1}`, mx, my - markerR);
   }
 
   return canvas;
@@ -618,9 +624,6 @@ export function EinbauTab({ project }: { project: any }) {
   const [markerBeschreibung, setMarkerBeschreibung] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [newMaterialName, setNewMaterialName] = useState("");
-  const [newMaterialMenge, setNewMaterialMenge] = useState("1");
-  const [newMaterialEinheit, setNewMaterialEinheit] = useState("Stk");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/projekte/${project.id}/einbau`);
@@ -664,22 +667,6 @@ export function EinbauTab({ project }: { project: any }) {
     const u = await refreshPlan(viewPlan.id);
     if (u) setSelectedMarker(u.markers[u.markers.length - 1]);
     setMarkerDialogOpen(false); setNewMarkerPos(null); setSaving(false);
-  }
-
-  async function addMaterialToMarker(name: string, menge: string, einheit: string, isExtra: boolean) {
-    if (!selectedMarker || !name.trim()) return;
-    setSaving(true);
-    await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "material", markerId: selectedMarker.id, name, menge, einheit, isExtra }) });
-    const u = await refreshPlan(viewPlan!.id);
-    if (u) { const m = u.markers.find((mk: Marker) => mk.id === selectedMarker.id); if (m) setSelectedMarker(m); }
-    setNewMaterialName(""); setNewMaterialMenge("1"); setNewMaterialEinheit("Stk"); setSaving(false);
-  }
-
-  async function deleteMaterial(materialId: string) {
-    await fetch(`/api/projekte/${project.id}/einbau`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ materialId }) });
-    const u = await refreshPlan(viewPlan!.id);
-    if (u && selectedMarker) setSelectedMarker(u.markers.find((mk: Marker) => mk.id === selectedMarker.id) || null);
   }
 
   async function deleteMarker(markerId: string) {
@@ -732,24 +719,6 @@ export function EinbauTab({ project }: { project: any }) {
                   <span>{selectedMarker.mitarbeiterName || "Unbekannt"} · {new Date(selectedMarker.createdAt).toLocaleDateString("de-DE")}</span></div>
                 <div className="mb-4"><label className="text-xs font-medium text-gray-700">Durchgeführte Arbeit</label>
                   <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{selectedMarker.beschreibung || "–"}</p></div>
-                <div className="mb-3">
-                  <label className="text-xs font-medium text-gray-700">Materialien</label>
-                  {selectedMarker.materialien.length > 0 && (
-                    <div className="mt-1 space-y-1">{selectedMarker.materialien.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
-                        <div><p className="text-xs font-medium">{m.name}</p><p className="text-[10px] text-gray-400">{m.menge} {m.einheit}</p></div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => deleteMaterial(m.id)}><Trash2 className="h-3 w-3" /></Button>
-                      </div>))}</div>)}
-                  <div className="space-y-1.5 mt-2">
-                    <Input placeholder="Material" value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} className="text-xs" />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <Input type="number" placeholder="Menge" value={newMaterialMenge} onChange={(e) => setNewMaterialMenge(e.target.value)} className="text-xs" />
-                      <Input placeholder="Einheit" value={newMaterialEinheit} onChange={(e) => setNewMaterialEinheit(e.target.value)} className="text-xs" />
-                    </div>
-                    <Button size="sm" className="w-full gap-1.5 text-xs" onClick={() => addMaterialToMarker(newMaterialName, newMaterialMenge, newMaterialEinheit, false)} disabled={saving || !newMaterialName.trim()}>
-                      <Plus className="h-3.5 w-3.5" />Hinzufügen</Button>
-                  </div>
-                </div>
               </CardContent></Card>
             ) : (
               <Card><CardContent className="p-6 text-center"><MapPin className="h-8 w-8 text-gray-300 mx-auto mb-2" />
@@ -765,7 +734,7 @@ export function EinbauTab({ project }: { project: any }) {
                       onClick={() => { setSelectedMarker(m); setPlacingMarker(false); }}>
                       <div className="flex items-center gap-2">
                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shrink-0">{i + 1}</div>
-                        <div className="flex-1 min-w-0"><p className="text-gray-900 truncate">{m.beschreibung || "–"}</p><p className="text-[10px] text-gray-400">{m.mitarbeiterName} · {m.materialien.length} Mat.</p></div>
+                        <div className="flex-1 min-w-0"><p className="text-gray-900 truncate">{m.beschreibung || "–"}</p><p className="text-[10px] text-gray-400">{m.mitarbeiterName}</p></div>
                       </div>
                     </button>))}
                 </div>
