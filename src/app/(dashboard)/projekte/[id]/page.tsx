@@ -16,6 +16,7 @@ import { BlueprintsTab } from "@/components/projekte/blueprints-tab";
 import { RegieberichtTab } from "@/components/projekte/regiebericht-tab";
 import { EinbauTab } from "@/components/projekte/einbau-tab";
 import { AufmassTab } from "@/components/projekte/aufmass-tab";
+import { AuftraegeTab } from "@/components/projekte/auftraege-tab";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "secondary" | "destructive" }> = {
   PLANUNG: { label: "Planung", variant: "secondary" },
@@ -78,6 +79,7 @@ export default function ProjektDetailPage({ params }: { params: Promise<{ id: st
           <TabsTrigger value="material">Material</TabsTrigger>
           <TabsTrigger value="einbau">Einbau</TabsTrigger>
           <TabsTrigger value="aufmass">Aufmaß</TabsTrigger>
+          <TabsTrigger value="auftraege">Aufträge</TabsTrigger>
           <TabsTrigger value="regieberichte">Regieberichte</TabsTrigger>
         </TabsList>
 
@@ -107,6 +109,9 @@ export default function ProjektDetailPage({ params }: { params: Promise<{ id: st
         </TabsContent>
         <TabsContent value="aufmass">
           <AufmassTab project={project} />
+        </TabsContent>
+        <TabsContent value="auftraege">
+          <AuftraegeTab project={project} />
         </TabsContent>
         <TabsContent value="regieberichte">
           <RegieberichtTab project={project} onUpdate={load} />

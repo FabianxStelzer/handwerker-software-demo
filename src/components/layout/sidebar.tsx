@@ -38,7 +38,6 @@ const navigation: NavItem[] = [
   { name: "Projekte", href: "/projekte", icon: FolderKanban },
   { name: "Katalog", href: "/katalog", icon: Package },
   { name: "Aufmaß", href: "/aufmass", icon: Ruler },
-  { name: "Aufträge", href: "/auftraege", icon: FileText },
   { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung" },
   { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog, children: mitarbeiterSubItems, expandKey: "mitarbeiter" },
   { name: "Fahrzeuge", href: "/fahrzeuge", icon: Car },
