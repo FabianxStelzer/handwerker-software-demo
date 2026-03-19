@@ -10,6 +10,7 @@ import {
   User, Lock, Building2, Save, CheckCircle2,
   Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus, Landmark,
   Bot, Zap, Shield, Server, ExternalLink, Check, X as XIcon, Loader2, MessageSquare, Ruler,
+  Calculator, Settings2, Users, Briefcase, Mail, Hash, Download,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
@@ -390,6 +391,27 @@ export default function EinstellungenPage() {
           </TabsTrigger>
           <TabsTrigger value="ki-modelle">
             <Bot className="mr-2 h-4 w-4" />KI-Modelle
+          </TabsTrigger>
+          <TabsTrigger value="buchhaltung-settings">
+            <Calculator className="mr-2 h-4 w-4" />Buchhaltung
+          </TabsTrigger>
+          <TabsTrigger value="allgemein">
+            <Settings2 className="mr-2 h-4 w-4" />Allgemein
+          </TabsTrigger>
+          <TabsTrigger value="benutzer">
+            <Users className="mr-2 h-4 w-4" />Benutzer & Berechtigungen
+          </TabsTrigger>
+          <TabsTrigger value="steuerberater">
+            <Briefcase className="mr-2 h-4 w-4" />Mein Steuerberater
+          </TabsTrigger>
+          <TabsTrigger value="email-versand">
+            <Mail className="mr-2 h-4 w-4" />E-Mail Versand
+          </TabsTrigger>
+          <TabsTrigger value="nummernkreise">
+            <Hash className="mr-2 h-4 w-4" />Nummernkreise
+          </TabsTrigger>
+          <TabsTrigger value="export">
+            <Download className="mr-2 h-4 w-4" />Export
           </TabsTrigger>
         </TabsList>
 
@@ -861,6 +883,90 @@ export default function EinstellungenPage() {
         {/* ── KI-Modelle ──────────────────────────── */}
         <TabsContent value="ki-modelle">
           <KiModelleTab />
+        </TabsContent>
+
+        {/* ── Buchhaltung ──────────────────────────── */}
+        <TabsContent value="buchhaltung-settings">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Buchhaltungseinstellungen</h3>
+            <p className="text-sm text-gray-500 mb-6">Einstellungen für Rechnungen, Angebote und Buchhaltung.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Calculator className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── Allgemeine Einstellungen ──────────────── */}
+        <TabsContent value="allgemein">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Allgemeine Einstellungen</h3>
+            <p className="text-sm text-gray-500 mb-6">Grundlegende Einstellungen für die Software.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Settings2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── Benutzer & Berechtigungen ────────────── */}
+        <TabsContent value="benutzer">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Benutzer und Berechtigungen</h3>
+            <p className="text-sm text-gray-500 mb-6">Benutzer verwalten und Zugriffsrechte konfigurieren.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── Mein Steuerberater ───────────────────── */}
+        <TabsContent value="steuerberater">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Mein Steuerberater</h3>
+            <p className="text-sm text-gray-500 mb-6">Steuerberater-Zugang und Datenübermittlung konfigurieren.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── E-Mail Versand ───────────────────────── */}
+        <TabsContent value="email-versand">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">E-Mail Versand</h3>
+            <p className="text-sm text-gray-500 mb-6">E-Mail-Einstellungen für den Versand von Rechnungen, Angeboten und Benachrichtigungen.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Mail className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── Nummernkreise ────────────────────────── */}
+        <TabsContent value="nummernkreise">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Nummernkreise</h3>
+            <p className="text-sm text-gray-500 mb-6">Nummernkreise für Rechnungen, Angebote, Aufträge und andere Belege konfigurieren.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Hash className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── Export ───────────────────────────────── */}
+        <TabsContent value="export">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Export</h3>
+            <p className="text-sm text-gray-500 mb-6">Daten exportieren für Steuerberater, DATEV und andere Systeme.</p>
+            <div className="text-center py-12 text-gray-400">
+              <Download className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Inhalte werden konfiguriert...</p>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
