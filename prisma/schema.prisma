@@ -165,6 +165,10 @@ model CompanySettings {
   hatSteuerberater    Boolean   @default(false)
   kanzleiAnbindung    String?   // keine, datev, addison, agenda
 
+  emailAbsenderName   String?
+  emailAbsenderAdresse String?
+  emailVorlagen       String?   // JSON: { rechnung, angebot, ... }
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

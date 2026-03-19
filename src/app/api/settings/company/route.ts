@@ -80,6 +80,9 @@ export async function PUT(req: NextRequest) {
           kontenrahmen: body.kontenrahmen !== undefined ? (body.kontenrahmen || null) : undefined,
           hatSteuerberater: body.hatSteuerberater !== undefined ? !!body.hatSteuerberater : undefined,
           kanzleiAnbindung: body.kanzleiAnbindung !== undefined ? (body.kanzleiAnbindung || null) : undefined,
+          emailAbsenderName: body.emailAbsenderName !== undefined ? (body.emailAbsenderName || null) : undefined,
+          emailAbsenderAdresse: body.emailAbsenderAdresse !== undefined ? (body.emailAbsenderAdresse || null) : undefined,
+          emailVorlagen: body.emailVorlagen !== undefined ? (body.emailVorlagen || null) : undefined,
         },
       });
     }

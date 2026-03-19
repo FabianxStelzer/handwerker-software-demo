@@ -1470,7 +1470,8 @@ function BuchhaltungSettingsTab() {
       {activeSection === "allgemein" && <BuchAllgemeinSection />}
       {activeSection === "benutzer" && <BuchBenutzerSection />}
       {activeSection === "steuerberater" && <BuchSteuerberaterSection />}
-      {!["allgemein", "benutzer", "steuerberater"].includes(activeSection!) && (
+      {activeSection === "email" && <BuchEmailSection />}
+      {!["allgemein", "benutzer", "steuerberater", "email"].includes(activeSection!) && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
@@ -2180,6 +2181,215 @@ function BuchSteuerberaterSection() {
           <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
             {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
           </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ── E-Mail Versand ────────────────────────────────────────────
+
+const EMAIL_VORLAGE_TYPEN = [
+  { key: "rechnung", label: "Rechnung" },
+  { key: "angebot", label: "Angebot" },
+  { key: "auftragsbestaetigung", label: "Auftragsbestätigung" },
+  { key: "lieferschein", label: "Lieferschein" },
+  { key: "abschlagsrechnung", label: "Abschlagsrechnung" },
+  { key: "rechnungskorrektur", label: "Rechnungskorrektur" },
+] as const;
+
+function BuchEmailSection() {
+  const [absenderName, setAbsenderName] = useState("");
+  const [absenderEmail, setAbsenderEmail] = useState("");
+  const [vorlagen, setVorlagen] = useState<Record<string, { betreff: string; text: string }>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [editVorlage, setEditVorlage] = useState<string | null>(null);
+  const [editBetreff, setEditBetreff] = useState("");
+  const [editText, setEditText] = useState("");
+  const [editAbsender, setEditAbsender] = useState(false);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/company").then((r) => r.json()).then((d) => {
+      setAbsenderName(d.name || "");
+      setAbsenderEmail(d.emailAbsenderAdresse || d.email || "");
+      try {
+        const v = d.emailVorlagen ? JSON.parse(d.emailVorlagen) : {};
+        setVorlagen(v);
+      } catch { setVorlagen({}); }
+      setLoading(false);
+    });
+  }, []);
+
+  async function saveAbsender() {
+    setSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailAbsenderName: absenderName, emailAbsenderAdresse: absenderEmail }),
+    });
+    setSaving(false);
+    setEditAbsender(false);
+  }
+
+  async function saveVorlage(key: string) {
+    const updated = { ...vorlagen, [key]: { betreff: editBetreff, text: editText } };
+    setSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailVorlagen: JSON.stringify(updated) }),
+    });
+    setVorlagen(updated);
+    setSaving(false);
+    setEditVorlage(null);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function deleteVorlage(key: string) {
+    const updated = { ...vorlagen };
+    delete updated[key];
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailVorlagen: JSON.stringify(updated) }),
+    });
+    setVorlagen(updated);
+    setMenuOpen(null);
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">E-Mail Versand</h2>
+
+      {/* Absender-Adresse */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-2">Absender-Adresse für Belegversand</h3>
+        <p className="text-sm text-gray-500 mb-4">Sie versenden Belege mit Ihrer eigenen Absender-Adresse.</p>
+
+        {editAbsender ? (
+          <div className="space-y-3 max-w-md">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Name</label>
+              <Input value={absenderName} onChange={(e) => setAbsenderName(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail-Adresse</label>
+              <Input type="email" value={absenderEmail} onChange={(e) => setAbsenderEmail(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={saveAbsender} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white">
+                {saving ? "Speichern..." : "Speichern"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setEditAbsender(false)}>Abbrechen</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 shrink-0">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">{absenderName || "Nicht konfiguriert"}</p>
+              <p className="text-xs text-gray-500">{absenderEmail || "Keine E-Mail-Adresse hinterlegt"}</p>
+            </div>
+            <button onClick={() => setEditAbsender(true)} className="p-1.5 hover:bg-gray-100 rounded-full">
+              <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </Card>
+
+      {/* E-Mail Vorlagen */}
+      <Card className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-2">E-Mail Vorlagen</h3>
+        <p className="text-sm text-gray-500 mb-5">
+          Helfen bei der schnellen Erstellung personalisierter E-Mails und stehen allen Benutzer:innen zur Verfügung.
+        </p>
+
+        {/* Vorlage bearbeiten */}
+        {editVorlage && (
+          <Card className="p-5 mb-5 border-[#9eb552]/30 bg-[#9eb552]/5">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+              Vorlage: {EMAIL_VORLAGE_TYPEN.find((t) => t.key === editVorlage)?.label}
+            </h4>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Betreff</label>
+                <Input value={editBetreff} onChange={(e) => setEditBetreff(e.target.value)}
+                  placeholder={`z. B. Ihre ${EMAIL_VORLAGE_TYPEN.find((t) => t.key === editVorlage)?.label} Nr. {nummer}`} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail Text</label>
+                <Textarea rows={6} value={editText} onChange={(e) => setEditText(e.target.value)}
+                  placeholder="Sehr geehrte/r {anrede} {name},&#10;&#10;anbei erhalten Sie Ihre {belegtyp}..." />
+              </div>
+              <p className="text-xs text-gray-400">
+                Platzhalter: {"{anrede}"}, {"{name}"}, {"{firma}"}, {"{nummer}"}, {"{datum}"}, {"{betrag}"}
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => saveVorlage(editVorlage)} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white">
+                  {saving ? "Speichern..." : "Vorlage speichern"}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setEditVorlage(null)}>Abbrechen</Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <div className="divide-y">
+          {EMAIL_VORLAGE_TYPEN.map((typ) => {
+            const vorlage = vorlagen[typ.key];
+            const hasVorlage = vorlage && (vorlage.betreff || vorlage.text);
+            return (
+              <div key={typ.key} className="flex items-center gap-4 py-3.5">
+                <div className="flex h-8 w-8 items-center justify-center text-gray-400 shrink-0">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{typ.label}</p>
+                  <p className="text-xs text-gray-400">{hasVorlage ? "Vorlage erstellt" : "Leer"}</p>
+                </div>
+                <div className="relative">
+                  {hasVorlage ? (
+                    <>
+                      <button onClick={() => setMenuOpen(menuOpen === typ.key ? null : typ.key)} className="p-1.5 hover:bg-gray-100 rounded-full">
+                        <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
+                        </svg>
+                      </button>
+                      {menuOpen === typ.key && (
+                        <div className="absolute right-0 top-full mt-1 w-40 bg-white border rounded-lg shadow-lg z-10 py-1">
+                          <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                            onClick={() => { setEditVorlage(typ.key); setEditBetreff(vorlage.betreff); setEditText(vorlage.text); setMenuOpen(null); }}>
+                            Bearbeiten
+                          </button>
+                          <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            onClick={() => deleteVorlage(typ.key)}>
+                            Löschen
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <button onClick={() => { setEditVorlage(typ.key); setEditBetreff(""); setEditText(""); }}
+                      className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 hover:text-[#9eb552]">
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </div>
