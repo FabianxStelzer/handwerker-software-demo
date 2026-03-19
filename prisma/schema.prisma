@@ -1236,3 +1236,21 @@ model SchlosserPruefConfig {
 
   @@map("schlosser_pruef_config")
 }
+
+// ─── KI-Provider ────────────────────────────────────────────────
+
+model AiProvider {
+  id          String   @id @default(cuid())
+  name        String
+  provider    String
+  apiKey      String?
+  apiUrl      String?
+  model       String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  isLocal     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("ai_providers")
+}

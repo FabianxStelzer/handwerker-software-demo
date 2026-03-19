@@ -51,6 +51,8 @@ export default function AufmassPage() {
   const createFileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ dateiId: string; count: number; error?: string } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [aRes, pRes] = await Promise.all([
@@ -179,6 +181,30 @@ export default function AufmassPage() {
       setSelected(updated);
       setAufmasse((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     }
+  }
+
+  async function generateAufmass() {
+    if (!selected) return;
+    setGenerating(true);
+    setGenError(null);
+    await updateAufmass(selected.id, { kiAnweisung: selected.kiAnweisung });
+    try {
+      const res = await fetch("/api/aufmass/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aufmassId: selected.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setSelected(data);
+        setAufmasse((prev) => prev.map((a) => (a.id === data.id ? data : a)));
+      } else {
+        setGenError(data.error || "KI-Generierung fehlgeschlagen");
+      }
+    } catch (e: any) {
+      setGenError(e.message);
+    }
+    setGenerating(false);
   }
 
   function openEditPositionen() {
@@ -460,11 +486,21 @@ export default function AufmassPage() {
                   <Button
                     size="sm"
                     className="mt-2 gap-1.5"
-                    onClick={() => updateAufmass(selected.id, { status: "IN_BEARBEITUNG", kiAnweisung: selected.kiAnweisung })}
-                    disabled={saving}
+                    onClick={generateAufmass}
+                    disabled={generating}
                   >
-                    <Bot className="h-3.5 w-3.5" />Aufmaß generieren lassen
+                    {generating ? (
+                      <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />KI generiert…</>
+                    ) : (
+                      <><Bot className="h-3.5 w-3.5" />Aufmaß generieren lassen</>
+                    )}
                   </Button>
+
+                  {genError && (
+                    <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                      <p className="text-xs text-red-600">{genError}</p>
+                    </div>
+                  )}
 
                   {selected.kiErgebnis && (
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">

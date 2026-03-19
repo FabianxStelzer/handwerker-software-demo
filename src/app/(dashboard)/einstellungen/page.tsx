@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Lock, Building2, Save, CheckCircle2,
   Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus, Landmark,
+  Bot, Zap, Shield, Server, ExternalLink, Check, X as XIcon, Loader2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
@@ -386,6 +387,9 @@ export default function EinstellungenPage() {
           </TabsTrigger>
           <TabsTrigger value="banking">
             <Landmark className="mr-2 h-4 w-4" />Banking
+          </TabsTrigger>
+          <TabsTrigger value="ki-modelle">
+            <Bot className="mr-2 h-4 w-4" />KI-Modelle
           </TabsTrigger>
         </TabsList>
 
@@ -854,7 +858,321 @@ export default function EinstellungenPage() {
             ) : <div className="flex h-32 items-center justify-center text-gray-400">Lade…</div>}
           </Card>
         </TabsContent>
+        {/* ── KI-Modelle ──────────────────────────── */}
+        <TabsContent value="ki-modelle">
+          <KiModelleTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ── KI-Modelle Tab ───────────────────────────────────────────
+
+interface AiProvider {
+  id: string; name: string; provider: string; apiKey: string | null;
+  apiUrl: string | null; model: string | null; isActive: boolean;
+  isDefault: boolean; isLocal: boolean;
+}
+
+const PROVIDER_PRESETS: Record<string, { label: string; icon: string; color: string; models: string[]; needsApiKey: boolean; needsApiUrl: boolean }> = {
+  anthropic: {
+    label: "Claude (Anthropic)", icon: "🟣", color: "purple",
+    models: ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+    needsApiKey: true, needsApiUrl: false,
+  },
+  google: {
+    label: "Gemini (Google)", icon: "🔵", color: "blue",
+    models: ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"],
+    needsApiKey: true, needsApiUrl: false,
+  },
+  openai: {
+    label: "ChatGPT (OpenAI)", icon: "🟢", color: "green",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    needsApiKey: true, needsApiUrl: false,
+  },
+  ollama: {
+    label: "Ollama (Lokal)", icon: "🖥️", color: "gray",
+    models: ["llama3.1", "mistral", "codellama", "gemma2", "phi3"],
+    needsApiKey: false, needsApiUrl: true,
+  },
+};
+
+function KiModelleTab() {
+  const [providers, setProviders] = useState<AiProvider[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addProvider, setAddProvider] = useState("anthropic");
+  const [addName, setAddName] = useState("");
+  const [addApiKey, setAddApiKey] = useState("");
+  const [addApiUrl, setAddApiUrl] = useState("http://localhost:11434");
+  const [addModel, setAddModel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+
+  const load = React.useCallback(async () => {
+    const res = await fetch("/api/ai-providers");
+    if (res.ok) setProviders(await res.json());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function addProviderFn() {
+    setSaving(true);
+    const preset = PROVIDER_PRESETS[addProvider];
+    const res = await fetch("/api/ai-providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: addName || preset.label,
+        provider: addProvider,
+        apiKey: preset.needsApiKey ? addApiKey : null,
+        apiUrl: addProvider === "ollama" ? addApiUrl : null,
+        model: addModel || preset.models[0],
+        isLocal: addProvider === "ollama",
+      }),
+    });
+    if (res.ok) {
+      await load();
+      setAddOpen(false);
+      setAddApiKey(""); setAddName(""); setAddModel("");
+    }
+    setSaving(false);
+  }
+
+  async function testConnection(p: AiProvider) {
+    setTesting(p.id);
+    setTestResult(null);
+    const res = await fetch("/api/ai-providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "test", provider: p.provider, apiKey: p.apiKey, apiUrl: p.apiUrl, model: p.model }),
+    });
+    const data = await res.json();
+    setTestResult({ id: p.id, success: data.success, message: data.message || data.error });
+    if (data.models) setOllamaModels(data.models);
+    setTesting(null);
+  }
+
+  async function testNewConnection() {
+    setTesting("new");
+    setTestResult(null);
+    const preset = PROVIDER_PRESETS[addProvider];
+    const res = await fetch("/api/ai-providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "test",
+        provider: addProvider,
+        apiKey: preset.needsApiKey ? addApiKey : null,
+        apiUrl: addProvider === "ollama" ? addApiUrl : null,
+        model: addModel || preset.models[0],
+      }),
+    });
+    const data = await res.json();
+    setTestResult({ id: "new", success: data.success, message: data.message || data.error });
+    if (data.models) setOllamaModels(data.models);
+    setTesting(null);
+  }
+
+  async function setDefault(id: string) {
+    await fetch("/api/ai-providers", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "setDefault", id }),
+    });
+    await load();
+  }
+
+  async function toggleActive(p: AiProvider) {
+    await fetch("/api/ai-providers", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: p.id, isActive: !p.isActive }),
+    });
+    await load();
+  }
+
+  async function deleteProvider(id: string) {
+    if (!confirm("KI-Modell wirklich entfernen?")) return;
+    await fetch("/api/ai-providers", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    await load();
+  }
+
+  if (loading) return <Card className="p-6"><div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /></div></Card>;
+
+  return (
+    <div className="space-y-4">
+      {/* Info */}
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <Shield className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Datenschutz & KI-Modelle</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Du kannst <strong>externe KI-Dienste</strong> (Claude, Gemini, ChatGPT) über API-Keys anbinden oder
+              <strong> lokale Modelle</strong> (Ollama) direkt auf deinem Server installieren.
+              Lokale Modelle verarbeiten alle Daten ausschließlich auf deinem Server – vollständig DSGVO-konform.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Provider List */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-gray-900">Konfigurierte KI-Modelle</h3>
+          <Button size="sm" className="gap-1.5" onClick={() => { setAddOpen(!addOpen); setTestResult(null); }}>
+            <Plus className="h-3.5 w-3.5" />Hinzufügen
+          </Button>
+        </div>
+
+        {providers.length === 0 && !addOpen ? (
+          <div className="text-center py-8">
+            <Bot className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">Noch keine KI-Modelle konfiguriert</p>
+            <Button size="sm" className="mt-3 gap-1.5" onClick={() => setAddOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />KI-Modell hinzufügen
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {providers.map((p) => {
+              const preset = PROVIDER_PRESETS[p.provider];
+              const result = testResult?.id === p.id ? testResult : null;
+              return (
+                <div key={p.id} className={`border rounded-lg p-4 ${!p.isActive ? "opacity-50" : ""} ${p.isDefault ? "border-blue-300 bg-blue-50/30" : ""}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{preset?.icon || "🤖"}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-gray-900">{p.name}</p>
+                          {p.isDefault && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Standard</span>}
+                          {p.isLocal && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5"><Shield className="h-2.5 w-2.5" />Lokal</span>}
+                        </div>
+                        <p className="text-xs text-gray-500">{preset?.label || p.provider} · {p.model || "Standard"}</p>
+                        {p.apiKey && <p className="text-[10px] text-gray-400 mt-0.5 font-mono">API-Key: {p.apiKey}</p>}
+                        {p.apiUrl && <p className="text-[10px] text-gray-400 font-mono">URL: {p.apiUrl}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => testConnection(p)} disabled={testing === p.id}>
+                        {testing === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}Test
+                      </Button>
+                      {!p.isDefault && (
+                        <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => setDefault(p.id)}>
+                          <Star className="h-3 w-3" />Standard
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => toggleActive(p)}>
+                        {p.isActive ? "Deaktivieren" : "Aktivieren"}
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteProvider(p.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  {result && (
+                    <div className={`mt-2 px-3 py-2 rounded text-xs flex items-center gap-1.5 ${result.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      {result.success ? <Check className="h-3.5 w-3.5" /> : <XIcon className="h-3.5 w-3.5" />}
+                      {result.message}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add Form */}
+        {addOpen && (
+          <div className="mt-4 border-t pt-4 space-y-3">
+            <h4 className="text-sm font-bold text-gray-900">Neues KI-Modell hinzufügen</h4>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {Object.entries(PROVIDER_PRESETS).map(([key, preset]) => (
+                <button key={key}
+                  className={`p-3 rounded-lg border-2 text-center transition-all ${addProvider === key ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
+                  onClick={() => { setAddProvider(key); setAddModel(preset.models[0]); setTestResult(null); }}>
+                  <span className="text-2xl block">{preset.icon}</span>
+                  <p className="text-xs font-medium mt-1">{preset.label}</p>
+                  {key === "ollama" && <p className="text-[10px] text-green-600 mt-0.5 flex items-center justify-center gap-0.5"><Shield className="h-2.5 w-2.5" />DSGVO-konform</p>}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Name (optional)</label>
+                <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder={PROVIDER_PRESETS[addProvider].label} className="text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Modell</label>
+                <NativeSelect value={addModel} onChange={(e) => setAddModel(e.target.value)} className="text-sm h-10">
+                  {PROVIDER_PRESETS[addProvider].models.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                  {ollamaModels.filter((m) => !PROVIDER_PRESETS[addProvider].models.includes(m)).map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </NativeSelect>
+              </div>
+            </div>
+
+            {PROVIDER_PRESETS[addProvider].needsApiKey && (
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">API-Key</label>
+                <Input type="password" value={addApiKey} onChange={(e) => setAddApiKey(e.target.value)}
+                  placeholder={addProvider === "anthropic" ? "sk-ant-..." : addProvider === "openai" ? "sk-..." : "AIza..."}
+                  className="text-sm font-mono" />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {addProvider === "anthropic" && <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei Anthropic erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                  {addProvider === "openai" && <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei OpenAI erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                  {addProvider === "google" && <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline inline-flex items-center gap-0.5">API-Key bei Google erstellen <ExternalLink className="h-2.5 w-2.5" /></a>}
+                </p>
+              </div>
+            )}
+
+            {addProvider === "ollama" && (
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Ollama Server-URL</label>
+                <Input value={addApiUrl} onChange={(e) => setAddApiUrl(e.target.value)} placeholder="http://localhost:11434" className="text-sm font-mono" />
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                  <p className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5"><Server className="h-3.5 w-3.5" />Ollama auf deinem Server installieren:</p>
+                  <code className="text-[11px] bg-gray-200 rounded px-2 py-1 block mt-1 font-mono">curl -fsSL https://ollama.com/install.sh | sh</code>
+                  <code className="text-[11px] bg-gray-200 rounded px-2 py-1 block mt-1 font-mono">ollama pull llama3.1</code>
+                  <p className="text-[10px] text-gray-500 mt-2">Ollama läuft komplett auf deinem Server. Keine Daten verlassen dein Netzwerk.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={testNewConnection} disabled={testing === "new"}>
+                {testing === "new" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}Verbindung testen
+              </Button>
+              <Button size="sm" className="gap-1.5 text-xs" onClick={addProviderFn} disabled={saving || (PROVIDER_PRESETS[addProvider].needsApiKey && !addApiKey)}>
+                {saving ? "Speichere…" : "Hinzufügen"}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAddOpen(false)}>Abbrechen</Button>
+            </div>
+
+            {testResult?.id === "new" && (
+              <div className={`px-3 py-2 rounded text-xs flex items-center gap-1.5 ${testResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                {testResult.success ? <Check className="h-3.5 w-3.5" /> : <XIcon className="h-3.5 w-3.5" />}
+                {testResult.message}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

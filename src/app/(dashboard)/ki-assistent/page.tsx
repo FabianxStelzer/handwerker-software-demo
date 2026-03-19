@@ -2,19 +2,24 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { Plus, Send, Trash2, MessageSquare, FolderOpen, Bot, User } from "lucide-react";
+import { Plus, Send, Trash2, MessageSquare, FolderOpen, Bot, User, Settings, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
-const modelOptions = [
-  { id: "gpt-4", label: "GPT-4 (OpenAI)" },
-  { id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-  { id: "claude-3", label: "Claude 3 (Anthropic)" },
-];
+interface AiProviderOption {
+  id: string;
+  name: string;
+  provider: string;
+  model: string | null;
+  isDefault: boolean;
+  isLocal: boolean;
+  isActive: boolean;
+}
 
 export default function KIAssistentPage() {
   const { data: session } = useSession();
@@ -23,10 +28,18 @@ export default function KIAssistentPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [model, setModel] = useState("gpt-4");
+  const [providers, setProviders] = useState<AiProviderOption[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const userId = session?.user?.id;
+
+  useEffect(() => {
+    fetch("/api/ai-providers")
+      .then((r) => r.json())
+      .then((data: AiProviderOption[]) => setProviders(data.filter((p) => p.isActive)));
+  }, []);
+
+  const activeProvider = providers.find((p) => p.isDefault) || providers[0];
 
   useEffect(() => {
     if (!userId) return;
@@ -51,7 +64,7 @@ export default function KIAssistentPage() {
     const res = await fetch("/api/ki/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, model }),
+      body: JSON.stringify({ userId, model: activeProvider?.model || "standard" }),
     });
     const conv = await res.json();
     setConversations([conv, ...conversations]);
@@ -80,7 +93,7 @@ export default function KIAssistentPage() {
     const res = await fetch("/api/ki/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: activeId, content: input, model }),
+      body: JSON.stringify({ conversationId: activeId, content: input }),
     });
     const aiMsg = await res.json();
     setMessages((prev) => [...prev.filter((m) => m.id !== "temp"), { ...userMsg, id: "user-" + Date.now() }, aiMsg]);
@@ -101,11 +114,24 @@ export default function KIAssistentPage() {
         </div>
 
         <div className="mb-3">
-          <NativeSelect value={model} onChange={(e) => setModel(e.target.value)} className="text-sm">
-            {modelOptions.map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
-            ))}
-          </NativeSelect>
+          {providers.length > 0 ? (
+            <div className="p-2 bg-gray-50 rounded-lg border">
+              <p className="text-[10px] uppercase font-medium text-gray-400 mb-1">Aktives KI-Modell</p>
+              <div className="flex items-center gap-1.5">
+                {activeProvider?.isLocal && <Shield className="h-3 w-3 text-green-600" />}
+                <p className="text-xs font-medium text-gray-800">{activeProvider?.name}</p>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-0.5">{activeProvider?.model || "Standard"}</p>
+            </div>
+          ) : (
+            <Link href="/einstellungen" className="block p-2 bg-amber-50 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors">
+              <div className="flex items-center gap-1.5">
+                <Settings className="h-3.5 w-3.5 text-amber-600" />
+                <p className="text-xs text-amber-700 font-medium">KI-Modell einrichten</p>
+              </div>
+              <p className="text-[10px] text-amber-600 mt-0.5">Unter Einstellungen → KI-Modelle</p>
+            </Link>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-1">
@@ -140,7 +166,7 @@ export default function KIAssistentPage() {
               <div>
                 <h3 className="font-semibold">{activeConv?.title || "Gespräch"}</h3>
                 <Badge variant="secondary" className="text-xs mt-1">
-                  {modelOptions.find((m) => m.id === (activeConv?.model || model))?.label}
+                  {activeProvider?.name || "Kein KI-Modell"}
                 </Badge>
               </div>
             </div>

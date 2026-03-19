@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { chatWithAi } from "@/lib/ai";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const conversationId = req.nextUrl.searchParams.get("conversationId");
@@ -15,43 +19,32 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { conversationId, content, model } = body;
+  const { conversationId, content } = body;
 
   await prisma.aIMessage.create({
     data: { conversationId, role: "user", content },
   });
 
-  let reply = "KI-Antwort: Um den KI-Assistenten zu nutzen, konfigurieren Sie bitte Ihren API-Schlüssel in der .env-Datei (OPENAI_API_KEY oder ANTHROPIC_API_KEY).";
+  let reply: string;
+  let usedModel = "";
 
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  try {
+    const prevMessages = await prisma.aIMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
 
-  if (hasOpenAI && (model === "gpt-4" || model === "gpt-3.5-turbo")) {
-    try {
-      const { openai } = await import("@ai-sdk/openai");
-      const { generateText } = await import("ai");
-      const result = await generateText({
-        model: openai(model),
-        system: "Du bist ein hilfreicher Assistent für Handwerksbetriebe. Antworte auf Deutsch. Du kennst dich mit DIN-Normen, Baurecht und handwerklichen Berechnungen aus.",
-        prompt: content,
-      });
-      reply = result.text;
-    } catch (e: any) {
-      reply = `Fehler bei OpenAI: ${e.message}`;
-    }
-  } else if (hasAnthropic && model === "claude-3") {
-    try {
-      const { anthropic } = await import("@ai-sdk/anthropic");
-      const { generateText } = await import("ai");
-      const result = await generateText({
-        model: anthropic("claude-sonnet-4-20250514"),
-        system: "Du bist ein hilfreicher Assistent für Handwerksbetriebe. Antworte auf Deutsch.",
-        prompt: content,
-      });
-      reply = result.text;
-    } catch (e: any) {
-      reply = `Fehler bei Anthropic: ${e.message}`;
-    }
+    const aiMessages = [
+      { role: "system" as const, content: "Du bist ein hilfreicher Assistent für Handwerksbetriebe. Antworte auf Deutsch. Du kennst dich mit DIN-Normen, Baurecht, handwerklichen Berechnungen, Heizung, Sanitär, Elektro und Bau aus." },
+      ...prevMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ];
+
+    const result = await chatWithAi(aiMessages);
+    reply = result.content;
+    usedModel = result.model;
+  } catch (e: any) {
+    reply = `Fehler: ${e.message}`;
   }
 
   const aiMessage = await prisma.aIMessage.create({
@@ -63,5 +56,5 @@ export async function POST(req: NextRequest) {
     data: { updatedAt: new Date() },
   });
 
-  return NextResponse.json(aiMessage);
+  return NextResponse.json({ ...aiMessage, usedModel });
 }
