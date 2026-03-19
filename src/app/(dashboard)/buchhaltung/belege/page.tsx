@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus, Search, FileText, FileCheck, Package, Upload, X, Copy, ExternalLink,
   ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Clock, CheckCircle2,
   Ban, Archive, MoreHorizontal, Pencil, Mail, Printer, ChevronDown,
-  Receipt, Eye,
+  Receipt, Eye, Loader2, Image, File, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -183,6 +183,12 @@ export default function BelegePage() {
   const [selectedBeleg, setSelectedBeleg] = useState<Beleg | null>(null);
   const [sortBy, setSortBy] = useState<"datum" | "betrag">("datum");
 
+  // Upload
+  const [uploading, setUploading] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Dialogs
   const [neuBelegOpen, setNeuBelegOpen] = useState(false);
   const [eingangDialogOpen, setEingangDialogOpen] = useState(false);
@@ -217,6 +223,30 @@ export default function BelegePage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    fetch("/api/belege/dokumente").then((r) => r.json()).then(setUploadedDocs).catch(() => {});
+  }, []);
+
+  const handleFileUpload = useCallback(async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const fd = new FormData();
+    for (const f of Array.from(files)) fd.append("files", f);
+    try {
+      const res = await fetch("/api/belege/dokumente", { method: "POST", body: fd });
+      if (res.ok) {
+        const newDocs = await res.json();
+        setUploadedDocs((prev) => [...newDocs, ...prev]);
+      }
+    } catch {}
+    setUploading(false);
+  }, []);
+
+  async function deleteDoc(id: string) {
+    await fetch("/api/belege/dokumente", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setUploadedDocs((prev) => prev.filter((d) => d.id !== id));
+  }
 
   const allBelege = useMemo(() => buildBelege(invoices, quotations, incomingInvoices, deliveryNotes, expenses), [invoices, quotations, incomingInvoices, deliveryNotes, expenses]);
 
@@ -401,15 +431,54 @@ export default function BelegePage() {
           </div>
 
           {/* Upload area */}
-          <div className="mt-3 border-2 border-dashed border-green-300 bg-green-50/50 rounded-lg px-4 py-2.5 flex items-center gap-3">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFileUpload(e.dataTransfer.files); }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`mt-3 border-2 border-dashed rounded-lg px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors ${
+              dragOver ? "border-green-500 bg-green-100/60" : "border-green-300 bg-green-50/50 hover:bg-green-50"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.xml,.gif,.webp"
+              className="hidden"
+              onChange={(e) => { if (e.target.files) handleFileUpload(e.target.files); e.target.value = ""; }}
+            />
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-green-600 shrink-0">
-              <Plus className="h-4 w-4" />
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </div>
             <p className="text-xs text-green-800">
-              <strong>Bilddokumente hinzufügen</strong> (hier ablegen oder <button className="underline font-semibold text-green-700">auswählen</button>)
+              <strong>Bilddokumente hinzufügen</strong> (hier ablegen oder <span className="underline font-semibold text-green-700">auswählen</span>)
               <span className="block text-green-600/70 text-[10px]">PDF, JPEG, PNG oder XML – max. 5MB pro Datei</span>
             </p>
           </div>
+
+          {/* Uploaded documents */}
+          {uploadedDocs.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {uploadedDocs.slice(0, 8).map((doc) => {
+                const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(doc.fileType);
+                return (
+                  <div key={doc.id} className="group relative flex items-center gap-2 bg-white border rounded-lg px-2.5 py-1.5 text-xs">
+                    {isImage ? <Image className="h-3.5 w-3.5 text-blue-500 shrink-0" /> : <File className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                    <a href={`/api/uploads/${doc.fileUrl.replace(/^\/uploads\//, "")}`} target="_blank" rel="noopener" className="text-gray-700 hover:text-blue-600 truncate max-w-[120px]">
+                      {doc.fileName}
+                    </a>
+                    <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id); }} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+              {uploadedDocs.length > 8 && (
+                <span className="text-xs text-gray-400 self-center">+{uploadedDocs.length - 8} weitere</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* List */}

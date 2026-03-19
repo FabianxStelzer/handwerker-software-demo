@@ -793,6 +793,26 @@ model DocumentTemplate {
   @@map("document_templates")
 }
 
+// ─── Beleg-Dokumente ────────────────────────────────────────────
+
+model BelegDokument {
+  id           String   @id @default(cuid())
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int      @default(0)
+  belegTyp     String?
+  belegId      String?
+  invoiceId    String?
+  quotationId  String?
+  incomingInvoiceId String?
+  notes        String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@map("beleg_dokumente")
+}
+
 // ─── Fahrzeuge ──────────────────────────────────────────────────
 
 model Vehicle {
