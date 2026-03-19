@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
-  Upload, MapPin, Plus, Trash2, X, ChevronLeft, Eye, FileText, User, Package,
-  Search, Check, ZoomIn, ZoomOut, Maximize, Download, Printer,
+  Upload, MapPin, Plus, Trash2, X, ChevronLeft, FileText, User,
+  ZoomIn, ZoomOut, Maximize, Download, Printer,
   Pencil, Type, Undo2, Eraser, Move, RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 // ── Types ───────────────────────────────────────────────────
 
-interface PlanMaterial { id: string; name: string; menge: number; einheit: string; }
-interface MarkerMaterial { id: string; name: string; menge: number; einheit: string; isExtra: boolean; }
+interface MarkerMaterial { id: string; name: string; menge: number; einheit: string; }
 interface Marker {
   id: string; xPercent: number; yPercent: number; beschreibung: string;
   mitarbeiterId: string | null; mitarbeiterName: string | null;
@@ -23,7 +22,7 @@ interface Marker {
 }
 interface EinbauPlan {
   id: string; titel: string; dateiUrl: string; dateiName: string;
-  markers: Marker[]; planMaterials: PlanMaterial[]; createdAt: string;
+  markers: Marker[]; createdAt: string;
 }
 
 interface Annotation {
@@ -312,54 +311,6 @@ async function exportPlanToCanvas(
   }
 
   return canvas;
-}
-
-// ── Searchable material picker ──────────────────────────────
-
-function MaterialPicker({
-  planMaterials, usageMap, onSelect, disabled,
-}: {
-  planMaterials: PlanMaterial[]; usageMap: Map<string, number>;
-  onSelect: (name: string, menge: string, einheit: string) => void; disabled: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [menge, setMenge] = useState("1");
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-  const filtered = planMaterials.filter((pm) => pm.name.toLowerCase().includes(query.toLowerCase()));
-  return (
-    <div ref={ref} className="relative">
-      <label className="text-xs font-medium text-gray-700 mb-1 block">Material aus Liste zuordnen</label>
-      <div className="flex gap-1.5">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-          <Input placeholder="Material suchen…" value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} className="text-xs pl-7" />
-        </div>
-        <Input type="number" placeholder="Menge" value={menge} onChange={(e) => setMenge(e.target.value)} className="text-xs w-16" />
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          {filtered.map((pm) => {
-            const used = usageMap.get(pm.name) || 0;
-            const done = pm.menge > 0 && used >= pm.menge;
-            return (
-              <button key={pm.id} disabled={disabled} className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between ${done ? "bg-green-50" : ""}`}
-                onClick={() => { onSelect(pm.name, menge || "1", pm.einheit); setQuery(""); setMenge("1"); setOpen(false); }}>
-                <div><span className="font-medium text-gray-900">{pm.name}</span>
-                  {pm.menge > 0 && <span className="text-gray-400 ml-1.5">({used}/{pm.menge} {pm.einheit})</span>}</div>
-                {done && <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Plan Viewer (shared by PDF + Image) ─────────────────────
@@ -670,9 +621,6 @@ export function EinbauTab({ project }: { project: any }) {
   const [newMaterialName, setNewMaterialName] = useState("");
   const [newMaterialMenge, setNewMaterialMenge] = useState("1");
   const [newMaterialEinheit, setNewMaterialEinheit] = useState("Stk");
-  const [newPlanMatName, setNewPlanMatName] = useState("");
-  const [newPlanMatMenge, setNewPlanMatMenge] = useState("");
-  const [newPlanMatEinheit, setNewPlanMatEinheit] = useState("Stk");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/projekte/${project.id}/einbau`);
@@ -682,14 +630,6 @@ export function EinbauTab({ project }: { project: any }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const usageMap = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!viewPlan) return map;
-    for (const m of viewPlan.markers) for (const mat of m.materialien) {
-      if (!mat.isExtra) map.set(mat.name, (map.get(mat.name) || 0) + mat.menge);
-    }
-    return map;
-  }, [viewPlan]);
 
   async function refreshPlan(planId: string) {
     const all = await fetch(`/api/projekte/${project.id}/einbau`).then((r) => r.json());
@@ -747,25 +687,10 @@ export function EinbauTab({ project }: { project: any }) {
     setSelectedMarker(null); await refreshPlan(viewPlan!.id);
   }
 
-  async function addPlanMaterial() {
-    if (!viewPlan || !newPlanMatName.trim()) return;
-    setSaving(true);
-    await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "addPlanMaterial", planId: viewPlan.id, name: newPlanMatName, menge: newPlanMatMenge, einheit: newPlanMatEinheit }) });
-    await refreshPlan(viewPlan.id);
-    setNewPlanMatName(""); setNewPlanMatMenge(""); setNewPlanMatEinheit("Stk"); setSaving(false);
-  }
-
-  async function removePlanMaterial(materialId: string) {
-    await fetch(`/api/projekte/${project.id}/einbau`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "removePlanMaterial", materialId }) });
-    await refreshPlan(viewPlan!.id);
-  }
 
   if (loading) return <div className="flex justify-center py-10"><div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /></div>;
 
   if (viewPlan) {
-    const allExtra = viewPlan.markers.flatMap((m) => m.materialien.filter((mat) => mat.isExtra).map((mat) => ({ ...mat, nr: viewPlan.markers.indexOf(m) + 1 })));
     const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(viewPlan.dateiUrl);
     const vProps = {
       url: viewPlan.dateiUrl, dateiName: viewPlan.dateiName, planId: viewPlan.id,
@@ -809,30 +734,19 @@ export function EinbauTab({ project }: { project: any }) {
                   <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{selectedMarker.beschreibung || "–"}</p></div>
                 <div className="mb-3">
                   <label className="text-xs font-medium text-gray-700">Materialien</label>
-                  {selectedMarker.materialien.filter((m) => !m.isExtra).length > 0 && (
-                    <div className="mt-1 space-y-1">{selectedMarker.materialien.filter((m) => !m.isExtra).map((m) => (
+                  {selectedMarker.materialien.length > 0 && (
+                    <div className="mt-1 space-y-1">{selectedMarker.materialien.map((m) => (
                       <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
                         <div><p className="text-xs font-medium">{m.name}</p><p className="text-[10px] text-gray-400">{m.menge} {m.einheit}</p></div>
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => deleteMaterial(m.id)}><Trash2 className="h-3 w-3" /></Button>
                       </div>))}</div>)}
-                  {viewPlan.planMaterials.length > 0 && <div className="mt-2"><MaterialPicker planMaterials={viewPlan.planMaterials} usageMap={usageMap}
-                    onSelect={(n, me, e) => addMaterialToMarker(n, me, e, false)} disabled={saving} /></div>}
-                </div>
-                <div className="border-t pt-3">
-                  <label className="text-xs font-medium text-gray-700">Zusatzmaterial</label>
-                  {selectedMarker.materialien.filter((m) => m.isExtra).length > 0 && (
-                    <div className="mt-1 space-y-1 mb-2">{selectedMarker.materialien.filter((m) => m.isExtra).map((m) => (
-                      <div key={m.id} className="flex items-center justify-between bg-orange-50 rounded-lg p-2">
-                        <div><p className="text-xs font-medium">{m.name}</p><p className="text-[10px] text-gray-400">{m.menge} {m.einheit}</p></div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => deleteMaterial(m.id)}><Trash2 className="h-3 w-3" /></Button>
-                      </div>))}</div>)}
                   <div className="space-y-1.5 mt-2">
-                    <Input placeholder="Zusatzmaterial" value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} className="text-xs" />
+                    <Input placeholder="Material" value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} className="text-xs" />
                     <div className="grid grid-cols-2 gap-1.5">
                       <Input type="number" placeholder="Menge" value={newMaterialMenge} onChange={(e) => setNewMaterialMenge(e.target.value)} className="text-xs" />
                       <Input placeholder="Einheit" value={newMaterialEinheit} onChange={(e) => setNewMaterialEinheit(e.target.value)} className="text-xs" />
                     </div>
-                    <Button size="sm" className="w-full gap-1.5 text-xs" onClick={() => addMaterialToMarker(newMaterialName, newMaterialMenge, newMaterialEinheit, true)} disabled={saving || !newMaterialName.trim()}>
+                    <Button size="sm" className="w-full gap-1.5 text-xs" onClick={() => addMaterialToMarker(newMaterialName, newMaterialMenge, newMaterialEinheit, false)} disabled={saving || !newMaterialName.trim()}>
                       <Plus className="h-3.5 w-3.5" />Hinzufügen</Button>
                   </div>
                 </div>
@@ -857,38 +771,6 @@ export function EinbauTab({ project }: { project: any }) {
                 </div>
               </CardContent></Card>)}
           </div>
-        </div>
-
-        {/* Material lists */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card><CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3"><Package className="h-4 w-4 text-blue-600" /><h4 className="text-sm font-bold">Materialliste</h4></div>
-            {viewPlan.planMaterials.length > 0 && (
-              <div className="space-y-1.5 mb-3">{viewPlan.planMaterials.map((pm) => {
-                const used = usageMap.get(pm.name) || 0; const done = pm.menge > 0 && used >= pm.menge;
-                return (<div key={pm.id} className={`flex items-center justify-between rounded-lg p-2.5 ${done ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
-                  <div className="flex items-center gap-2">{done && <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />}<div>
-                    <p className={`text-xs font-medium ${done ? "text-green-800" : ""}`}>{pm.name}</p>
-                    {pm.menge > 0 && <p className={`text-[10px] ${done ? "text-green-600" : "text-gray-400"}`}>{used}/{pm.menge} {pm.einheit}</p>}
-                  </div></div>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400" onClick={() => removePlanMaterial(pm.id)}><Trash2 className="h-3 w-3" /></Button>
-                </div>);
-              })}</div>)}
-            <div className="flex gap-2">
-              <Input placeholder="Material" value={newPlanMatName} onChange={(e) => setNewPlanMatName(e.target.value)} className="text-xs flex-1" />
-              <Input type="number" placeholder="Menge" value={newPlanMatMenge} onChange={(e) => setNewPlanMatMenge(e.target.value)} className="text-xs w-20" />
-              <Input placeholder="Einh." value={newPlanMatEinheit} onChange={(e) => setNewPlanMatEinheit(e.target.value)} className="text-xs w-16" />
-              <Button size="sm" onClick={addPlanMaterial} disabled={saving || !newPlanMatName.trim()} className="shrink-0"><Plus className="h-3.5 w-3.5" /></Button>
-            </div>
-          </CardContent></Card>
-          <Card><CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3"><Package className="h-4 w-4 text-orange-500" /><h4 className="text-sm font-bold">Zusatzmaterial</h4></div>
-            {allExtra.length > 0 ? (
-              <div className="space-y-1.5">{allExtra.map((m) => (
-                <div key={m.id} className="bg-orange-50 rounded-lg p-2.5"><p className="text-xs font-medium">{m.name}</p><p className="text-[10px] text-gray-400">{m.menge} {m.einheit} · Punkt #{m.nr}</p></div>
-              ))}</div>
-            ) : <p className="text-xs text-gray-400 text-center py-3">Kein Zusatzmaterial</p>}
-          </CardContent></Card>
         </div>
 
         <Dialog open={markerDialogOpen} onOpenChange={setMarkerDialogOpen}>
