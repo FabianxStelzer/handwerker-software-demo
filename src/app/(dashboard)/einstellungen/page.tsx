@@ -395,24 +395,6 @@ export default function EinstellungenPage() {
           <TabsTrigger value="buchhaltung-settings">
             <Calculator className="mr-2 h-4 w-4" />Buchhaltung
           </TabsTrigger>
-          <TabsTrigger value="allgemein">
-            <Settings2 className="mr-2 h-4 w-4" />Allgemein
-          </TabsTrigger>
-          <TabsTrigger value="benutzer">
-            <Users className="mr-2 h-4 w-4" />Benutzer & Berechtigungen
-          </TabsTrigger>
-          <TabsTrigger value="steuerberater">
-            <Briefcase className="mr-2 h-4 w-4" />Mein Steuerberater
-          </TabsTrigger>
-          <TabsTrigger value="email-versand">
-            <Mail className="mr-2 h-4 w-4" />E-Mail Versand
-          </TabsTrigger>
-          <TabsTrigger value="nummernkreise">
-            <Hash className="mr-2 h-4 w-4" />Nummernkreise
-          </TabsTrigger>
-          <TabsTrigger value="export">
-            <Download className="mr-2 h-4 w-4" />Export
-          </TabsTrigger>
         </TabsList>
 
         {/* ── Profil ──────────────────────────────────── */}
@@ -887,86 +869,7 @@ export default function EinstellungenPage() {
 
         {/* ── Buchhaltung ──────────────────────────── */}
         <TabsContent value="buchhaltung-settings">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Buchhaltungseinstellungen</h3>
-            <p className="text-sm text-gray-500 mb-6">Einstellungen für Rechnungen, Angebote und Buchhaltung.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Calculator className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── Allgemeine Einstellungen ──────────────── */}
-        <TabsContent value="allgemein">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Allgemeine Einstellungen</h3>
-            <p className="text-sm text-gray-500 mb-6">Grundlegende Einstellungen für die Software.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Settings2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── Benutzer & Berechtigungen ────────────── */}
-        <TabsContent value="benutzer">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Benutzer und Berechtigungen</h3>
-            <p className="text-sm text-gray-500 mb-6">Benutzer verwalten und Zugriffsrechte konfigurieren.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── Mein Steuerberater ───────────────────── */}
-        <TabsContent value="steuerberater">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Mein Steuerberater</h3>
-            <p className="text-sm text-gray-500 mb-6">Steuerberater-Zugang und Datenübermittlung konfigurieren.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── E-Mail Versand ───────────────────────── */}
-        <TabsContent value="email-versand">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">E-Mail Versand</h3>
-            <p className="text-sm text-gray-500 mb-6">E-Mail-Einstellungen für den Versand von Rechnungen, Angeboten und Benachrichtigungen.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Mail className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── Nummernkreise ────────────────────────── */}
-        <TabsContent value="nummernkreise">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Nummernkreise</h3>
-            <p className="text-sm text-gray-500 mb-6">Nummernkreise für Rechnungen, Angebote, Aufträge und andere Belege konfigurieren.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Hash className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* ── Export ───────────────────────────────── */}
-        <TabsContent value="export">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Export</h3>
-            <p className="text-sm text-gray-500 mb-6">Daten exportieren für Steuerberater, DATEV und andere Systeme.</p>
-            <div className="text-center py-12 text-gray-400">
-              <Download className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Inhalte werden konfiguriert...</p>
-            </div>
-          </Card>
+          <BuchhaltungSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -1520,6 +1423,58 @@ function KiModelleTab() {
             )}
           </div>
         )}
+      </Card>
+    </div>
+  );
+}
+
+// ── Buchhaltung Settings Tab ─────────────────────────────────
+
+const BUCH_SECTIONS = [
+  { key: "allgemein", label: "Allgemeine Einstellungen" },
+  { key: "benutzer", label: "Benutzer und Berechtigungen" },
+  { key: "steuerberater", label: "Mein Steuerberater" },
+  { key: "email", label: "E-Mail Versand" },
+  { key: "nummernkreise", label: "Nummernkreise" },
+  { key: "export", label: "Export" },
+] as const;
+
+function BuchhaltungSettingsTab() {
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  if (!activeSection) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {BUCH_SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className="rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all px-6 py-5 text-center text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  const section = BUCH_SECTIONS.find((s) => s.key === activeSection);
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={() => setActiveSection(null)}
+        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+      >
+        ← Zurück zur Übersicht
+      </button>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{section?.label}</h3>
+        <p className="text-sm text-gray-500 mb-6">Einstellungen für {section?.label}.</p>
+        <div className="text-center py-12 text-gray-400">
+          <p className="text-sm">Inhalte werden konfiguriert...</p>
+        </div>
       </Card>
     </div>
   );
