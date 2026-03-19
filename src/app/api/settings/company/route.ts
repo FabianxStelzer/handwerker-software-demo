@@ -66,6 +66,8 @@ export async function PUT(req: NextRequest) {
           hourlyRate: body.hourlyRate !== undefined ? (parseFloat(body.hourlyRate) || 55) : undefined,
           gocardlessSecretId: body.gocardlessSecretId !== undefined ? body.gocardlessSecretId : undefined,
           gocardlessSecretKey: body.gocardlessSecretKey !== undefined ? body.gocardlessSecretKey : undefined,
+          aiChatProviderId: body.aiChatProviderId !== undefined ? (body.aiChatProviderId || null) : undefined,
+          aiAufmassProviderId: body.aiAufmassProviderId !== undefined ? (body.aiAufmassProviderId || null) : undefined,
         },
       });
     }

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User, Lock, Building2, Save, CheckCircle2,
   Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus, Landmark,
-  Bot, Zap, Shield, Server, ExternalLink, Check, X as XIcon, Loader2,
+  Bot, Zap, Shield, Server, ExternalLink, Check, X as XIcon, Loader2, MessageSquare, Ruler,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
@@ -915,14 +915,38 @@ function KiModelleTab() {
   const [editApiKey, setEditApiKey] = useState("");
   const [editApiUrl, setEditApiUrl] = useState("");
   const [editModel, setEditModel] = useState("");
+  const [aiChatProviderId, setAiChatProviderId] = useState("");
+  const [aiAufmassProviderId, setAiAufmassProviderId] = useState("");
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignSaved, setAssignSaved] = useState(false);
 
   const load = React.useCallback(async () => {
-    const res = await fetch("/api/ai-providers");
-    if (res.ok) setProviders(await res.json());
+    const [provRes, settingsRes] = await Promise.all([
+      fetch("/api/ai-providers"),
+      fetch("/api/settings/company"),
+    ]);
+    if (provRes.ok) setProviders(await provRes.json());
+    if (settingsRes.ok) {
+      const s = await settingsRes.json();
+      setAiChatProviderId(s.aiChatProviderId || "");
+      setAiAufmassProviderId(s.aiAufmassProviderId || "");
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function saveAssignments() {
+    setAssignSaving(true);
+    await fetch("/api/settings/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aiChatProviderId: aiChatProviderId || null, aiAufmassProviderId: aiAufmassProviderId || null }),
+    });
+    setAssignSaving(false);
+    setAssignSaved(true);
+    setTimeout(() => setAssignSaved(false), 2000);
+  }
 
   async function addProviderFn() {
     setSaving(true);
@@ -1064,6 +1088,45 @@ function KiModelleTab() {
           </div>
         </div>
       </Card>
+
+      {/* KI-Zuordnung */}
+      {providers.filter((p) => p.isActive).length > 0 && (
+        <Card className="p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3">KI-Zuordnung pro Funktion</h3>
+          <p className="text-xs text-gray-500 mb-3">Lege fest, welches KI-Modell für welche Funktion verwendet wird. Wenn nichts ausgewählt ist, wird das Standard-Modell verwendet.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 text-blue-600" />KI-Assistent (Chat)
+              </label>
+              <NativeSelect value={aiChatProviderId} onChange={(e) => setAiChatProviderId(e.target.value)} className="text-sm h-10">
+                <option value="">Standard-Modell verwenden</option>
+                {providers.filter((p) => p.isActive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
+                ))}
+              </NativeSelect>
+              <p className="text-[10px] text-gray-400 mt-1">Wird für den KI-Assistenten und Chat verwendet</p>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                <Ruler className="h-3.5 w-3.5 text-green-600" />Aufmaß (Analyse & Generierung)
+              </label>
+              <NativeSelect value={aiAufmassProviderId} onChange={(e) => setAiAufmassProviderId(e.target.value)} className="text-sm h-10">
+                <option value="">Standard-Modell verwenden</option>
+                {providers.filter((p) => p.isActive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.model || "Standard"}){p.isLocal ? " 🖥️" : ""}</option>
+                ))}
+              </NativeSelect>
+              <p className="text-[10px] text-gray-400 mt-1">Wird für die Aufmaß-KI und Dateianalyse verwendet</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Button size="sm" className="gap-1.5 text-xs" onClick={saveAssignments} disabled={assignSaving}>
+              {assignSaving ? "Speichere…" : assignSaved ? <><Check className="h-3 w-3" />Gespeichert</> : <><Save className="h-3 w-3" />Zuordnung speichern</>}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Provider List */}
       <Card className="p-4">

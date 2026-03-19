@@ -11,7 +11,17 @@ export interface AiResponse {
   provider: string;
 }
 
-export async function getDefaultProvider() {
+export type AiFunction = "chat" | "aufmass";
+
+export async function getProviderForFunction(fn: AiFunction) {
+  const settings = await prisma.companySettings.findFirst();
+  const assignedId = fn === "chat" ? settings?.aiChatProviderId : settings?.aiAufmassProviderId;
+
+  if (assignedId) {
+    const assigned = await prisma.aiProvider.findFirst({ where: { id: assignedId, isActive: true } });
+    if (assigned) return assigned;
+  }
+
   let provider = await prisma.aiProvider.findFirst({
     where: { isDefault: true, isActive: true },
   });
@@ -26,13 +36,14 @@ export async function getDefaultProvider() {
 
 export async function chatWithAi(
   messages: AiMessage[],
-  providerId?: string
+  providerId?: string,
+  fn?: AiFunction
 ): Promise<AiResponse> {
   let provider;
   if (providerId) {
     provider = await prisma.aiProvider.findUnique({ where: { id: providerId } });
   } else {
-    provider = await getDefaultProvider();
+    provider = await getProviderForFunction(fn || "chat");
   }
 
   if (!provider) throw new Error("Kein KI-Modell konfiguriert. Bitte unter Einstellungen → KI-Modelle einrichten.");

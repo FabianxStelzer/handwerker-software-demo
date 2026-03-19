@@ -67,7 +67,7 @@ Formatiere das Ergebnis übersichtlich.`;
     const result = await chatWithAi([
       { role: "system", content: "Du bist ein erfahrener Handwerksmeister und Sachverständiger. Antworte auf Deutsch. Du analysierst Baupläne, Leistungsverzeichnisse und GAEB-Dateien. Durchsuche alle bereitgestellten Dateiinhalte gründlich, bevor du antwortest." },
       { role: "user", content: prompt },
-    ]);
+    ], undefined, "aufmass");
 
     const updated = await prisma.aufmass.update({
       where: { id: aufmassId },

@@ -149,6 +149,8 @@ model CompanySettings {
   hourlyRate         Float    @default(55)
   gocardlessSecretId  String?
   gocardlessSecretKey String?
+  aiChatProviderId    String?
+  aiAufmassProviderId String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
