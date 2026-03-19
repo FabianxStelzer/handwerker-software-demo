@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Plus, Upload, FileText, Trash2, Save, ChevronRight, ChevronDown,
   Bot, FolderKanban, FileSpreadsheet, Ruler, X, Download, PackageOpen, Check,
+  Send, MessageSquare, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +54,10 @@ export default function AufmassPage() {
   const [importResult, setImportResult] = useState<{ dateiId: string; count: number; error?: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [kiFrage, setKiFrage] = useState("");
+  const [kiChat, setKiChat] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [kiAsking, setKiAsking] = useState(false);
+  const kiChatEndRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     const [aRes, pRes] = await Promise.all([
@@ -207,6 +212,34 @@ export default function AufmassPage() {
     setGenerating(false);
   }
 
+  async function askKi(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!selected || !kiFrage.trim()) return;
+    const frage = kiFrage.trim();
+    setKiChat((prev) => [...prev, { role: "user", content: frage }]);
+    setKiFrage("");
+    setKiAsking(true);
+    try {
+      const res = await fetch("/api/aufmass/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aufmassId: selected.id, frage }),
+      });
+      const data = await res.json();
+      if (res.ok && data.kiErgebnis) {
+        setKiChat((prev) => [...prev, { role: "assistant", content: data.kiErgebnis }]);
+        setSelected(data);
+        setAufmasse((prev) => prev.map((a) => (a.id === data.id ? data : a)));
+      } else {
+        setKiChat((prev) => [...prev, { role: "assistant", content: `Fehler: ${data.error || "Keine Antwort"}` }]);
+      }
+    } catch (err: any) {
+      setKiChat((prev) => [...prev, { role: "assistant", content: `Fehler: ${err.message}` }]);
+    }
+    setKiAsking(false);
+    setTimeout(() => kiChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  }
+
   function openEditPositionen() {
     setEditPositionen(
       selected?.positionen.map((p) => ({ ...p })) || []
@@ -288,6 +321,9 @@ export default function AufmassPage() {
                         onClick={() => {
                           setSelected(a);
                           setEditingPositionen(false);
+                          setKiChat([]);
+                          setKiFrage("");
+                          setGenError(null);
                         }}
                       >
                         <div className="flex items-center justify-between">
@@ -470,44 +506,97 @@ export default function AufmassPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Bot className="h-4 w-4 text-blue-600" />
-                    <h3 className="text-sm font-bold text-gray-900">KI-Anweisung</h3>
+                    <h3 className="text-sm font-bold text-gray-900">KI-Assistent</h3>
+                    {selected.dateien.length > 0 && (
+                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                        {selected.dateien.length} {selected.dateien.length === 1 ? "Datei" : "Dateien"} werden analysiert
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 mb-2">
-                    Beschreibe, worauf es ankommt und was berechnet werden soll (z.B. Wärmepumpen-Leistung, Fußbodenheizung, Rohrleitungen, etc.)
+                    Die KI liest alle hochgeladenen Dateien (Baupläne, Excel, GAEB) und kann Fragen dazu beantworten. Du kannst auch ein komplettes Aufmaß generieren lassen.
                   </p>
-                  <Textarea
-                    placeholder="z.B. Erstelle ein Aufmaß für die Heizungsinstallation. Berechne die benötigte Wärmepumpen-Leistung basierend auf der Gebäudefläche. Berücksichtige Fußbodenheizung für alle Räume im EG und OG..."
-                    value={selected.kiAnweisung || ""}
-                    onChange={(e) => setSelected({ ...selected, kiAnweisung: e.target.value })}
-                    onBlur={() => updateAufmass(selected.id, { kiAnweisung: selected.kiAnweisung })}
-                    rows={4}
-                    className="text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    className="mt-2 gap-1.5"
-                    onClick={generateAufmass}
-                    disabled={generating}
-                  >
-                    {generating ? (
-                      <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />KI generiert…</>
-                    ) : (
-                      <><Bot className="h-3.5 w-3.5" />Aufmaß generieren lassen</>
-                    )}
-                  </Button>
+
+                  {/* Aufmaß generieren */}
+                  <div className="p-3 bg-gray-50 rounded-lg border mb-3">
+                    <p className="text-xs font-medium text-gray-700 mb-2">Aufmaß-Anweisung</p>
+                    <Textarea
+                      placeholder="z.B. Erstelle ein Aufmaß für die Heizungsinstallation. Berechne die benötigte Wärmepumpen-Leistung basierend auf der Gebäudefläche..."
+                      value={selected.kiAnweisung || ""}
+                      onChange={(e) => setSelected({ ...selected, kiAnweisung: e.target.value })}
+                      onBlur={() => updateAufmass(selected.id, { kiAnweisung: selected.kiAnweisung })}
+                      rows={3}
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="mt-2 gap-1.5"
+                      onClick={generateAufmass}
+                      disabled={generating}
+                    >
+                      {generating ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" />KI generiert…</>
+                      ) : (
+                        <><Bot className="h-3.5 w-3.5" />Aufmaß generieren lassen</>
+                      )}
+                    </Button>
+                  </div>
 
                   {genError && (
-                    <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
                       <p className="text-xs text-red-600">{genError}</p>
                     </div>
                   )}
 
                   {selected.kiErgebnis && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs font-medium text-blue-800 mb-1">KI-Ergebnis</p>
                       <div className="text-sm text-blue-900 whitespace-pre-wrap">{selected.kiErgebnis}</div>
                     </div>
                   )}
+
+                  {/* KI-Chat */}
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                      <p className="text-xs font-medium text-gray-700">Frage zu den Dateien stellen</p>
+                    </div>
+
+                    {kiChat.length > 0 && (
+                      <div className="max-h-64 overflow-y-auto mb-3 space-y-2 p-2 bg-gray-50 rounded-lg border">
+                        {kiChat.map((msg, i) => (
+                          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-white border text-gray-900"}`}>
+                              {msg.role === "assistant" && <Bot className="h-3 w-3 text-blue-600 mb-1" />}
+                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {kiAsking && (
+                          <div className="flex justify-start">
+                            <div className="bg-white border rounded-lg px-3 py-2 flex items-center gap-1.5">
+                              <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                              <span className="text-xs text-gray-500">KI liest Dateien und antwortet…</span>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={kiChatEndRef} />
+                      </div>
+                    )}
+
+                    <form onSubmit={askKi} className="flex gap-2">
+                      <Input
+                        value={kiFrage}
+                        onChange={(e) => setKiFrage(e.target.value)}
+                        placeholder="z.B. Wie viele Garagen sind geplant? Welche Materialien werden benötigt?"
+                        className="text-sm"
+                        disabled={kiAsking}
+                      />
+                      <Button type="submit" size="icon" disabled={kiAsking || !kiFrage.trim()} className="shrink-0">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  </div>
                 </CardContent>
               </Card>
 
