@@ -2074,17 +2074,27 @@ const KANZLEI_OPTIONS = [
 ] as const;
 
 function BuchSteuerberaterSection() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role;
+  const userId = (session?.user as any)?.id;
   const [anbindung, setAnbindung] = useState("keine");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isAllowed, setIsAllowed] = useState(true);
 
   useEffect(() => {
-    fetch("/api/settings/company").then((r) => r.json()).then((d) => {
-      if (d.kanzleiAnbindung) setAnbindung(d.kanzleiAnbindung);
+    Promise.all([
+      fetch("/api/settings/company").then((r) => r.json()),
+      userId ? fetch(`/api/mitarbeiter/${userId}`).then((r) => r.ok ? r.json() : null) : Promise.resolve(null),
+    ]).then(([company, user]) => {
+      if (company?.kanzleiAnbindung) setAnbindung(company.kanzleiAnbindung);
+      const pos = user?.position || "";
+      const allowed = userRole === "ADMIN" || pos.includes("Steuerberater") || pos.includes("Finanzbuchhaltung");
+      setIsAllowed(allowed);
       setLoading(false);
     });
-  }, []);
+  }, [userId, userRole]);
 
   async function save() {
     setSaving(true);
@@ -2100,6 +2110,15 @@ function BuchSteuerberaterSection() {
 
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  if (!isAllowed) {
+    return (
+      <Card className="p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Mein Steuerberater</h2>
+        <p className="text-sm text-gray-500">Sie haben keine Berechtigung, diese Seite aufzurufen. Nur Geschäftsführer, Buchhaltung und Steuerberater haben Zugriff.</p>
+      </Card>
+    );
   }
 
   return (
