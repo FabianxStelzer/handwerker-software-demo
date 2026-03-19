@@ -116,6 +116,7 @@ model User {
   angefordertesMaterial ProjectMaterial[] @relation("MaterialAngefordert")
   vehicleAssignments   VehicleAssignment[]
   licenseUploads       LicenseUpload[]
+  toolAssignments      ToolAssignment[]
 
   @@map("users")
 }
@@ -1322,4 +1323,66 @@ model AiProvider {
   updatedAt   DateTime @updatedAt
 
   @@map("ai_providers")
+}
+
+// ─── Werkzeuge ──────────────────────────────────────────────────
+
+enum ToolStatus {
+  VERFUEGBAR
+  ZUGEWIESEN
+  IN_REPARATUR
+  AUSGEMUSTERT
+}
+
+model Tool {
+  id                 String        @id @default(cuid())
+  name               String
+  category           String?
+  manufacturer       String?
+  model              String?
+  serialNumber       String?
+  inventoryNumber    String?       @unique
+  purchaseDate       DateTime?
+  purchasePrice      Float?
+  status             ToolStatus    @default(VERFUEGBAR)
+  location           String?
+  notes              String?
+  imageUrl           String?
+  inspectionInterval Int?          // in Monaten
+  lastInspection     DateTime?
+  nextInspection     DateTime?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  assignments        ToolAssignment[]
+  inspections        ToolInspection[]
+
+  @@map("tools")
+}
+
+model ToolAssignment {
+  id         String    @id @default(cuid())
+  toolId     String
+  tool       Tool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  assignedAt DateTime  @default(now())
+  returnedAt DateTime?
+  notes      String?
+
+  @@map("tool_assignments")
+}
+
+model ToolInspection {
+  id             String   @id @default(cuid())
+  toolId         String
+  tool           Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  inspectionDate DateTime @default(now())
+  result         String?  // bestanden, maengel, nicht_bestanden
+  inspector      String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  @@map("tool_inspections")
 }
