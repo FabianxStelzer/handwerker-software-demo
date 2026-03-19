@@ -293,7 +293,7 @@ function PlanViewer({
   markers, selectedMarkerId, placingMarker,
   onPlaceMarker, onSelectMarker, onDeactivateMarker,
   placingNote, onDeactivateNote,
-  onSummary,
+  onSummary, onNotesChange,
   url, dateiName,
 }: {
   planId: string;
@@ -310,6 +310,7 @@ function PlanViewer({
   placingNote: boolean;
   onDeactivateNote: () => void;
   onSummary: () => void;
+  onNotesChange: (notes: Annotation[]) => void;
   url: string;
   dateiName: string;
 }) {
@@ -339,6 +340,8 @@ function PlanViewer({
   const ann = useAnnotations(planId);
 
   const noteAnnotations = ann.annotations.filter((a) => a.type === "note");
+
+  useEffect(() => { onNotesChange(noteAnnotations); }, [ann.annotations]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -657,7 +660,7 @@ function PdfCanvasViewer(props: {
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
   placingNote: boolean; onDeactivateNote: () => void;
-  onSummary: () => void;
+  onSummary: () => void; onNotesChange: (notes: Annotation[]) => void;
 }) {
   const [pdfReady, setPdfReady] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -703,7 +706,7 @@ function PdfCanvasViewer(props: {
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
       placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
-      onSummary={props.onSummary}
+      onSummary={props.onSummary} onNotesChange={props.onNotesChange}
       url={props.url} dateiName={props.dateiName}>
       {pdfError && <div className="p-6 text-center"><p className="text-sm text-red-400">{pdfError}</p>
         <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}><RotateCw className="h-3.5 w-3.5 mr-1" />Laden</Button></div>}
@@ -721,7 +724,7 @@ function ImageViewerComp(props: {
   placingMarker: boolean; markers: Marker[]; selectedMarkerId: string | null;
   onPlaceMarker: (x: number, y: number) => void; onSelectMarker: (m: Marker) => void; onDeactivateMarker: () => void;
   placingNote: boolean; onDeactivateNote: () => void;
-  onSummary: () => void;
+  onSummary: () => void; onNotesChange: (notes: Annotation[]) => void;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -730,7 +733,7 @@ function ImageViewerComp(props: {
       markers={props.markers} selectedMarkerId={props.selectedMarkerId} placingMarker={props.placingMarker}
       onPlaceMarker={props.onPlaceMarker} onSelectMarker={props.onSelectMarker} onDeactivateMarker={props.onDeactivateMarker}
       placingNote={props.placingNote} onDeactivateNote={props.onDeactivateNote}
-      onSummary={props.onSummary}
+      onSummary={props.onSummary} onNotesChange={props.onNotesChange}
       url={props.url} dateiName={props.dateiName}>
       <img src={props.url} alt={props.dateiName} className="w-full h-auto block relative z-[1]" draggable={false} style={{ pointerEvents: "none" }} />
     </PlanViewer>
@@ -770,9 +773,7 @@ export function EinbauTab({ project }: { project: any }) {
   const [extraMaterialEinheit, setExtraMaterialEinheit] = useState("STUECK");
   const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-
-  const viewPlanAnn = useAnnotations(viewPlan?.id || "");
-  const noteAnnotations = viewPlanAnn.annotations.filter((a) => a.type === "note");
+  const [noteAnnotations, setNoteAnnotations] = useState<Annotation[]>([]);
 
 
   const load = useCallback(async () => {
@@ -867,6 +868,20 @@ export function EinbauTab({ project }: { project: any }) {
       return next;
     });
     if (!materialQuantities[id]) setMaterialQuantities((prev) => ({ ...prev, [id]: 1 }));
+  }
+
+  function deleteNote(noteId: string) {
+    if (!viewPlan) return;
+    try {
+      const key = `einbau-ann-${viewPlan.id}`;
+      const s = localStorage.getItem(key);
+      if (s) {
+        const all = (JSON.parse(s) as Annotation[]).filter((a) => a.id !== noteId);
+        localStorage.setItem(key, JSON.stringify(all));
+        setNoteAnnotations(all.filter((a) => a.type === "note"));
+      }
+    } catch { /* ignore */ }
+    setSelectedNoteId(null);
   }
 
   async function deleteMarker(markerId: string) {
@@ -966,6 +981,7 @@ export function EinbauTab({ project }: { project: any }) {
       placingNote,
       onDeactivateNote: () => setPlacingNote(false),
       onSummary: generateSummary,
+      onNotesChange: (notes: Annotation[]) => setNoteAnnotations(notes),
     };
 
     const selectedParsed = selectedMarker ? parseBeschreibung(selectedMarker.beschreibung || "") : null;
@@ -1026,7 +1042,7 @@ export function EinbauTab({ project }: { project: any }) {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><StickyNote className="h-4 w-4 text-orange-500" />Notiz #{noteIdx + 1}</h4>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => { viewPlanAnn.remove(note.id); setSelectedNoteId(null); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteNote(note.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedNoteId(null)}><X className="h-3.5 w-3.5" /></Button>
                     </div>
                   </div>
