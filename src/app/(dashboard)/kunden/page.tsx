@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface Customer {
   id: string;
+  customerNumber: string | null;
   type: string;
   company: string | null;
   firstName: string;
@@ -162,7 +163,10 @@ export default function KundenPage() {
                       {c.type === "GESCHAEFT" ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{displayName(c)}</p>
+                      <p className="font-medium text-gray-900">
+                        {displayName(c)}
+                        {c.customerNumber && <span className="ml-2 text-xs text-gray-400 font-normal">Nr. {c.customerNumber}</span>}
+                      </p>
                       <div className="flex items-center gap-3 text-sm text-gray-500">
                         {c.type === "GESCHAEFT" && c.company && (
                           <span>{c.firstName} {c.lastName}</span>

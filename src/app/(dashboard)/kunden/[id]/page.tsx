@@ -41,6 +41,7 @@ interface InvoiceInfo {
 
 interface CustomerDetail {
   id: string;
+  customerNumber: string | null;
   type: string;
   company: string | null;
   firstName: string;
@@ -217,7 +218,7 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
               <div className="space-y-2.5">
                 <div>
                   <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Kunden-Nr.</p>
-                  <p className="text-sm text-gray-900">{customer.id.slice(-5)}</p>
+                  <p className="text-sm text-gray-900">{customer.customerNumber || customer.id.slice(-5)}</p>
                 </div>
                 {address && (
                   <div>
