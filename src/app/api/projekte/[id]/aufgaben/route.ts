@@ -23,16 +23,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest) {
   const body = await req.json();
 
+  const data: Record<string, unknown> = {};
+  if (body.title !== undefined) data.title = body.title;
+  if (body.description !== undefined) data.description = body.description;
+  if (body.priority !== undefined) data.priority = body.priority;
+  if (body.status !== undefined) data.status = body.status;
+  if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+  if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId || null;
+
   const task = await prisma.projectTask.update({
     where: { id: body.id },
-    data: {
-      title: body.title,
-      description: body.description,
-      priority: body.priority,
-      status: body.status,
-      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+    data,
+    include: {
+      project: { select: { id: true, projectNumber: true, name: true } },
     },
   });
 
   return NextResponse.json(task);
+}
+
+export async function DELETE(req: NextRequest) {
+  const body = await req.json();
+  await prisma.projectTask.delete({ where: { id: body.id } });
+  return NextResponse.json({ success: true });
 }

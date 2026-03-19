@@ -225,6 +225,7 @@ export default function UrlaubsplanungPage() {
 
   const [ownData, setOwnData] = useState<UserInfo | null>(null);
   const [allUsers, setAllUsers] = useState<UserInfo[]>([]);
+  const [allVacations, setAllVacations] = useState<VacationRequest[]>([]);
   const [calendarVacations, setCalendarVacations] = useState<VacationRequest[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ startDate: "", endDate: "", reason: "", forUserId: "" });
@@ -233,29 +234,20 @@ export default function UrlaubsplanungPage() {
 
   const loadData = useCallback(async () => {
     if (!userId) return;
-    const [ownRes, calRes] = await Promise.all([
+    const fetches: Promise<Response>[] = [
       fetch(`/api/mitarbeiter/${userId}`),
       fetch(`/api/urlaub?year=${new Date().getFullYear()}`),
-    ]);
-    if (ownRes.ok) {
-      const data = await ownRes.json();
-      setOwnData(data);
-    }
-    if (calRes.ok) {
-      setCalendarVacations(await calRes.json());
-    }
+    ];
     if (isAdmin) {
-      const allRes = await fetch("/api/mitarbeiter");
-      if (allRes.ok) {
-        const users = await allRes.json();
-        const detailed = await Promise.all(
-          users.filter((u: UserInfo) => u.id !== userId).map(async (u: UserInfo) => {
-            const r = await fetch(`/api/mitarbeiter/${u.id}`);
-            return r.ok ? r.json() : u;
-          })
-        );
-        setAllUsers(detailed);
-      }
+      fetches.push(fetch("/api/mitarbeiter"));
+      fetches.push(fetch(`/api/urlaub?year=${new Date().getFullYear()}&status=AUSSTEHEND`));
+    }
+    const results = await Promise.all(fetches);
+    if (results[0].ok) setOwnData(await results[0].json());
+    if (results[1].ok) setCalendarVacations(await results[1].json());
+    if (isAdmin) {
+      if (results[2]?.ok) setAllUsers(await results[2].json());
+      if (results[3]?.ok) setAllVacations(await results[3].json());
     }
     setLoading(false);
   }, [userId, isAdmin]);
@@ -304,19 +296,14 @@ export default function UrlaubsplanungPage() {
   const remaining = totalDays - approvedDays;
 
   const allPendingRequests = isAdmin
-    ? allUsers.flatMap((u) =>
-        (u.vacationRequests || [])
-          .filter((r) => r.status === "AUSSTEHEND")
-          .map((r) => ({ ...r, user: { firstName: u.firstName, lastName: u.lastName }, userId: u.id }))
-      )
+    ? allVacations.filter((r) => r.status === "AUSSTEHEND" && r.userId !== userId)
     : [];
 
   const allRecentRequests = isAdmin
-    ? allUsers.flatMap((u) =>
-        (u.vacationRequests || [])
-          .filter((r) => r.status !== "AUSSTEHEND")
-          .map((r) => ({ ...r, user: { firstName: u.firstName, lastName: u.lastName }, userId: u.id }))
-      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20)
+    ? calendarVacations
+        .filter((r) => r.status !== "AUSSTEHEND" && r.userId !== userId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 20)
     : [];
 
   return (

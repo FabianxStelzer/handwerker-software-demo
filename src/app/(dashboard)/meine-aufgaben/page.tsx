@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
+import { NativeSelect } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSession } from "next-auth/react";
 import {
   ClipboardList,
   FolderKanban,
@@ -24,6 +27,8 @@ import {
   Trash2,
   Pencil,
   X,
+  Users,
+  UserPlus,
 } from "lucide-react";
 
 interface ProjectTask {
@@ -118,34 +123,71 @@ function isOverdue(dueDate: string | null): boolean {
   return new Date(dueDate).getTime() < Date.now();
 }
 
+interface Employee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  isActive: boolean;
+}
+
+interface AdminTask extends ProjectTask {
+  assigneeId: string | null;
+  assignee?: { firstName: string; lastName: string } | null;
+}
+
 export default function MeineAufgabenPage() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string })?.role;
+  const isAdmin = userRole === "ADMIN" || userRole === "BAULEITER";
+
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [schlosserAufgaben, setSchlosserAufgaben] = useState<SchlosserAufgabe[]>([]);
   const [assignedProjects, setAssignedProjects] = useState<AssignedProject[]>([]);
   const [notes, setNotes] = useState<UserNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"alle" | "projekte" | "aufgaben" | "schlosser" | "notizen">("alle");
+  const [activeTab, setActiveTab] = useState<"alle" | "projekte" | "aufgaben" | "schlosser" | "notizen" | "admin">("alle");
   const [editingNote, setEditingNote] = useState<UserNote | null>(null);
   const [noteForm, setNoteForm] = useState({ title: "", content: "", color: "#FEF3C7" });
   const [showNoteForm, setShowNoteForm] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
+  // Admin states
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allProjects, setAllProjects] = useState<{ id: string; projectNumber: string; name: string }[]>([]);
+  const [adminTasks, setAdminTasks] = useState<AdminTask[]>([]);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "MITTEL", projectId: "", assigneeId: "", dueDate: "" });
+  const [adminFilter, setAdminFilter] = useState({ assigneeId: "", status: "" });
+
   const loadData = useCallback(async () => {
-    const [tasksRes, notesRes] = await Promise.all([
+    const fetches: Promise<Response>[] = [
       fetch("/api/meine-aufgaben"),
       fetch("/api/meine-notizen"),
-    ]);
-    if (tasksRes.ok) {
-      const data = await tasksRes.json();
+    ];
+    if (isAdmin) {
+      fetches.push(fetch("/api/mitarbeiter"));
+      fetches.push(fetch("/api/projekte"));
+      fetches.push(fetch("/api/aufgaben?status=all"));
+    }
+    const results = await Promise.all(fetches);
+    if (results[0].ok) {
+      const data = await results[0].json();
       setProjectTasks(data.projectTasks || []);
       setSchlosserAufgaben(data.schlosserAufgaben || []);
       setAssignedProjects(data.assignedProjects || []);
     }
-    if (notesRes.ok) {
-      setNotes(await notesRes.json());
+    if (results[1].ok) setNotes(await results[1].json());
+    if (isAdmin) {
+      if (results[2]?.ok) setEmployees(await results[2].json());
+      if (results[3]?.ok) {
+        const p = await results[3].json();
+        setAllProjects(Array.isArray(p) ? p : []);
+      }
+      if (results[4]?.ok) setAdminTasks(await results[4].json());
     }
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -195,6 +237,58 @@ export default function MeineAufgabenPage() {
     loadData();
   }
 
+  async function createTask() {
+    if (!taskForm.title.trim() || !taskForm.projectId) return;
+    await fetch(`/api/projekte/${taskForm.projectId}/aufgaben`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: taskForm.title,
+        description: taskForm.description || null,
+        priority: taskForm.priority,
+        assigneeId: taskForm.assigneeId || null,
+        dueDate: taskForm.dueDate || null,
+      }),
+    });
+    setCreateTaskOpen(false);
+    setTaskForm({ title: "", description: "", priority: "MITTEL", projectId: "", assigneeId: "", dueDate: "" });
+    loadData();
+  }
+
+  async function updateTaskStatus(task: AdminTask, status: string) {
+    await fetch(`/api/projekte/${task.project.id}/aufgaben`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, status }),
+    });
+    loadData();
+  }
+
+  async function updateTaskAssignee(task: AdminTask, assigneeId: string) {
+    await fetch(`/api/projekte/${task.project.id}/aufgaben`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, assigneeId: assigneeId || null }),
+    });
+    loadData();
+  }
+
+  async function deleteTask(task: AdminTask) {
+    if (!confirm("Aufgabe wirklich löschen?")) return;
+    await fetch(`/api/projekte/${task.project.id}/aufgaben`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id }),
+    });
+    loadData();
+  }
+
+  const filteredAdminTasks = adminTasks.filter((t) => {
+    if (adminFilter.assigneeId && t.assigneeId !== adminFilter.assigneeId) return false;
+    if (adminFilter.status && t.status !== adminFilter.status) return false;
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -217,6 +311,7 @@ export default function MeineAufgabenPage() {
     { key: "aufgaben" as const, label: `Projekt-Aufgaben (${projectTasks.length})` },
     ...(schlosserAufgaben.length > 0 ? [{ key: "schlosser" as const, label: `Schlosser (${schlosserAufgaben.length})` }] : []),
     { key: "notizen" as const, label: `Notizen (${notes.length})` },
+    ...(isAdmin ? [{ key: "admin" as const, label: `Alle Aufgaben (${adminTasks.length})` }] : []),
   ];
 
   return (
@@ -551,13 +646,146 @@ export default function MeineAufgabenPage() {
         </div>
       )}
 
-      {totalOpenTasks === 0 && assignedProjects.length === 0 && (
+      {/* ── Admin: Alle Aufgaben ──────────── */}
+      {isAdmin && activeTab === "admin" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <NativeSelect value={adminFilter.assigneeId} onChange={(e) => setAdminFilter({ ...adminFilter, assigneeId: e.target.value })} className="text-xs h-8 w-auto">
+                <option value="">Alle Mitarbeiter</option>
+                {employees.filter((e) => e.isActive).map((e) => (
+                  <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                ))}
+              </NativeSelect>
+              <NativeSelect value={adminFilter.status} onChange={(e) => setAdminFilter({ ...adminFilter, status: e.target.value })} className="text-xs h-8 w-auto">
+                <option value="">Alle Status</option>
+                <option value="OFFEN">Offen</option>
+                <option value="IN_BEARBEITUNG">In Bearbeitung</option>
+                <option value="ERLEDIGT">Erledigt</option>
+              </NativeSelect>
+            </div>
+            <Button size="sm" className="gap-1.5" onClick={() => setCreateTaskOpen(true)}>
+              <Plus className="h-4 w-4" />Aufgabe erstellen
+            </Button>
+          </div>
+
+          {filteredAdminTasks.length === 0 ? (
+            <Card className="p-8 text-center text-gray-400">
+              <ClipboardList className="h-10 w-10 mx-auto mb-2" />
+              <p className="text-sm">Keine Aufgaben gefunden</p>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredAdminTasks.map((task) => {
+                const pri = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MITTEL;
+                const sta = STATUS_CONFIG[task.status] || STATUS_CONFIG.OFFEN;
+                const StatusIcon = sta.icon;
+                const overdue = isOverdue(task.dueDate);
+
+                return (
+                  <Card key={task.id} className={`p-4 ${overdue && task.status !== "ERLEDIGT" ? "border-red-200 bg-red-50/30" : ""}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg shrink-0 ${sta.color}`}>
+                        <StatusIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {task.project.projectNumber} · {task.project.name}
+                          {task.description && ` · ${task.description}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {task.dueDate && (
+                          <span className={`text-xs font-medium ${overdue && task.status !== "ERLEDIGT" ? "text-red-600" : "text-gray-500"}`}>
+                            {formatDate(task.dueDate)}
+                          </span>
+                        )}
+                        <Badge className={pri.color}>{pri.label}</Badge>
+                        <NativeSelect value={task.status} onChange={(e) => updateTaskStatus(task, e.target.value)} className="text-[10px] h-7 w-auto">
+                          <option value="OFFEN">Offen</option>
+                          <option value="IN_BEARBEITUNG">In Bearbeitung</option>
+                          <option value="ERLEDIGT">Erledigt</option>
+                        </NativeSelect>
+                        <NativeSelect value={task.assigneeId || ""} onChange={(e) => updateTaskAssignee(task, e.target.value)} className="text-[10px] h-7 w-auto">
+                          <option value="">Nicht zugewiesen</option>
+                          {employees.filter((e) => e.isActive).map((e) => (
+                            <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                          ))}
+                        </NativeSelect>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteTask(task)}>
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {totalOpenTasks === 0 && assignedProjects.length === 0 && activeTab !== "admin" && activeTab !== "notizen" && (
         <Card className="p-12 text-center">
           <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-400" />
           <h3 className="text-lg font-semibold text-gray-900">Alles erledigt!</h3>
           <p className="text-sm text-gray-500 mt-1">Keine offenen Aufgaben oder zugewiesenen Projekte</p>
         </Card>
       )}
+
+      {/* ── Dialog: Aufgabe erstellen ──────────── */}
+      <Dialog open={createTaskOpen} onOpenChange={setCreateTaskOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Neue Aufgabe erstellen</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Titel *</label>
+              <Input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} className="mt-1" placeholder="Aufgabe beschreiben..." />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+              <Textarea value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className="mt-1" rows={2} placeholder="Details (optional)" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Projekt *</label>
+              <NativeSelect value={taskForm.projectId} onChange={(e) => setTaskForm({ ...taskForm, projectId: e.target.value })} className="mt-1">
+                <option value="">Projekt wählen...</option>
+                {allProjects.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Zuweisen an</label>
+              <NativeSelect value={taskForm.assigneeId} onChange={(e) => setTaskForm({ ...taskForm, assigneeId: e.target.value })} className="mt-1">
+                <option value="">Nicht zugewiesen</option>
+                {employees.filter((e) => e.isActive).map((e) => (
+                  <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Priorität</label>
+                <NativeSelect value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className="mt-1">
+                  <option value="NIEDRIG">Niedrig</option>
+                  <option value="MITTEL">Mittel</option>
+                  <option value="HOCH">Hoch</option>
+                </NativeSelect>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Fällig am</label>
+                <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} className="mt-1" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setCreateTaskOpen(false)}>Abbrechen</Button>
+              <Button onClick={createTask} disabled={!taskForm.title.trim() || !taskForm.projectId}>Aufgabe erstellen</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

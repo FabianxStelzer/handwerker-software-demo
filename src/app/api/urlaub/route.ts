@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
     startDate: { lt: new Date(year + 1, 0, 1) },
     endDate: { gte: new Date(year, 0, 1) },
   };
-  if (statusFilter) {
+  if (statusFilter && statusFilter !== "all") {
     where.status = statusFilter;
-  } else {
+  } else if (!statusFilter) {
     where.status = { in: ["GENEHMIGT", "AUSSTEHEND"] };
   }
 
