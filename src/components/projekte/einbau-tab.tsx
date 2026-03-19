@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, MapPin, Trash2, X, ChevronLeft, FileText, User,
   ZoomIn, ZoomOut, Maximize, Download, Printer,
-  Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus, Wrench, Pen,
+  Pencil, Undo2, Eraser, RotateCw, StickyNote, ImagePlus, Wrench, Pen, Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -326,7 +326,9 @@ function PlanViewer({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const noteFileRef = useRef<HTMLInputElement>(null);
+  const noteCameraRef = useRef<HTMLInputElement>(null);
   const editNoteFileRef = useRef<HTMLInputElement>(null);
+  const editNoteCameraRef = useRef<HTMLInputElement>(null);
   const ann = useAnnotations(planId);
 
   const noteAnnotations = ann.annotations.filter((a) => a.type === "note");
@@ -570,15 +572,21 @@ function PlanViewer({
             <Textarea value={noteDesc} onChange={(e) => setNoteDesc(e.target.value)} placeholder="Beschreibung (optional)" rows={3} />
             <div>
               <input ref={noteFileRef} type="file" accept="image/*" className="hidden" onChange={handleNoteImage} />
+              <input ref={noteCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNoteImage} />
               {noteImage ? (
                 <div className="relative">
                   <img src={noteImage} alt="Vorschau" className="w-full max-h-40 object-contain rounded-lg border" />
                   <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-white/80" onClick={() => setNoteImage(null)}><X className="h-3.5 w-3.5" /></Button>
                 </div>
               ) : (
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs w-full" onClick={() => noteFileRef.current?.click()}>
-                  <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs flex-1" onClick={() => noteFileRef.current?.click()}>
+                    <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs flex-1" onClick={() => noteCameraRef.current?.click()}>
+                    <Camera className="h-3.5 w-3.5" />Foto aufnehmen
+                  </Button>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2">
@@ -598,15 +606,21 @@ function PlanViewer({
             <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Beschreibung (optional)" rows={3} />
             <div>
               <input ref={editNoteFileRef} type="file" accept="image/*" className="hidden" onChange={handleEditNoteImage} />
+              <input ref={editNoteCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleEditNoteImage} />
               {editImage ? (
                 <div className="relative">
                   <img src={editImage} alt="Vorschau" className="w-full max-h-40 object-contain rounded-lg border" />
                   <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-white/80" onClick={() => setEditImage(null)}><X className="h-3.5 w-3.5" /></Button>
                 </div>
               ) : (
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs w-full" onClick={() => editNoteFileRef.current?.click()}>
-                  <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs flex-1" onClick={() => editNoteFileRef.current?.click()}>
+                    <ImagePlus className="h-3.5 w-3.5" />Bild hinzufügen
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs flex-1" onClick={() => editNoteCameraRef.current?.click()}>
+                    <Camera className="h-3.5 w-3.5" />Foto aufnehmen
+                  </Button>
+                </div>
               )}
             </div>
             <div className="flex justify-between">
