@@ -1156,6 +1156,8 @@ model AufmassPosition {
   menge       Float    @default(0)
   einheit     String   @default("Stk")
   einzelpreis Float    @default(0)
+  kategorie   String?
+  raum        String?
   notizen     String?
   createdAt   DateTime @default(now())
 

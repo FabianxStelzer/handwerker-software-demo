@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import path from "path";
 import { mkdir, writeFile } from "fs/promises";
+import { parseAufmassFile } from "@/lib/aufmass-parser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,31 @@ export async function POST(req: NextRequest) {
       data: { aufmassId, dateiTyp, dateiName: file.name, dateiUrl },
     });
 
+    // Auto-parse material files and create positions
+    const parsableExtensions = ["xlsx", "xls", "csv", "x31", "d11"];
+    if (parsableExtensions.includes(dateiTyp)) {
+      try {
+        const parsed = parseAufmassFile(buffer, file.name);
+        if (parsed.length > 0) {
+          const existing = await prisma.aufmassPosition.count({ where: { aufmassId } });
+          const posData = parsed.map((p, i) => ({
+            aufmassId,
+            position: existing + i + 1,
+            bezeichnung: p.bezeichnung,
+            menge: p.menge,
+            einheit: p.einheit,
+            einzelpreis: p.einzelpreis,
+            kategorie: p.kategorie || null,
+            raum: p.raum || null,
+            notizen: p.notizen || null,
+          }));
+          await prisma.aufmassPosition.createMany({ data: posData });
+        }
+      } catch (e) {
+        console.error("Aufmass file parse error:", e);
+      }
+    }
+
     return NextResponse.json(datei, { status: 201 });
   }
 
@@ -118,6 +144,8 @@ export async function PUT(req: NextRequest) {
       menge: parseFloat(p.menge) || 0,
       einheit: p.einheit || "Stk",
       einzelpreis: parseFloat(p.einzelpreis) || 0,
+      kategorie: p.kategorie || null,
+      raum: p.raum || null,
       notizen: p.notizen || null,
     }));
 

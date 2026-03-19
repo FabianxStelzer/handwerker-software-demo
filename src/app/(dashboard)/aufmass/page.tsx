@@ -23,7 +23,7 @@ interface Aufmass {
   projectId: string | null;
   project: { id: string; name: string; projectNumber: string } | null;
   dateien: { id: string; dateiTyp: string; dateiName: string; dateiUrl: string }[];
-  positionen: { id: string; position: number; bezeichnung: string; menge: number; einheit: string; einzelpreis: number; notizen: string | null }[];
+  positionen: { id: string; position: number; bezeichnung: string; menge: number; einheit: string; einzelpreis: number; kategorie: string | null; raum: string | null; notizen: string | null }[];
   createdAt: string;
 }
 
@@ -101,14 +101,12 @@ export default function AufmassPage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("aufmassId", aufmassId);
-    const res = await fetch("/api/aufmass", { method: "POST", body: fd });
-    if (res.ok) await load();
+    await fetch("/api/aufmass", { method: "POST", body: fd });
+    const updated = await fetch("/api/aufmass").then((r) => r.json());
+    setAufmasse(updated);
+    const refreshed = updated.find((a: any) => a.id === aufmassId);
+    if (refreshed) setSelected(refreshed);
     setUploading(false);
-    if (selected) {
-      const updated = await fetch("/api/aufmass").then((r) => r.json());
-      setSelected(updated.find((a: any) => a.id === selected.id) || null);
-      setAufmasse(updated);
-    }
   }
 
   async function deleteFile(dateiId: string) {
@@ -443,67 +441,36 @@ export default function AufmassPage() {
 
                   {editingPositionen ? (
                     <div className="space-y-2">
+                      <div className="grid grid-cols-12 gap-2 text-[10px] text-gray-500 font-medium px-1">
+                        <span className="col-span-3">Bezeichnung</span>
+                        <span className="col-span-2">Kategorie</span>
+                        <span className="col-span-1">Raum</span>
+                        <span className="col-span-1">Menge</span>
+                        <span className="col-span-1">Einheit</span>
+                        <span className="col-span-2">Preis</span>
+                      </div>
                       {editPositionen.map((p, i) => (
                         <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                          <Input
-                            className="col-span-4 text-xs"
-                            placeholder="Bezeichnung"
-                            value={p.bezeichnung}
-                            onChange={(e) => {
-                              const np = [...editPositionen];
-                              np[i].bezeichnung = e.target.value;
-                              setEditPositionen(np);
-                            }}
-                          />
-                          <Input
-                            className="col-span-2 text-xs"
-                            type="number"
-                            placeholder="Menge"
-                            value={p.menge}
-                            onChange={(e) => {
-                              const np = [...editPositionen];
-                              np[i].menge = e.target.value;
-                              setEditPositionen(np);
-                            }}
-                          />
-                          <Input
-                            className="col-span-2 text-xs"
-                            placeholder="Einheit"
-                            value={p.einheit}
-                            onChange={(e) => {
-                              const np = [...editPositionen];
-                              np[i].einheit = e.target.value;
-                              setEditPositionen(np);
-                            }}
-                          />
-                          <Input
-                            className="col-span-3 text-xs"
-                            type="number"
-                            step="0.01"
-                            placeholder="Preis"
-                            value={p.einzelpreis}
-                            onChange={(e) => {
-                              const np = [...editPositionen];
-                              np[i].einzelpreis = e.target.value;
-                              setEditPositionen(np);
-                            }}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="col-span-1 h-8 w-8 text-red-400"
-                            onClick={() => setEditPositionen(editPositionen.filter((_, idx) => idx !== i))}
-                          >
+                          <Input className="col-span-3 text-xs" placeholder="Bezeichnung" value={p.bezeichnung}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].bezeichnung = e.target.value; setEditPositionen(np); }} />
+                          <Input className="col-span-2 text-xs" placeholder="Kategorie" value={p.kategorie || ""}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].kategorie = e.target.value; setEditPositionen(np); }} />
+                          <Input className="col-span-1 text-xs" placeholder="Raum" value={p.raum || ""}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].raum = e.target.value; setEditPositionen(np); }} />
+                          <Input className="col-span-1 text-xs" type="number" placeholder="Menge" value={p.menge}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].menge = e.target.value; setEditPositionen(np); }} />
+                          <Input className="col-span-1 text-xs" placeholder="Einheit" value={p.einheit}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].einheit = e.target.value; setEditPositionen(np); }} />
+                          <Input className="col-span-2 text-xs" type="number" step="0.01" placeholder="Preis" value={p.einzelpreis}
+                            onChange={(e) => { const np = [...editPositionen]; np[i].einzelpreis = e.target.value; setEditPositionen(np); }} />
+                          <Button variant="ghost" size="icon" className="col-span-1 h-8 w-8 text-red-400"
+                            onClick={() => setEditPositionen(editPositionen.filter((_, idx) => idx !== i))}>
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs mt-2"
-                        onClick={() => setEditPositionen([...editPositionen, { bezeichnung: "", menge: 1, einheit: "Stk", einzelpreis: 0 }])}
-                      >
+                      <Button variant="outline" size="sm" className="gap-1.5 text-xs mt-2"
+                        onClick={() => setEditPositionen([...editPositionen, { bezeichnung: "", menge: 1, einheit: "Stk", einzelpreis: 0, kategorie: "", raum: "" }])}>
                         <Plus className="h-3.5 w-3.5" />Position hinzufügen
                       </Button>
                     </div>
@@ -516,6 +483,8 @@ export default function AufmassPage() {
                           <tr className="border-b text-left text-xs text-gray-500">
                             <th className="pb-2 pr-2">#</th>
                             <th className="pb-2 pr-2">Bezeichnung</th>
+                            <th className="pb-2 pr-2">Kategorie</th>
+                            <th className="pb-2 pr-2">Raum</th>
                             <th className="pb-2 pr-2 text-right">Menge</th>
                             <th className="pb-2 pr-2">Einheit</th>
                             <th className="pb-2 pr-2 text-right">Einzelpreis</th>
@@ -527,6 +496,8 @@ export default function AufmassPage() {
                             <tr key={p.id} className="border-b last:border-0">
                               <td className="py-2 pr-2 text-xs text-gray-400">{p.position}</td>
                               <td className="py-2 pr-2 text-xs text-gray-900">{p.bezeichnung}</td>
+                              <td className="py-2 pr-2 text-xs text-gray-500">{p.kategorie || "–"}</td>
+                              <td className="py-2 pr-2 text-xs text-gray-500">{p.raum || "–"}</td>
                               <td className="py-2 pr-2 text-xs text-right">{p.menge}</td>
                               <td className="py-2 pr-2 text-xs text-gray-500">{p.einheit}</td>
                               <td className="py-2 pr-2 text-xs text-right">{p.einzelpreis.toFixed(2)} €</td>
@@ -536,7 +507,7 @@ export default function AufmassPage() {
                         </tbody>
                         <tfoot>
                           <tr className="border-t font-bold">
-                            <td colSpan={5} className="py-2 text-xs text-right">Gesamt:</td>
+                            <td colSpan={7} className="py-2 text-xs text-right">Gesamt:</td>
                             <td className="py-2 text-xs text-right">
                               {selected.positionen.reduce((s, p) => s + p.menge * p.einzelpreis, 0).toFixed(2)} €
                             </td>
