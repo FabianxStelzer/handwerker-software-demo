@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import {
-  Plus, Package, Wrench, Trash2, Upload, Download,
+  Plus, Package, Wrench, Trash2, Upload, Download, Pencil,
   Key, Copy, RefreshCw, CheckCircle2, AlertTriangle, FileText, Plug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,13 @@ export default function KatalogPage() {
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Edit states
+  const [editMat, setEditMat] = useState<any>(null);
+  const [editSvc, setEditSvc] = useState<any>(null);
+  const [editMatForm, setEditMatForm] = useState<Record<string, string>>({});
+  const [editSvcForm, setEditSvcForm] = useState<Record<string, string>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -80,6 +87,53 @@ export default function KatalogPage() {
     if (!confirm("Leistung wirklich löschen?")) return;
     await fetch(`/api/katalog/leistungen/${id}`, { method: "DELETE" });
     setServices(services.filter((s) => s.id !== id));
+  }
+
+  function openEditMat(m: any) {
+    setEditMat(m);
+    setEditMatForm({
+      name: m.name || "", description: m.description || "", category: m.category || "",
+      unit: m.unit || "STUECK", pricePerUnit: String(m.pricePerUnit || 0),
+      weight: m.weight ? String(m.weight) : "", format: m.format || "",
+      thermalValue: m.thermalValue ? String(m.thermalValue) : "",
+      minSlope: m.minSlope ? String(m.minSlope) : "",
+    });
+  }
+
+  async function saveEditMat() {
+    if (!editMat) return;
+    setSavingEdit(true);
+    await fetch(`/api/katalog/materialien/${editMat.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editMatForm),
+    });
+    const res = await fetch("/api/katalog/materialien");
+    setMaterials(await res.json());
+    setEditMat(null);
+    setSavingEdit(false);
+  }
+
+  function openEditSvc(s: any) {
+    setEditSvc(s);
+    setEditSvcForm({
+      name: s.name || "", description: s.description || "", category: s.category || "",
+      unit: s.unit || "STUNDE", pricePerUnit: String(s.pricePerUnit || 0),
+    });
+  }
+
+  async function saveEditSvc() {
+    if (!editSvc) return;
+    setSavingEdit(true);
+    await fetch(`/api/katalog/leistungen/${editSvc.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editSvcForm),
+    });
+    const res = await fetch("/api/katalog/leistungen");
+    setServices(await res.json());
+    setEditSvc(null);
+    setSavingEdit(false);
   }
 
   async function handleImport(file: File) {
@@ -231,12 +285,12 @@ export default function KatalogPage() {
                     <th className="px-4 py-3">Einheit</th>
                     <th className="px-4 py-3 text-right">Preis</th>
                     <th className="px-4 py-3">Details</th>
-                    <th className="px-4 py-3 w-16"></th>
+                    <th className="px-4 py-3 w-24"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {materials.map((m) => (
-                    <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => openEditMat(m)}>
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-gray-900">{m.name}</p>
                         {m.description && <p className="text-xs text-gray-400">{m.description}</p>}
@@ -250,9 +304,14 @@ export default function KatalogPage() {
                         {[m.weight && `${m.weight}kg`, m.format, m.thermalValue && `λ=${m.thermalValue}`, m.minSlope && `≥${m.minSlope}°`].filter(Boolean).join(" · ") || "–"}
                       </td>
                       <td className="px-4 py-3">
-                        <Button variant="ghost" size="icon" onClick={() => deleteMaterial(m.id)} className="h-8 w-8">
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditMat(m); }} className="h-8 w-8">
+                            <Pencil className="h-3.5 w-3.5 text-gray-400" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }} className="h-8 w-8">
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -260,6 +319,65 @@ export default function KatalogPage() {
               </table>
             </div>
           </Card>
+
+          {/* Material bearbeiten Dialog */}
+          <Dialog open={!!editMat} onOpenChange={(o) => { if (!o) setEditMat(null); }}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Material bearbeiten</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung</label>
+                  <Input value={editMatForm.name || ""} onChange={(e) => setEditMatForm({ ...editMatForm, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                  <Textarea value={editMatForm.description || ""} onChange={(e) => setEditMatForm({ ...editMatForm, description: e.target.value })} rows={2} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                    <NativeSelect value={editMatForm.unit || "STUECK"} onChange={(e) => setEditMatForm({ ...editMatForm, unit: e.target.value })}>
+                      {Object.entries(unitLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </NativeSelect>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preis/Einheit (€)</label>
+                    <Input type="number" step="0.01" value={editMatForm.pricePerUnit || ""} onChange={(e) => setEditMatForm({ ...editMatForm, pricePerUnit: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                  <Input value={editMatForm.category || ""} onChange={(e) => setEditMatForm({ ...editMatForm, category: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gewicht (kg)</label>
+                    <Input type="number" step="0.01" value={editMatForm.weight || ""} onChange={(e) => setEditMatForm({ ...editMatForm, weight: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
+                    <Input value={editMatForm.format || ""} onChange={(e) => setEditMatForm({ ...editMatForm, format: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Wärmeleitwert (W/mK)</label>
+                    <Input type="number" step="0.001" value={editMatForm.thermalValue || ""} onChange={(e) => setEditMatForm({ ...editMatForm, thermalValue: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Min. Dachneigung (°)</label>
+                    <Input type="number" step="0.1" value={editMatForm.minSlope || ""} onChange={(e) => setEditMatForm({ ...editMatForm, minSlope: e.target.value })} />
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setEditMat(null)}>Abbrechen</Button>
+                  <Button onClick={saveEditMat} disabled={savingEdit}>
+                    {savingEdit ? "Speichern..." : "Speichern"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="leistungen">
@@ -310,12 +428,12 @@ export default function KatalogPage() {
                     <th className="px-4 py-3">Kategorie</th>
                     <th className="px-4 py-3">Einheit</th>
                     <th className="px-4 py-3 text-right">Preis</th>
-                    <th className="px-4 py-3 w-16"></th>
+                    <th className="px-4 py-3 w-24"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {services.map((s) => (
-                    <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => openEditSvc(s)}>
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-gray-900">{s.name}</p>
                         {s.description && <p className="text-xs text-gray-400">{s.description}</p>}
@@ -324,9 +442,14 @@ export default function KatalogPage() {
                       <td className="px-4 py-3 text-sm text-gray-500">{unitLabels[s.unit] || s.unit}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(s.pricePerUnit)}</td>
                       <td className="px-4 py-3">
-                        <Button variant="ghost" size="icon" onClick={() => deleteService(s.id)} className="h-8 w-8">
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditSvc(s); }} className="h-8 w-8">
+                            <Pencil className="h-3.5 w-3.5 text-gray-400" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteService(s.id); }} className="h-8 w-8">
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -334,6 +457,45 @@ export default function KatalogPage() {
               </table>
             </div>
           </Card>
+
+          {/* Leistung bearbeiten Dialog */}
+          <Dialog open={!!editSvc} onOpenChange={(o) => { if (!o) setEditSvc(null); }}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Leistung bearbeiten</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung</label>
+                  <Input value={editSvcForm.name || ""} onChange={(e) => setEditSvcForm({ ...editSvcForm, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                  <Textarea value={editSvcForm.description || ""} onChange={(e) => setEditSvcForm({ ...editSvcForm, description: e.target.value })} rows={2} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                    <NativeSelect value={editSvcForm.unit || "STUNDE"} onChange={(e) => setEditSvcForm({ ...editSvcForm, unit: e.target.value })}>
+                      {Object.entries(unitLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </NativeSelect>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preis/Einheit (€)</label>
+                    <Input type="number" step="0.01" value={editSvcForm.pricePerUnit || ""} onChange={(e) => setEditSvcForm({ ...editSvcForm, pricePerUnit: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                  <Input value={editSvcForm.category || ""} onChange={(e) => setEditSvcForm({ ...editSvcForm, category: e.target.value })} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setEditSvc(null)}>Abbrechen</Button>
+                  <Button onClick={saveEditSvc} disabled={savingEdit}>
+                    {savingEdit ? "Speichern..." : "Speichern"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="import">

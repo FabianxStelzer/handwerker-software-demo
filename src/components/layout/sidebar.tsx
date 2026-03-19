@@ -19,7 +19,6 @@ const buchhaltungSubItems: NavChild[] = [
   { name: "Dashboard", href: "/buchhaltung", icon: LayoutDashboard },
   { name: "Belege", href: "/buchhaltung/belege", icon: FileStack },
   { name: "Kontakte", href: "/buchhaltung/kontakte", icon: Users },
-  { name: "Artikel", href: "/katalog", icon: PackageSearch },
   { name: "Buchhaltung", href: "/buchhaltung/uebersicht", icon: Calculator },
   { name: "Lohn", href: "/buchhaltung/lohn", icon: Banknote },
 ];
