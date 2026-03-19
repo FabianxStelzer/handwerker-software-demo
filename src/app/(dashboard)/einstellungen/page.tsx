@@ -1468,7 +1468,8 @@ function BuchhaltungSettingsTab() {
       </button>
 
       {activeSection === "allgemein" && <BuchAllgemeinSection />}
-      {activeSection !== "allgemein" && (
+      {activeSection === "benutzer" && <BuchBenutzerSection />}
+      {!["allgemein", "benutzer"].includes(activeSection!) && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
@@ -1729,6 +1730,319 @@ function BuchAllgemeinSection() {
           </div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ── Benutzer und Berechtigungen ───────────────────────────────
+
+const BERECHTIGUNGEN = [
+  "Belege, Kontakte & Artikel",
+  "Finanzbuchhaltung",
+  "Administration",
+  "Lohnabrechnung",
+];
+
+const STB_BERECHTIGUNGEN = [
+  "Belege",
+  "Finanzbuchhaltung",
+];
+
+function BuchBenutzerSection() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState<"user" | "stb" | null>(null);
+  const [addForm, setAddForm] = useState({ firstName: "", lastName: "", email: "", password: "", role: "MITARBEITER", berechtigungen: [...BERECHTIGUNGEN] });
+  const [stbForm, setStbForm] = useState({ firstName: "", lastName: "", email: "", password: "", berechtigungen: [...STB_BERECHTIGUNGEN] });
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editPerms, setEditPerms] = useState<string[]>([]);
+  const [menuId, setMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  async function loadUsers() {
+    const res = await fetch("/api/mitarbeiter");
+    if (res.ok) setUsers(await res.json());
+    setLoading(false);
+  }
+
+  async function createUser() {
+    setSaving(true);
+    await fetch("/api/mitarbeiter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: addForm.firstName,
+        lastName: addForm.lastName,
+        email: addForm.email,
+        password: addForm.password || "Passwort123",
+        role: addForm.role,
+        position: addForm.berechtigungen.join(", "),
+      }),
+    });
+    setSaving(false);
+    setAddOpen(null);
+    setAddForm({ firstName: "", lastName: "", email: "", password: "", role: "MITARBEITER", berechtigungen: [...BERECHTIGUNGEN] });
+    loadUsers();
+  }
+
+  async function createStb() {
+    setSaving(true);
+    await fetch("/api/mitarbeiter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: stbForm.firstName,
+        lastName: stbForm.lastName,
+        email: stbForm.email,
+        password: stbForm.password || "Passwort123",
+        role: "MITARBEITER",
+        position: "Steuerberater – " + stbForm.berechtigungen.join(", "),
+      }),
+    });
+    setSaving(false);
+    setAddOpen(null);
+    setStbForm({ firstName: "", lastName: "", email: "", password: "", berechtigungen: [...STB_BERECHTIGUNGEN] });
+    loadUsers();
+  }
+
+  async function savePerms(userId: string) {
+    await fetch(`/api/mitarbeiter/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position: editPerms.join(", ") }),
+    });
+    setEditId(null);
+    loadUsers();
+  }
+
+  async function deactivateUser(userId: string) {
+    if (!confirm("Benutzer wirklich deaktivieren?")) return;
+    await fetch(`/api/mitarbeiter/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    setMenuId(null);
+    loadUsers();
+  }
+
+  function togglePerm(list: string[], perm: string): string[] {
+    return list.includes(perm) ? list.filter((p) => p !== perm) : [...list, perm];
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#9eb552] border-t-transparent" /></div>;
+  }
+
+  const normalUsers = users.filter((u) => u.isActive !== false && !u.position?.startsWith("Steuerberater"));
+  const stbUsers = users.filter((u) => u.isActive !== false && u.position?.startsWith("Steuerberater"));
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h2 className="text-xl font-bold text-gray-900">Benutzer und Berechtigungen</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAddOpen("stb")} className="border-[#9eb552] text-[#9eb552] hover:bg-[#9eb552]/10">
+            <Plus className="h-4 w-4 mr-1" />Steuerberater anlegen
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAddOpen("user")} className="border-[#9eb552] text-[#9eb552] hover:bg-[#9eb552]/10">
+            <Plus className="h-4 w-4 mr-1" />Neuen Benutzer anlegen
+          </Button>
+        </div>
+      </div>
+
+      {/* Add User Dialog */}
+      {addOpen === "user" && (
+        <Card className="p-6 mb-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Neuen Benutzer anlegen</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Vorname *</label>
+              <Input value={addForm.firstName} onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Nachname *</label>
+              <Input value={addForm.lastName} onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail *</label>
+              <Input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Passwort</label>
+              <Input type="password" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} placeholder="Wird generiert wenn leer" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Berechtigungen</label>
+              <div className="space-y-2">
+                {BERECHTIGUNGEN.map((b) => (
+                  <label key={b} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={addForm.berechtigungen.includes(b)}
+                      onChange={() => setAddForm({ ...addForm, berechtigungen: togglePerm(addForm.berechtigungen, b) })}
+                      className="h-4 w-4 accent-[#354360] rounded" />
+                    <span className="text-sm text-gray-700">{b}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <Button size="sm" onClick={createUser} disabled={saving || !addForm.firstName || !addForm.email}
+              className="bg-[#9eb552] hover:bg-[#8da348] text-white">
+              {saving ? "Speichern..." : "Benutzer anlegen"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>Abbrechen</Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Add Steuerberater Dialog */}
+      {addOpen === "stb" && (
+        <Card className="p-6 mb-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Steuerberater anlegen</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Vorname *</label>
+              <Input value={stbForm.firstName} onChange={(e) => setStbForm({ ...stbForm, firstName: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Nachname *</label>
+              <Input value={stbForm.lastName} onChange={(e) => setStbForm({ ...stbForm, lastName: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail *</label>
+              <Input type="email" value={stbForm.email} onChange={(e) => setStbForm({ ...stbForm, email: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Passwort</label>
+              <Input type="password" value={stbForm.password} onChange={(e) => setStbForm({ ...stbForm, password: e.target.value })} placeholder="Wird generiert wenn leer" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Berechtigungen</label>
+              <div className="space-y-2">
+                {STB_BERECHTIGUNGEN.map((b) => (
+                  <label key={b} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={stbForm.berechtigungen.includes(b)}
+                      onChange={() => setStbForm({ ...stbForm, berechtigungen: togglePerm(stbForm.berechtigungen, b) })}
+                      className="h-4 w-4 accent-[#354360] rounded" />
+                    <span className="text-sm text-gray-700">{b}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <Button size="sm" onClick={createStb} disabled={saving || !stbForm.firstName || !stbForm.email}
+              className="bg-[#9eb552] hover:bg-[#8da348] text-white">
+              {saving ? "Speichern..." : "Steuerberater anlegen"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>Abbrechen</Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Ansprechpartner */}
+      <div className="mb-8">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Ansprechpartner</p>
+        <div className="space-y-2">
+          {normalUsers.length === 0 && <p className="text-sm text-gray-400 py-4">Keine Benutzer angelegt.</p>}
+          {normalUsers.map((u) => {
+            const perms = (u.position || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+            const isEditing = editId === u.id;
+            return (
+              <div key={u.id} className="border rounded-lg p-4 flex items-center gap-4 hover:bg-gray-50/50 relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-500 text-sm font-medium shrink-0">
+                  {u.firstName?.[0]}{u.lastName?.[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{u.firstName} {u.lastName}</p>
+                  {isEditing ? (
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      {BERECHTIGUNGEN.map((b) => (
+                        <label key={b} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                          <input type="checkbox" checked={editPerms.includes(b)}
+                            onChange={() => setEditPerms(togglePerm(editPerms, b))}
+                            className="h-3.5 w-3.5 accent-[#354360] rounded" />
+                          <span className="text-gray-600">{b}</span>
+                        </label>
+                      ))}
+                      <Button size="sm" className="h-6 text-[10px] px-2 bg-[#9eb552] hover:bg-[#8da348] text-white ml-2" onClick={() => savePerms(u.id)}>Speichern</Button>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditId(null)}>Abbrechen</Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {perms.length > 0 ? perms.map((p: string, i: number) => (
+                        <span key={i}>{i > 0 && <span className="mx-1.5 text-gray-300">|</span>}{p}</span>
+                      )) : <span className="text-gray-300">Keine Berechtigungen</span>}
+                    </p>
+                  )}
+                </div>
+                <div className="relative">
+                  <button onClick={() => setMenuId(menuId === u.id ? null : u.id)} className="p-1.5 hover:bg-gray-100 rounded-full">
+                    <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
+                    </svg>
+                  </button>
+                  {menuId === u.id && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border rounded-lg shadow-lg z-10 py-1">
+                      <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" onClick={() => { setEditId(u.id); setEditPerms(perms); setMenuId(null); }}>
+                        Berechtigungen bearbeiten
+                      </button>
+                      <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50" onClick={() => deactivateUser(u.id)}>
+                        Deaktivieren
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Steuerberater-Zugänge */}
+      <div>
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Steuerberater-Zugänge</p>
+        <div className="space-y-2">
+          {stbUsers.length === 0 && <p className="text-sm text-gray-400 py-4">Keine Steuerberater-Zugänge angelegt.</p>}
+          {stbUsers.map((u) => {
+            const permsRaw = (u.position || "").replace("Steuerberater – ", "");
+            const perms = permsRaw.split(",").map((s: string) => s.trim()).filter(Boolean);
+            return (
+              <div key={u.id} className="border rounded-lg p-4 flex items-center gap-4 hover:bg-gray-50/50 relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-500 text-sm font-medium shrink-0">
+                  {u.firstName?.[0]}{u.lastName?.[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{u.firstName} {u.lastName}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {perms.length > 0 ? perms.join(", ") : "Keine Berechtigungen"}
+                  </p>
+                </div>
+                <div className="relative">
+                  <button onClick={() => setMenuId(menuId === u.id ? null : u.id)} className="p-1.5 hover:bg-gray-100 rounded-full">
+                    <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <circle cx="10" cy="4" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="16" r="1.5" />
+                    </svg>
+                  </button>
+                  {menuId === u.id && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border rounded-lg shadow-lg z-10 py-1">
+                      <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50" onClick={() => deactivateUser(u.id)}>
+                        Deaktivieren
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
