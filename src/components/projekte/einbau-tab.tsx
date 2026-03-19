@@ -547,13 +547,13 @@ function PlanViewer({
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-blue-600 mx-auto -mt-0.5" />
               </button>
             ))}
-            {noteAnnotations.map((note) => (
+            {noteAnnotations.map((note, i) => (
               <div key={note.id} className="absolute z-20 transition-transform hover:scale-110"
                 style={{ left: `${note.x}%`, top: `${note.y}%`, transform: "translate(-50%, -100%)", pointerEvents: "auto", cursor: "grab" }}
                 onMouseDown={(e) => handleNoteMouseDown(e, note)} title={note.title || "Notiz"}>
                 <div className={`flex items-center justify-center h-7 w-7 rounded-full shadow-lg border-2 text-xs font-bold ${
                   editNoteId === note.id ? "bg-orange-600 border-white text-white" : "bg-white border-orange-500 text-orange-500"
-                }`}><StickyNote className="h-3.5 w-3.5" /></div>
+                }`}>{i + 1}</div>
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-orange-500 mx-auto -mt-0.5" />
               </div>
             ))}
@@ -805,8 +805,7 @@ export function EinbauTab({ project }: { project: any }) {
             <h3 className="text-sm font-bold text-gray-900">{viewPlan.titel}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant={placingNote ? "default" : "outline"} size="sm"
-              className={`gap-1.5 text-xs ${!placingNote ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "bg-orange-500 hover:bg-orange-600"}`}
+            <Button variant={placingNote ? "default" : "outline"} size="sm" className="gap-1.5 text-xs"
               onClick={() => { setPlacingNote(!placingNote); setPlacingMarker(false); setSelectedMarker(null); }}>
               <StickyNote className="h-3.5 w-3.5" />{placingNote ? "Klicke auf Plan..." : "Notiz"}
             </Button>
