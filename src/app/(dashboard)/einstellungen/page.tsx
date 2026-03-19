@@ -10,7 +10,7 @@ import {
   User, Lock, Building2, Save, CheckCircle2,
   Clock, FileText, Image, FileCode, Upload, Eye, Star, Trash2, Copy, Plus, Landmark,
   Bot, Zap, Shield, Server, ExternalLink, Check, X as XIcon, Loader2, MessageSquare, Ruler,
-  Calculator, Settings2, Users, Briefcase, Mail, Hash, Download,
+  Calculator, Settings2, Users, Briefcase, Mail, Hash, Download, Info, Calendar,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
@@ -1472,19 +1472,7 @@ function BuchhaltungSettingsTab() {
       {activeSection === "steuerberater" && <BuchSteuerberaterSection />}
       {activeSection === "email" && <BuchEmailSection />}
       {activeSection === "nummernkreise" && <BuchNummernkreiseSection />}
-      {!["allgemein", "benutzer", "steuerberater", "email", "nummernkreise"].includes(activeSection!) && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}
-          </h3>
-          <p className="text-sm text-gray-500 mb-6">
-            Einstellungen für {BUCH_SECTIONS.find((s) => s.key === activeSection)?.label}.
-          </p>
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-sm">Inhalte werden konfiguriert...</p>
-          </div>
-        </Card>
-      )}
+      {activeSection === "export" && <BuchExportSection />}
     </div>
   );
 }
@@ -2555,6 +2543,179 @@ function BuchNummernkreiseSection() {
           {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Export ─────────────────────────────────────────────────────
+
+function BuchExportSection() {
+  const [zeitraumTyp, setZeitraumTyp] = useState<"vordefiniert" | "individuell">("individuell");
+  const [von, setVon] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1);
+    return d.toISOString().split("T")[0];
+  });
+  const [bis, setBis] = useState(() => {
+    const d = new Date(); d.setDate(0);
+    return d.toISOString().split("T")[0];
+  });
+  const [vordefiniert, setVordefiniert] = useState("letzter-monat");
+
+  const [exportTyp, setExportTyp] = useState("datev-beleg");
+  const [kontoExport, setKontoExport] = useState("");
+  const [weitererExport, setWeitererExport] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  function formatDate(dateStr: string) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  async function startExport() {
+    setExporting(true);
+    await new Promise((r) => setTimeout(r, 1500));
+    setExporting(false);
+    alert(`Export wird vorbereitet für den Zeitraum ${formatDate(von)} bis ${formatDate(bis)}.\n\nExport-Typ: ${exportTyp}\n\nDer Download startet in Kürze.`);
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">Export</h2>
+
+      <Card className="p-6 mb-6">
+        {/* Zeitraum */}
+        <div className="flex items-center gap-6 mb-6 flex-wrap">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="zeitraumTyp" checked={zeitraumTyp === "vordefiniert"}
+              onChange={() => setZeitraumTyp("vordefiniert")} className="h-4 w-4 accent-[#354360]" />
+            <span className="text-sm text-gray-700">Vordefinierter Zeitraum</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="zeitraumTyp" checked={zeitraumTyp === "individuell"}
+              onChange={() => setZeitraumTyp("individuell")} className="h-4 w-4 accent-[#354360]" />
+            <span className="text-sm text-gray-700">Individueller Zeitraum</span>
+          </label>
+        </div>
+
+        {zeitraumTyp === "vordefiniert" ? (
+          <div className="mb-6">
+            <select className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700"
+              value={vordefiniert} onChange={(e) => setVordefiniert(e.target.value)}>
+              <option value="letzter-monat">Letzter Monat</option>
+              <option value="aktueller-monat">Aktueller Monat</option>
+              <option value="letztes-quartal">Letztes Quartal</option>
+              <option value="aktuelles-quartal">Aktuelles Quartal</option>
+              <option value="letztes-jahr">Letztes Jahr</option>
+              <option value="aktuelles-jahr">Aktuelles Jahr</option>
+            </select>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <div className="relative">
+              <Input type="date" value={von} onChange={(e) => setVon(e.target.value)} className="w-44 pr-8" />
+              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+            <span className="text-sm text-gray-500">bis einschließlich</span>
+            <div className="relative">
+              <Input type="date" value={bis} onChange={(e) => setBis(e.target.value)} className="w-44 pr-8" />
+              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {/* Export Belege und Buchungsdaten */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Export Belege und Buchungsdaten</h3>
+            <a href="#" className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" /> Import der Daten in DATEV
+            </a>
+          </div>
+          <div className="space-y-2.5">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="exportTyp" value="datev-beleg" checked={exportTyp === "datev-beleg"}
+                onChange={(e) => setExportTyp(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">Belege/Belegbilder mit Buchungsvorschlag (DATEV-Format) exportieren</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="exportTyp" value="datev-ohne" checked={exportTyp === "datev-ohne"}
+                onChange={(e) => setExportTyp(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">DATEV-konforme Dateien (ohne Belegbilder) exportieren</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="exportTyp" value="datev-mit" checked={exportTyp === "datev-mit"}
+                onChange={(e) => setExportTyp(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">DATEV-konforme Dateien & Belegbilder exportieren</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button onClick={startExport} disabled={exporting} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-5">
+              {exporting ? "Exportieren..." : "Export starten"}
+            </Button>
+          </div>
+        </div>
+
+        <hr className="my-6" />
+
+        {/* Kontoumsätze */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Kontoumsätze der Geschäftskonten</h3>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input type="radio" name="kontoExport" value="girokonten" checked={kontoExport === "girokonten"}
+              onChange={(e) => setKontoExport(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+            <span className="text-sm text-gray-700">Girokonten</span>
+          </label>
+
+          <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700">
+              Exportieren Sie nur abgeschlossene Monate, um Fehlermeldungen und Duplikate beim Import in DATEV zu vermeiden.
+            </p>
+          </div>
+        </div>
+
+        <hr className="my-6" />
+
+        {/* Weitere Exporte */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Weitere Exporte</h3>
+          <div className="space-y-2.5">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="weitererExport" value="csv-listen" checked={weitererExport === "csv-listen"}
+                onChange={(e) => setWeitererExport(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">Listen im CSV-Format exportieren (z.B. für Excel)</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="weitererExport" value="belege-pdf" checked={weitererExport === "belege-pdf"}
+                onChange={(e) => setWeitererExport(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">Belege (alle Belege zum Archivieren im PDF- oder Originalformat)</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="weitererExport" value="konten-csv" checked={weitererExport === "konten-csv"}
+                onChange={(e) => setWeitererExport(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">Konten (CSV-Format)</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" name="weitererExport" value="betriebspruefung" checked={weitererExport === "betriebspruefung"}
+                onChange={(e) => setWeitererExport(e.target.value)} className="h-4 w-4 accent-[#354360]" />
+              <span className="text-sm text-gray-700">Daten für die Betriebsprüfung</span>
+            </label>
+          </div>
+        </div>
+
+        <hr className="my-6" />
+
+        {/* Anwenderdaten */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Anwenderdaten</h3>
+          <p className="text-sm text-gray-500">
+            Ihre <a href="/buchhaltung/kontakte" className="text-[#354360] underline hover:text-[#212f46]">Kontakte</a> und{" "}
+            <a href="/katalog" className="text-[#354360] underline hover:text-[#212f46]">Produkte/Services</a> können Sie direkt auf den entsprechenden Seiten exportieren.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }
