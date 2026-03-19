@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { Plus, Send, Trash2, MessageSquare, FolderOpen, Bot, User, Settings, Shield } from "lucide-react";
+import { Plus, Send, Trash2, MessageSquare, FolderOpen, Bot, User, Settings, Shield, Paperclip, FileText, X as XIcon, FileSpreadsheet, File as FileIcon, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +29,9 @@ export default function KIAssistentPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [providers, setProviders] = useState<AiProviderOption[]>([]);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = session?.user?.id;
 
@@ -83,21 +85,54 @@ export default function KIAssistentPage() {
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || !activeId) return;
+    if ((!input.trim() && !attachedFile) || !activeId) return;
 
-    const userMsg = { id: "temp", role: "user", content: input, createdAt: new Date().toISOString() };
+    const userMsg: any = {
+      id: "temp",
+      role: "user",
+      content: input,
+      fileName: attachedFile?.name || null,
+      fileType: attachedFile ? attachedFile.name.split(".").pop() : null,
+      createdAt: new Date().toISOString(),
+    };
     setMessages((prev) => [...prev, userMsg]);
+    const currentInput = input;
+    const currentFile = attachedFile;
     setInput("");
+    setAttachedFile(null);
     setSending(true);
 
-    const res = await fetch("/api/ki/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: activeId, content: input }),
-    });
+    let res: Response;
+    if (currentFile) {
+      const formData = new FormData();
+      formData.append("conversationId", activeId);
+      formData.append("content", currentInput);
+      formData.append("file", currentFile);
+      res = await fetch("/api/ki/chat", { method: "POST", body: formData });
+    } else {
+      res = await fetch("/api/ki/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeId, content: currentInput }),
+      });
+    }
     const aiMsg = await res.json();
     setMessages((prev) => [...prev.filter((m) => m.id !== "temp"), { ...userMsg, id: "user-" + Date.now() }, aiMsg]);
     setSending(false);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) setAttachedFile(f);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function getFileIcon(type: string | null) {
+    if (!type) return <FileIcon className="h-3.5 w-3.5" />;
+    if (["pdf"].includes(type)) return <FileText className="h-3.5 w-3.5 text-red-500" />;
+    if (["xlsx", "xls", "csv"].includes(type)) return <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />;
+    if (["png", "jpg", "jpeg", "gif", "webp"].includes(type)) return <ImageIcon className="h-3.5 w-3.5 text-blue-500" />;
+    return <FileIcon className="h-3.5 w-3.5 text-gray-500" />;
   }
 
   const activeConv = conversations.find((c) => c.id === activeId);
@@ -179,6 +214,18 @@ export default function KIAssistentPage() {
                       {msg.role === "assistant" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
                       <span className="text-xs font-medium opacity-70">{msg.role === "assistant" ? "KI" : "Du"}</span>
                     </div>
+                    {msg.fileName && (
+                      <div className={cn("flex items-center gap-2 mb-2 px-2.5 py-1.5 rounded-lg text-xs", msg.role === "user" ? "bg-blue-500/30" : "bg-gray-200")}>
+                        {getFileIcon(msg.fileType)}
+                        <span className="truncate font-medium">{msg.fileName}</span>
+                        {msg.fileUrl && (
+                          <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
+                            className={cn("ml-auto shrink-0 underline text-[10px]", msg.role === "user" ? "text-blue-100" : "text-blue-600")}>
+                            Öffnen
+                          </a>
+                        )}
+                      </div>
+                    )}
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   </div>
                 </div>
@@ -197,17 +244,41 @@ export default function KIAssistentPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={sendMessage} className="flex gap-2 pt-3 border-t">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Nachricht eingeben... z.B. 'Berechne die benötigte Dämmstoffmenge für 120m² Dachfläche'"
-                disabled={sending}
-              />
-              <Button type="submit" size="icon" disabled={sending || !input.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
+            <div className="pt-3 border-t">
+              {attachedFile && (
+                <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+                  {getFileIcon(attachedFile.name.split(".").pop() || null)}
+                  <span className="text-xs font-medium text-blue-800 truncate">{attachedFile.name}</span>
+                  <span className="text-[10px] text-blue-500">({(attachedFile.size / 1024).toFixed(0)} KB)</span>
+                  <button onClick={() => setAttachedFile(null)} className="ml-auto text-blue-400 hover:text-blue-600">
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <form onSubmit={sendMessage} className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.txt,.csv,.xlsx,.xls,.x31,.d11,.xml,.json,.md,.html,.css,.js,.ts,.log,.png,.jpg,.jpeg,.gif,.webp"
+                />
+                <Button type="button" variant="outline" size="icon" className="shrink-0"
+                  onClick={() => fileInputRef.current?.click()} disabled={sending}
+                  title="Datei anhängen">
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={attachedFile ? "Frage zur Datei stellen oder Nachricht eingeben..." : "Nachricht eingeben... z.B. 'Berechne die benötigte Dämmstoffmenge für 120m² Dachfläche'"}
+                  disabled={sending}
+                />
+                <Button type="submit" size="icon" disabled={sending || (!input.trim() && !attachedFile)}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
           </>
         )}
       </div>
