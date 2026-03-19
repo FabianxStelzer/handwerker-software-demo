@@ -80,7 +80,7 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"aktivitaeten" | "umsatz">("aktivitaeten");
+  const [activeTab, setActiveTab] = useState<"infos" | "aktivitaeten" | "umsatz">("infos");
 
   useEffect(() => {
     fetch(`/api/kunden/${id}`)
@@ -168,21 +168,145 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-gray-200 mb-5">
-        <button
-          onClick={() => setActiveTab("aktivitaeten")}
-          className={`px-5 py-2.5 text-xs font-bold tracking-wide border-b-2 transition-colors ${activeTab === "aktivitaeten" ? "border-[#9eb552] text-[#9eb552]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-        >
-          AKTIVITÄTEN
-        </button>
-        <button
-          onClick={() => setActiveTab("umsatz")}
-          className={`px-5 py-2.5 text-xs font-bold tracking-wide border-b-2 transition-colors ${activeTab === "umsatz" ? "border-[#9eb552] text-[#9eb552]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-        >
-          UMSATZ
-        </button>
+        {(["infos", "aktivitaeten", "umsatz"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2.5 text-xs font-bold tracking-wide border-b-2 transition-colors ${activeTab === tab ? "border-[#9eb552] text-[#9eb552]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+          >
+            {tab === "infos" ? "INFOS" : tab === "aktivitaeten" ? "AKTIVITÄTEN" : "UMSATZ"}
+          </button>
+        ))}
       </div>
 
+      {/* INFOS Tab */}
+      {activeTab === "infos" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-4 space-y-5">
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Kontaktdaten</h3>
+                <div className="space-y-2.5">
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Kunden-Nr.</p>
+                    <p className="text-sm text-gray-900">{customer.customerNumber || customer.id.slice(-5)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Name</p>
+                    <p className="text-sm text-gray-900">{contactName}</p>
+                  </div>
+                  {customer.company && (
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Firma</p>
+                      <p className="text-sm text-gray-900">{customer.company}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Typ</p>
+                    <p className="text-sm text-gray-900">{customer.type === "GESCHAEFT" ? "Geschäftskunde" : "Privatkunde"}</p>
+                  </div>
+                  {customer.email && (
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">E-Mail</p>
+                      <a href={`mailto:${customer.email}`} className="text-sm text-blue-600 hover:underline">{customer.email}</a>
+                    </div>
+                  )}
+                  {customer.phone && (
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Telefon</p>
+                      <a href={`tel:${customer.phone}`} className="text-sm text-gray-900">{customer.phone}</a>
+                    </div>
+                  )}
+                  {address && (
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Adresse</p>
+                      <p className="text-sm text-gray-900">{address}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Kunde seit</p>
+                    <p className="text-sm text-gray-900">{formatDate(customer.createdAt)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-8 space-y-5">
+            {/* Notizen / Infos */}
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Notizen & Informationen</h3>
+                {editing ? (
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    rows={8}
+                    placeholder="Informationen zum Kunden eintragen..."
+                    className="text-sm"
+                  />
+                ) : (
+                  <div className="min-h-[100px]">
+                    {customer.notes ? (
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{customer.notes}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Keine Notizen vorhanden. Klicken Sie auf &quot;Bearbeiten&quot;, um Informationen hinzuzufügen.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Übersicht-Karten */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Card className="p-4 text-center">
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Projekte</p>
+                <p className="text-lg font-bold text-gray-900">{customer.projects.length}</p>
+              </Card>
+              <Card className="p-4 text-center">
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Aufträge</p>
+                <p className="text-lg font-bold text-gray-900">{customer.orders.length}</p>
+              </Card>
+              <Card className="p-4 text-center">
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Angebote</p>
+                <p className="text-lg font-bold text-gray-900">{customer.quotations.length}</p>
+              </Card>
+              <Card className="p-4 text-center">
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Gesamtumsatz</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(customer.revenue)}</p>
+              </Card>
+            </div>
+
+            {/* Rechnungen */}
+            {customer.invoices && customer.invoices.length > 0 && (
+              <Card>
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-bold text-gray-900 mb-3">Letzte Rechnungen</h3>
+                  <div className="space-y-2">
+                    {customer.invoices.slice(0, 5).map((inv) => (
+                      <Link key={inv.id} href={`/rechnungen/${inv.id}`} className="block">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{inv.invoiceNumber}</p>
+                            <p className="text-xs text-gray-500">{formatDate(inv.createdAt)}</p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-sm font-semibold text-gray-900">{formatCurrency(inv.grossTotal)}</span>
+                            <Badge className={STATUS_COLORS[inv.status] || "bg-gray-100 text-gray-700"}>{STATUS_LABELS[inv.status] || inv.status}</Badge>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main 2-column layout */}
+      {activeTab !== "infos" && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left sidebar - Contact info */}
         <div className="lg:col-span-4 space-y-5">
@@ -388,6 +512,7 @@ export default function KundenDetailPage({ params }: { params: Promise<{ id: str
           )}
         </div>
       </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editing} onOpenChange={setEditing}>

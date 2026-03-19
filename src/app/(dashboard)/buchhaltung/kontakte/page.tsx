@@ -320,7 +320,7 @@ export default function KontaktePage() {
                 </tr>
               ) : (
                 filtered.map((k) => {
-                    const link = k.typ === "kunde" ? `/kunden/${k.raw.id}` : `/buchhaltung/kontakte/lieferant/${k.raw.id}`;
+                    const link = k.typ === "kunde" ? `/kunden/${k.raw.id}?from=buchhaltung` : `/buchhaltung/kontakte/lieferant/${k.raw.id}`;
                   return (
                     <tr key={k.id} className="border-b border-gray-100 hover:bg-gray-50/50 group">
                       <td className="px-3 py-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, Users, FolderKanban, Package, FileText,
   UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings,
@@ -50,8 +50,8 @@ const roleLabels: Record<string, string> = {
   MITARBEITER: "Mitarbeiter",
 };
 
-function isGroupOpen(pathname: string, item: NavItem): boolean {
-  if (item.expandKey === "buchhaltung") return pathname.startsWith("/buchhaltung");
+function isGroupOpen(pathname: string, item: NavItem, fromBuchhaltung = false): boolean {
+  if (item.expandKey === "buchhaltung") return pathname.startsWith("/buchhaltung") || (fromBuchhaltung && pathname.startsWith("/kunden/"));
   if (item.expandKey === "mitarbeiter") return pathname.startsWith("/mitarbeiter");
   return false;
 }
@@ -63,11 +63,17 @@ interface SidebarProps {
 
 export function Sidebar({ user, onSignOut }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const fromBuchhaltung = searchParams.get("from") === "buchhaltung";
 
   const isActive = (href: string, exact?: boolean) => {
     if (href === "/") return pathname === "/";
     if (exact) return pathname === href;
+    if (href === "/kunden") {
+      return (pathname === "/kunden" || pathname.startsWith("/kunden/")) && !fromBuchhaltung;
+    }
     return pathname === href || pathname.startsWith(href + "/");
   };
 
@@ -120,7 +126,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
           if (item.children) {
-            const open = isGroupOpen(pathname, item);
+            const open = isGroupOpen(pathname, item, fromBuchhaltung);
             const parentExact = isActive(item.href, true);
             return (
               <div key={item.name} className="space-y-0.5">
@@ -142,7 +148,10 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
                 {open && (
                   <div className="ml-4 pl-2 border-l border-white/15 space-y-0.5">
                     {item.children.map((child) => {
-                      const childActive = isActive(child.href, true);
+                      let childActive = isActive(child.href, true);
+                      if (child.href === "/buchhaltung/kontakte" && fromBuchhaltung && pathname.startsWith("/kunden/")) {
+                        childActive = true;
+                      }
                       return (
                       <Link
                         key={child.name}
