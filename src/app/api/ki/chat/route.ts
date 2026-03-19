@@ -5,6 +5,8 @@ import { extractFileContent } from "@/lib/file-extract";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+const DATA_DIR = process.env.DATA_DIR || process.env.UPLOAD_DIR || path.join(process.cwd(), "data");
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     fileType = ext.replace(".", "");
     fileName = file.name;
 
-    const uploadDir = path.join(process.cwd(), "uploads", "ki-dateien");
+    const uploadDir = path.join(DATA_DIR, "uploads", "ki-dateien");
     await mkdir(uploadDir, { recursive: true });
     const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const filePath = path.join(uploadDir, safeName);

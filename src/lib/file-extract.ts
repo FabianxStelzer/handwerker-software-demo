@@ -71,13 +71,16 @@ export async function extractFileContent(
   }
 }
 
+const DATA_DIR = process.env.DATA_DIR || process.env.UPLOAD_DIR || path.join(process.cwd(), "data");
+
 export async function extractFileFromUrl(
   fileUrl: string,
   fileName: string
 ): Promise<string> {
   try {
     const urlPath = fileUrl.replace(/^\/api\/uploads\//, "");
-    const filePath = path.join(process.cwd(), "uploads", urlPath);
+    const segments = urlPath.split("/");
+    const filePath = path.join(DATA_DIR, "uploads", ...segments);
     const buffer = await readFile(filePath);
     return extractFileContent(buffer, fileName);
   } catch (e: any) {
