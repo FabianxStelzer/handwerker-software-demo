@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import path from "path";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, readFile } from "fs/promises";
 import { parseAufmassFile } from "@/lib/aufmass-parser";
 
 export const runtime = "nodejs";
@@ -158,6 +158,51 @@ export async function PUT(req: NextRequest) {
       include: { dateien: true, positionen: { orderBy: { position: "asc" } }, project: { select: { id: true, name: true, projectNumber: true } } },
     });
     return NextResponse.json(updated);
+  }
+
+  // Re-parse a file and import positions
+  if (body.action === "parse" && body.dateiId) {
+    const datei = await prisma.aufmassDatei.findUnique({ where: { id: body.dateiId } });
+    if (!datei) return NextResponse.json({ error: "Datei nicht gefunden" }, { status: 404 });
+
+    const parsableExtensions = ["xlsx", "xls", "csv", "x31", "d11"];
+    if (!parsableExtensions.includes(datei.dateiTyp)) {
+      return NextResponse.json({ error: "Dateiformat nicht unterstützt" }, { status: 400 });
+    }
+
+    try {
+      const urlParts = datei.dateiUrl.replace("/api/uploads/", "").split("/");
+      const filePath = path.join(DATA_DIR, "uploads", ...urlParts);
+      const buffer = await readFile(filePath);
+      const parsed = parseAufmassFile(buffer, datei.dateiName);
+
+      if (parsed.length === 0) {
+        return NextResponse.json({ error: "Keine Positionen in Datei gefunden", count: 0 });
+      }
+
+      const existing = await prisma.aufmassPosition.count({ where: { aufmassId: datei.aufmassId } });
+      const posData = parsed.map((p, i) => ({
+        aufmassId: datei.aufmassId,
+        position: existing + i + 1,
+        bezeichnung: p.bezeichnung,
+        menge: p.menge,
+        einheit: p.einheit,
+        einzelpreis: p.einzelpreis,
+        kategorie: p.kategorie || null,
+        raum: p.raum || null,
+        notizen: p.notizen || null,
+      }));
+      await prisma.aufmassPosition.createMany({ data: posData });
+
+      const updated = await prisma.aufmass.findUnique({
+        where: { id: datei.aufmassId },
+        include: { dateien: true, positionen: { orderBy: { position: "asc" } }, project: { select: { id: true, name: true, projectNumber: true } } },
+      });
+      return NextResponse.json({ ...updated, importedCount: parsed.length });
+    } catch (e: any) {
+      console.error("Parse error:", e);
+      return NextResponse.json({ error: "Fehler beim Parsen: " + (e.message || "Unbekannt") }, { status: 500 });
+    }
   }
 
   // Assign to project

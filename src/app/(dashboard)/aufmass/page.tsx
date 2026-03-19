@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Plus, Upload, FileText, Trash2, Save, ChevronRight, ChevronDown,
-  Bot, FolderKanban, FileSpreadsheet, Ruler, X, Eye, Download,
+  Bot, FolderKanban, FileSpreadsheet, Ruler, X, Download, PackageOpen, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,12 +49,8 @@ export default function AufmassPage() {
   const [editingPositionen, setEditingPositionen] = useState(false);
   const [createFiles, setCreateFiles] = useState<File[]>([]);
   const createFileRef = useRef<HTMLInputElement>(null);
-
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerFile, setViewerFile] = useState<{ name: string; typ: string; url: string } | null>(null);
-  const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerData, setViewerData] = useState<{ sheets: { name: string; headers: string[]; rows: string[][] }[] } | null>(null);
-  const [viewerText, setViewerText] = useState<string | null>(null);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{ dateiId: string; count: number; error?: string } | null>(null);
 
   const load = useCallback(async () => {
     const [aRes, pRes] = await Promise.all([
@@ -198,39 +194,27 @@ export default function AufmassPage() {
     return <FileText className="h-4 w-4 text-blue-500" />;
   }
 
-  async function openFileViewer(datei: { dateiName: string; dateiTyp: string; dateiUrl: string }) {
-    setViewerFile({ name: datei.dateiName, typ: datei.dateiTyp, url: datei.dateiUrl });
-    setViewerData(null);
-    setViewerText(null);
-    setViewerOpen(true);
-
-    if (datei.dateiTyp === "pdf") return;
-
-    setViewerLoading(true);
+  async function importFilePositions(dateiId: string) {
+    setImporting(dateiId);
+    setImportResult(null);
     try {
-      const res = await fetch(datei.dateiUrl);
-      const buf = await res.arrayBuffer();
-
-      if (["xlsx", "xls", "csv"].includes(datei.dateiTyp)) {
-        const XLSX = await import("xlsx");
-        const wb = XLSX.read(buf, { type: "array" });
-        const sheets = wb.SheetNames.map((name) => {
-          const ws = wb.Sheets[name];
-          const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-          const headers = rows.length > 0 ? rows[0].map((h: any) => String(h || "")) : [];
-          const dataRows = rows.slice(1).map((r) => r.map((c: any) => String(c ?? "")));
-          return { name, headers, rows: dataRows };
-        });
-        setViewerData({ sheets });
+      const res = await fetch("/api/aufmass", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "parse", dateiId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.positionen) {
+        setSelected(data);
+        setAufmasse((prev) => prev.map((a) => (a.id === data.id ? data : a)));
+        setImportResult({ dateiId, count: data.importedCount || data.positionen.length });
       } else {
-        const text = new TextDecoder("utf-8").decode(buf);
-        setViewerText(text);
+        setImportResult({ dateiId, count: 0, error: data.error || "Keine Positionen gefunden" });
       }
-    } catch (e) {
-      console.error("Viewer error:", e);
-      setViewerText("Datei konnte nicht gelesen werden.");
+    } catch (e: any) {
+      setImportResult({ dateiId, count: 0, error: e.message });
     }
-    setViewerLoading(false);
+    setImporting(null);
   }
 
   if (loading) {
@@ -405,25 +389,51 @@ export default function AufmassPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {selected.dateien.map((d) => (
-                        <div key={d.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
-                          {fileIcon(d.dateiTyp)}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{d.dateiName}</p>
-                            <p className="text-xs text-gray-400 uppercase">{d.dateiTyp}</p>
+                      {selected.dateien.map((d) => {
+                        const parsable = ["xlsx", "xls", "csv", "x31", "d11"].includes(d.dateiTyp);
+                        const isImporting = importing === d.id;
+                        const result = importResult?.dateiId === d.id ? importResult : null;
+                        return (
+                          <div key={d.id}>
+                            <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
+                              {fileIcon(d.dateiTyp)}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{d.dateiName}</p>
+                                <p className="text-xs text-gray-400 uppercase">{d.dateiTyp}</p>
+                              </div>
+                              {parsable && (
+                                <Button variant="outline" size="sm" className="gap-1 text-xs h-7"
+                                  onClick={() => importFilePositions(d.id)} disabled={isImporting}>
+                                  {isImporting ? (
+                                    <><div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />Importiere…</>
+                                  ) : (
+                                    <><PackageOpen className="h-3.5 w-3.5" />Inhalte importieren</>
+                                  )}
+                                </Button>
+                              )}
+                              {d.dateiTyp === "pdf" && (
+                                <a href={d.dateiUrl} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                  Ansehen
+                                </a>
+                              )}
+                              <a href={d.dateiUrl} download={d.dateiName} className="text-gray-400 hover:text-gray-600" title="Herunterladen">
+                                <Download className="h-3.5 w-3.5" />
+                              </a>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteFile(d.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            {result && (
+                              <div className={`mt-1 px-3 py-1.5 rounded text-xs ${result.error ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                                {result.error ? result.error : (
+                                  <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" />{result.count} Positionen importiert</span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <Button variant="ghost" size="sm" className="gap-1 text-xs text-blue-600 h-7"
-                            onClick={() => openFileViewer(d)}>
-                            <Eye className="h-3.5 w-3.5" />Öffnen
-                          </Button>
-                          <a href={d.dateiUrl} download={d.dateiName} className="text-gray-400 hover:text-gray-600">
-                            <Download className="h-3.5 w-3.5" />
-                          </a>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteFile(d.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -658,66 +668,6 @@ export default function AufmassPage() {
         </DialogContent>
       </Dialog>
 
-      {/* File Viewer Dialog */}
-      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              {viewerFile && fileIcon(viewerFile.typ)}
-              {viewerFile?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto mt-2 min-h-0">
-            {viewerFile?.typ === "pdf" ? (
-              <iframe src={viewerFile.url} className="w-full h-[70vh] rounded-lg border" />
-            ) : viewerLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                <span className="ml-3 text-sm text-gray-500">Datei wird geladen…</span>
-              </div>
-            ) : viewerData ? (
-              <div className="space-y-4">
-                {viewerData.sheets.map((sheet, si) => (
-                  <div key={si}>
-                    {viewerData.sheets.length > 1 && (
-                      <h4 className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                        <FileSpreadsheet className="h-3.5 w-3.5" />{sheet.name}
-                      </h4>
-                    )}
-                    <div className="overflow-x-auto border rounded-lg">
-                      <table className="w-full text-xs">
-                        {sheet.headers.length > 0 && (
-                          <thead>
-                            <tr className="bg-gray-100 border-b">
-                              {sheet.headers.map((h, hi) => (
-                                <th key={hi} className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">{h || `Spalte ${hi + 1}`}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                        )}
-                        <tbody>
-                          {sheet.rows.map((row, ri) => (
-                            <tr key={ri} className="border-b last:border-0 hover:bg-gray-50">
-                              {row.map((cell, ci) => (
-                                <td key={ci} className="px-3 py-1.5 text-gray-900 whitespace-nowrap">{cell}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-1">{sheet.rows.length} Zeilen</p>
-                  </div>
-                ))}
-              </div>
-            ) : viewerText !== null ? (
-              <div className="bg-gray-50 rounded-lg border p-4 overflow-auto max-h-[70vh]">
-                <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">{viewerText}</pre>
-              </div>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
