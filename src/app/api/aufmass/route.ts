@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import path from "path";
 import { mkdir, writeFile, readFile } from "fs/promises";
-import { parseAufmassFile } from "@/lib/aufmass-parser";
+import { parseAufmassFile, ALL_PARSABLE_EXTENSIONS } from "@/lib/aufmass-parser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,9 +63,7 @@ export async function POST(req: NextRequest) {
       data: { aufmassId, dateiTyp, dateiName: file.name, dateiUrl },
     });
 
-    // Auto-parse material files and create positions
-    const parsableExtensions = ["xlsx", "xls", "csv", "x31", "d11"];
-    if (parsableExtensions.includes(dateiTyp)) {
+    if (ALL_PARSABLE_EXTENSIONS.includes(dateiTyp)) {
       try {
         const parsed = parseAufmassFile(buffer, file.name);
         if (parsed.length > 0) {
@@ -165,8 +163,7 @@ export async function PUT(req: NextRequest) {
     const datei = await prisma.aufmassDatei.findUnique({ where: { id: body.dateiId } });
     if (!datei) return NextResponse.json({ error: "Datei nicht gefunden" }, { status: 404 });
 
-    const parsableExtensions = ["xlsx", "xls", "csv", "x31", "d11"];
-    if (!parsableExtensions.includes(datei.dateiTyp)) {
+    if (!ALL_PARSABLE_EXTENSIONS.includes(datei.dateiTyp)) {
       return NextResponse.json({ error: "Dateiformat nicht unterstützt" }, { status: 400 });
     }
 

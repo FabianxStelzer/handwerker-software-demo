@@ -95,10 +95,33 @@ export function parseExcelOrCsv(buffer: Buffer, fileName: string): ParsedPositio
   return positions;
 }
 
-// ── GAEB X31 (XML) ──────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────
+
+function stripXmlTags(s: string): string {
+  return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function parseGermanFloat(s: string): number {
+  return parseFloat(s.replace(/\s/g, "").replace(",", ".")) || 0;
+}
+
+// ── GAEB X31 / X83 / GAEB-XML ───────────────────────────────
 
 export function parseX31(content: string): ParsedPosition[] {
   const positions: ParsedPosition[] = [];
+
+  const categoryMap = new Map<string, string>();
+  const ctgyNameRegex = /<BoQCtgy\b[^>]*>([\s\S]*?)<\/BoQCtgy>/gi;
+  let cm;
+  while ((cm = ctgyNameRegex.exec(content)) !== null) {
+    const block = cm[1];
+    const rno = block.match(/<RNoPart>([^<]+)<\/RNoPart>/i);
+    const descMatch = block.match(/<Description[^>]*>([\s\S]*?)<\/Description>/i)
+      || block.match(/<LblTx[^>]*>([\s\S]*?)<\/LblTx>/i);
+    if (rno && descMatch) {
+      categoryMap.set(rno[1].trim(), stripXmlTags(descMatch[1]));
+    }
+  }
 
   const itemRegex = /<Item\b[^>]*>([\s\S]*?)<\/Item>/gi;
   let match;
@@ -108,34 +131,48 @@ export function parseX31(content: string): ParsedPosition[] {
 
     const descMatch = block.match(/<Description[^>]*>([\s\S]*?)<\/Description>/i)
       || block.match(/<OutlineText[^>]*>([\s\S]*?)<\/OutlineText>/i)
-      || block.match(/<TextOutline[^>]*>([\s\S]*?)<\/TextOutline>/i);
+      || block.match(/<TextOutline[^>]*>([\s\S]*?)<\/TextOutline>/i)
+      || block.match(/<CompleteText[^>]*>([\s\S]*?)<\/CompleteText>/i)
+      || block.match(/<OutlTxt[^>]*>([\s\S]*?)<\/OutlTxt>/i)
+      || block.match(/<TextOutlTxt[^>]*>([\s\S]*?)<\/TextOutlTxt>/i);
     if (descMatch) {
-      pos.bezeichnung = descMatch[1]
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      pos.bezeichnung = stripXmlTags(descMatch[1]);
     }
 
-    const spanMatch = block.match(/<span[^>]*>([\s\S]*?)<\/span>/i);
-    if (!pos.bezeichnung && spanMatch) {
-      pos.bezeichnung = spanMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!pos.bezeichnung) {
+      const spanMatch = block.match(/<span[^>]*>([\s\S]*?)<\/span>/i);
+      if (spanMatch) pos.bezeichnung = stripXmlTags(spanMatch[1]);
+    }
+    if (!pos.bezeichnung) {
+      const pMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+      if (pMatch) pos.bezeichnung = stripXmlTags(pMatch[1]);
     }
 
-    const qtyMatch = block.match(/<Qty>([\d.,]+)<\/Qty>/i);
-    if (qtyMatch) pos.menge = parseFloat(qtyMatch[1].replace(",", ".")) || 0;
+    const qtyMatch = block.match(/<Qty>([\d.,\s]+)<\/Qty>/i);
+    if (qtyMatch) pos.menge = parseGermanFloat(qtyMatch[1]);
 
     const quMatch = block.match(/<QU>([^<]+)<\/QU>/i);
     if (quMatch) pos.einheit = quMatch[1].trim();
 
-    const upMatch = block.match(/<UP>([\d.,]+)<\/UP>/i)
-      || block.match(/<UnitPrice>([\d.,]+)<\/UnitPrice>/i);
-    if (upMatch) pos.einzelpreis = parseFloat(upMatch[1].replace(",", ".")) || 0;
+    const upMatch = block.match(/<UP>([\d.,\s]+)<\/UP>/i)
+      || block.match(/<UnitPrice>([\d.,\s]+)<\/UnitPrice>/i);
+    if (upMatch) pos.einzelpreis = parseGermanFloat(upMatch[1]);
+
+    const tpMatch = block.match(/<TP>([\d.,\s]+)<\/TP>/i)
+      || block.match(/<TotalPrice>([\d.,\s]+)<\/TotalPrice>/i);
+    if (tpMatch && pos.menge > 0 && pos.einzelpreis === 0) {
+      pos.einzelpreis = parseGermanFloat(tpMatch[1]) / pos.menge;
+    }
 
     const catMatch = block.match(/<BoQCtgy[^>]*RNoPart="([^"]*)"[^>]*>/i);
     if (catMatch) pos.kategorie = catMatch[1].trim();
 
     const rdMatch = block.match(/<RNoPart>([^<]+)<\/RNoPart>/i);
     if (rdMatch && !pos.kategorie) pos.kategorie = rdMatch[1].trim();
+
+    if (pos.kategorie && categoryMap.has(pos.kategorie)) {
+      pos.kategorie = categoryMap.get(pos.kategorie);
+    }
 
     if (pos.bezeichnung || pos.menge > 0) {
       if (!pos.bezeichnung) pos.bezeichnung = "Ohne Bezeichnung";
@@ -144,12 +181,14 @@ export function parseX31(content: string): ParsedPosition[] {
   }
 
   if (positions.length === 0) {
-    const ctgyRegex = /<BoQCtgy\b[^>]*>([\s\S]*?)<\/BoQCtgy>/gi;
-    while ((match = ctgyRegex.exec(content)) !== null) {
+    const ctgyRegex2 = /<BoQCtgy\b[^>]*>([\s\S]*?)<\/BoQCtgy>/gi;
+    while ((match = ctgyRegex2.exec(content)) !== null) {
       const block = match[1];
-      const nameMatch = block.match(/<Description[^>]*>([\s\S]*?)<\/Description>/i);
+      if (/<Item\b/i.test(block)) continue;
+      const nameMatch = block.match(/<Description[^>]*>([\s\S]*?)<\/Description>/i)
+        || block.match(/<LblTx[^>]*>([\s\S]*?)<\/LblTx>/i);
       if (nameMatch) {
-        const name = nameMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        const name = stripXmlTags(nameMatch[1]);
         if (name) positions.push({ bezeichnung: name, menge: 1, einheit: "Stk", einzelpreis: 0, kategorie: "GAEB-Gruppe" });
       }
     }
@@ -158,7 +197,7 @@ export function parseX31(content: string): ParsedPosition[] {
   return positions;
 }
 
-// ── GAEB D11 (Text) ─────────────────────────────────────────
+// ── GAEB D11 / D83 (Text/DA) ────────────────────────────────
 
 export function parseD11(content: string): ParsedPosition[] {
   const positions: ParsedPosition[] = [];
@@ -172,13 +211,17 @@ export function parseD11(content: string): ParsedPosition[] {
 
     const satzart = line.substring(0, 2);
 
+    if (satzart === "00") {
+      continue;
+    }
+
     if (satzart === "21" || satzart === "25") {
-      const text = line.substring(11).trim();
+      const text = line.length > 11 ? line.substring(11).trim() : "";
       if (text) currentKat = text;
     }
 
     if (satzart === "26" || satzart === "23") {
-      const text = line.substring(11).trim();
+      const text = line.length > 11 ? line.substring(11).trim() : "";
       if (text) currentBez = currentBez ? currentBez + " " + text : text;
     }
 
@@ -193,12 +236,18 @@ export function parseD11(content: string): ParsedPosition[] {
         if (currentKat) pos.kategorie = currentKat;
 
         try {
-          const mengeStr = line.substring(31, 43).trim();
-          if (mengeStr) pos.menge = parseFloat(mengeStr.replace(",", ".")) || 0;
-          const einheitStr = line.substring(43, 47).trim();
-          if (einheitStr) pos.einheit = einheitStr;
-          const preisStr = line.substring(47, 60).trim();
-          if (preisStr) pos.einzelpreis = parseFloat(preisStr.replace(",", ".")) || 0;
+          if (line.length > 31) {
+            const mengeStr = line.substring(31, Math.min(43, line.length)).trim();
+            if (mengeStr) pos.menge = parseGermanFloat(mengeStr);
+          }
+          if (line.length > 43) {
+            const einheitStr = line.substring(43, Math.min(47, line.length)).trim();
+            if (einheitStr) pos.einheit = einheitStr;
+          }
+          if (line.length > 47) {
+            const preisStr = line.substring(47, Math.min(60, line.length)).trim();
+            if (preisStr) pos.einzelpreis = parseGermanFloat(preisStr);
+          }
         } catch { /* varying format */ }
 
         positions.push(pos);
@@ -216,9 +265,9 @@ export function parseD11(content: string): ParsedPosition[] {
       if (parts.length >= 2) {
         const pos: ParsedPosition = {
           bezeichnung: parts[0].trim(),
-          menge: parseFloat((parts[1] || "0").replace(",", ".")) || 0,
+          menge: parseGermanFloat(parts[1] || "0"),
           einheit: parts[2]?.trim() || "Stk",
-          einzelpreis: parseFloat((parts[3] || "0").replace(",", ".")) || 0,
+          einzelpreis: parseGermanFloat(parts[3] || "0"),
         };
         if (parts[4]) pos.kategorie = parts[4].trim();
         if (parts[5]) pos.raum = parts[5].trim();
@@ -230,23 +279,43 @@ export function parseD11(content: string): ParsedPosition[] {
   return positions;
 }
 
+// ── GAEB file extension mapping ──────────────────────────────
+
+const GAEB_XML_EXTENSIONS = ["x31", "x83", "x84", "x86", "x89", "gaeb"];
+const GAEB_TEXT_EXTENSIONS = ["d11", "d83", "d84", "d86", "p83", "p84"];
+const SPREADSHEET_EXTENSIONS = ["xlsx", "xls", "csv"];
+
+export const ALL_PARSABLE_EXTENSIONS = [...GAEB_XML_EXTENSIONS, ...GAEB_TEXT_EXTENSIONS, ...SPREADSHEET_EXTENSIONS];
+
+export const GAEB_FILE_ACCEPT = ".pdf,.x31,.x83,.x84,.gaeb,.d11,.d83,.d84,.p83,.p84,.xlsx,.xls,.csv";
+
 // ── Main dispatcher ─────────────────────────────────────────
 
 export function parseAufmassFile(buffer: Buffer, fileName: string): ParsedPosition[] {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
 
-  if (["xlsx", "xls", "csv"].includes(ext)) {
+  if (SPREADSHEET_EXTENSIONS.includes(ext)) {
     return parseExcelOrCsv(buffer, fileName);
   }
 
   const content = buffer.toString("utf-8");
 
-  if (ext === "x31") {
+  if (GAEB_XML_EXTENSIONS.includes(ext) || (ext === "xml" && content.includes("<GAEB"))) {
     return parseX31(content);
   }
 
-  if (ext === "d11") {
+  if (GAEB_TEXT_EXTENSIONS.includes(ext)) {
     return parseD11(content);
+  }
+
+  if (!ext || ext === "txt") {
+    if (content.includes("<GAEB") || content.includes("<Item") || content.includes("<BoQ")) {
+      return parseX31(content);
+    }
+    const firstLine = content.split("\n")[0] || "";
+    if (/^\d{2}/.test(firstLine) && firstLine.length > 20) {
+      return parseD11(content);
+    }
   }
 
   return [];

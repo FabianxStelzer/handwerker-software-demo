@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ALL_PARSABLE_EXTENSIONS, GAEB_FILE_ACCEPT } from "@/lib/aufmass-parser";
 
 interface Aufmass {
   id: string;
@@ -428,7 +429,7 @@ export default function AufmassPage() {
                     <input
                       ref={fileRef}
                       type="file"
-                      accept=".pdf,.x31,.d11,.xlsx,.xls,.csv"
+                      accept={GAEB_FILE_ACCEPT}
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
@@ -438,7 +439,7 @@ export default function AufmassPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-400 mb-3">
-                    Unterstützte Formate: PDF (Bauplan), X31, D11, Excel/CSV (Materialien)
+                    Unterstützte Formate: PDF (Bauplan), GAEB (X31, X83, D11, D83, P83), Excel/CSV (Materialien)
                   </p>
                   {selected.dateien.length === 0 ? (
                     <div
@@ -447,12 +448,12 @@ export default function AufmassPage() {
                     >
                       <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm font-medium text-gray-600">Dateien hierher ziehen oder klicken</p>
-                      <p className="text-xs text-gray-400 mt-1">PDF · X31 · D11 · Excel · CSV</p>
+                      <p className="text-xs text-gray-400 mt-1">PDF · GAEB (X31, X83, D11, D83, P83) · Excel · CSV</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {selected.dateien.map((d) => {
-                        const parsable = ["xlsx", "xls", "csv", "x31", "d11"].includes(d.dateiTyp);
+                        const parsable = ALL_PARSABLE_EXTENSIONS.includes(d.dateiTyp);
                         const isImporting = importing === d.id;
                         const result = importResult?.dateiId === d.id ? importResult : null;
                         return (
@@ -755,12 +756,12 @@ export default function AufmassPage() {
               >
                 <Upload className="h-6 w-6 text-gray-400 mx-auto mb-1" />
                 <p className="text-xs font-medium text-gray-600">Dateien auswählen</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">PDF · X31 · D11 · Excel · CSV</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">PDF · GAEB (X31, X83, D11, D83, P83) · Excel · CSV</p>
               </div>
               <input
                 ref={createFileRef}
                 type="file"
-                accept=".pdf,.x31,.d11,.xlsx,.xls,.csv"
+                accept={GAEB_FILE_ACCEPT}
                 multiple
                 className="hidden"
                 onChange={(e) => {

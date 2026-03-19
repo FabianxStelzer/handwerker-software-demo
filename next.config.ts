@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "50mb",
     },
   },
+  turbopack: {},
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
