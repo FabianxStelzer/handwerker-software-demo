@@ -345,6 +345,18 @@ model CatalogMaterial {
   thermalValue    Float?
   minSlope        Float?
   category        String?
+
+  artikelNr       String?
+  ean             String?
+  taxRate         Float        @default(19)
+  purchasePrice   Float?
+  margin          Float?
+  minStock        Float?
+  currentStock    Float?
+  invoiceText     String?
+  notes           String?
+  isActive        Boolean      @default(true)
+
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -362,6 +374,14 @@ model CatalogService {
   unit         MaterialUnit @default(STUNDE)
   pricePerUnit Float        @default(0)
   category     String?
+
+  artikelNr    String?
+  taxRate      Float        @default(19)
+  duration     Float?
+  invoiceText  String?
+  notes        String?
+  isActive     Boolean      @default(true)
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
