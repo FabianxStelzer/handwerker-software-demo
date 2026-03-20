@@ -17,6 +17,7 @@ import { RegieberichtTab } from "@/components/projekte/regiebericht-tab";
 import { EinbauTab } from "@/components/projekte/einbau-tab";
 import { AufmassTab } from "@/components/projekte/aufmass-tab";
 import { AuftraegeTab } from "@/components/projekte/auftraege-tab";
+import { PlanungTab } from "@/components/projekte/planung-tab";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "secondary" | "destructive" }> = {
   PLANUNG: { label: "Planung", variant: "secondary" },
@@ -71,6 +72,7 @@ export default function ProjektDetailPage({ params }: { params: Promise<{ id: st
       <Tabs defaultValue="uebersicht">
         <TabsList className="flex-wrap">
           <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+          <TabsTrigger value="planung">Planung</TabsTrigger>
           <TabsTrigger value="bautagebuch">Bautagebuch</TabsTrigger>
           <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
           <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -85,6 +87,9 @@ export default function ProjektDetailPage({ params }: { params: Promise<{ id: st
 
         <TabsContent value="uebersicht">
           <OverviewTab project={project} onUpdate={load} />
+        </TabsContent>
+        <TabsContent value="planung">
+          <PlanungTab project={project} onUpdate={load} />
         </TabsContent>
         <TabsContent value="bautagebuch">
           <DiaryTab project={project} onUpdate={load} />

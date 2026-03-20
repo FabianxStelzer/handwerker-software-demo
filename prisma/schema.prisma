@@ -245,8 +245,31 @@ model Project {
   aufmasse       Aufmass[]      @relation("ProjectAufmasse")
   einbauPlaene   EinbauPlan[]
   staffAssignments ProjectStaffAssignment[]
+  phases           ProjectPhase[]
 
   @@map("projects")
+}
+
+model ProjectPhase {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  color           String?
+  category        String?   // BAUHERR, EIGENBETRIEB, SUBFIRMA, MEILENSTEIN
+  assignedTo      String?   // Mitarbeiter-IDs (kommagetrennt) oder Firmenname
+  vehicleIds      String?   // Fahrzeug-IDs (kommagetrennt)
+  subcontractor   String?   // Name der Subfirma
+  isMilestone     Boolean   @default(false)
+  status          String    @default("GEPLANT") // GEPLANT, IN_ARBEIT, ABGESCHLOSSEN, VERZOEGERT
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("project_phases")
 }
 
 model ProjectStaffAssignment {
