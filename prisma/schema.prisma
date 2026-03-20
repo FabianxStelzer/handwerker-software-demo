@@ -263,6 +263,7 @@ model ProjectPhase {
   assignedTo      String?   // Mitarbeiter-IDs (kommagetrennt) oder Firmenname
   vehicleIds      String?   // Fahrzeug-IDs (kommagetrennt)
   subcontractor   String?   // Name der Subfirma
+  groupName       String?   // Gruppierung z.B. "Rohbau", "Dachstuhl", Subfirmenname
   isMilestone     Boolean   @default(false)
   status          String    @default("GEPLANT") // GEPLANT, IN_ARBEIT, ABGESCHLOSSEN, VERZOEGERT
   sortOrder       Int       @default(0)
