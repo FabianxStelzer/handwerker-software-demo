@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, Users, FolderKanban, Package, FileText,
   UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill, GraduationCap, HeartPulse,
-  Calculator, ChevronDown, ChevronRight, FileStack, Building2,
+  Calculator, ChevronDown, ChevronRight, FileStack, Building2, MapPin,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
   Bell, LogOut, User, Car, Ruler,
 } from "lucide-react";
@@ -33,6 +33,7 @@ const mitarbeiterSubItems: NavChild[] = [
 
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Alltagsverwaltung", href: "/alltagsverwaltung", icon: MapPin },
   { name: "Meine Aufgaben", href: "/meine-aufgaben", icon: ClipboardList },
   { name: "Kunden", href: "/kunden", icon: Users },
   { name: "Projekte", href: "/projekte", icon: FolderKanban },

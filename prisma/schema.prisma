@@ -244,8 +244,24 @@ model Project {
   regieberichte  Regiebericht[]
   aufmasse       Aufmass[]      @relation("ProjectAufmasse")
   einbauPlaene   EinbauPlan[]
+  staffAssignments ProjectStaffAssignment[]
 
   @@map("projects")
+}
+
+model ProjectStaffAssignment {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  vehicleId   String?
+  role        String?
+  startDate   DateTime?
+  endDate     DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  @@map("project_staff_assignments")
 }
 
 model ProjectEntry {
@@ -336,6 +352,7 @@ model ProjectMaterial {
   requestedById   String?
   requestedBy     User?           @relation("MaterialAngefordert", fields: [requestedById], references: [id])
   requestedAt     DateTime?
+  approvedAt      DateTime?
   installedAt     DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
