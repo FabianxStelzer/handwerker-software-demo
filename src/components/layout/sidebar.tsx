@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, Users, FolderKanban, Package, FileText,
-  UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill,
+  UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill, GraduationCap, HeartPulse,
   Calculator, ChevronDown, ChevronRight, FileStack, Building2,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
   Bell, LogOut, User, Car, Ruler,
@@ -27,6 +27,8 @@ const mitarbeiterSubItems: NavChild[] = [
   { name: "Übersicht", href: "/mitarbeiter", icon: Users },
   { name: "Zeiterfassung", href: "/mitarbeiter/zeiterfassung", icon: Clock },
   { name: "Urlaubsplanung", href: "/mitarbeiter/urlaubsplanung", icon: CalendarDays },
+  { name: "Schulungen", href: "/mitarbeiter/schulungen", icon: GraduationCap },
+  { name: "Ausfälle", href: "/mitarbeiter/ausfaelle", icon: HeartPulse },
 ];
 
 const navigation: NavItem[] = [
