@@ -119,6 +119,8 @@ model User {
   toolAssignments      ToolAssignment[]
   trainingRecords      TrainingRecord[]
   absences             Absence[]
+  azubiProfile         AzubiProfile?
+  azubiReports         AzubiReport[]
 
   @@map("users")
 }
@@ -1491,4 +1493,85 @@ model Absence {
   updatedAt   DateTime    @updatedAt
 
   @@map("absences")
+}
+
+// ─── AZUBI ────────────────────────────────────────────────────────
+
+model AzubiProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ausbildungsberuf  String
+  ausbildungsBeginn DateTime?
+  ausbildungsEnde   DateTime?
+  ausbilderId       String?
+  ausbilderName     String?
+  berufsschule      String?
+  klassenbezeichnung String?
+  ausbildungsJahr   Int       @default(1)
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  schulTage         AzubiSchulTag[]
+  pruefungen        AzubiPruefung[]
+
+  @@map("azubi_profiles")
+}
+
+model AzubiSchulTag {
+  id           String       @id @default(cuid())
+  profileId    String
+  profile      AzubiProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  date         DateTime
+  thema        String?
+  notes        String?
+  createdAt    DateTime     @default(now())
+
+  @@map("azubi_schultage")
+}
+
+model AzubiPruefung {
+  id           String       @id @default(cuid())
+  profileId    String
+  profile      AzubiProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title        String
+  date         DateTime
+  type         String?      // ZWISCHEN, ABSCHLUSS_TEIL1, ABSCHLUSS_TEIL2, GESELLENPRUEFUNG, SONSTIGE
+  result       String?
+  passed       Boolean?
+  notes        String?
+  createdAt    DateTime     @default(now())
+
+  @@map("azubi_pruefungen")
+}
+
+enum ReportStatus {
+  ENTWURF
+  EINGEREICHT
+  GENEHMIGT
+  ABGELEHNT
+}
+
+model AzubiReport {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekNumber      Int
+  year            Int
+  startDate       DateTime
+  endDate         DateTime
+  betrieblich     String?
+  schulisch       String?
+  unterweisungen  String?
+  stunden         Float?
+  status          ReportStatus @default(ENTWURF)
+  rejectionReason String?
+  approvedAt      DateTime?
+  approvedBy      String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([userId, weekNumber, year])
+  @@map("azubi_reports")
 }
