@@ -11,6 +11,7 @@ import {
   MapPin, Truck, Users, FolderKanban, Package, Clock, Check, X,
   Plus, AlertTriangle, ChevronRight, Search, Eye, UserPlus, Car,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Employee {
   id: string;
@@ -87,6 +88,7 @@ interface AlltagsData {
   staffAssignments: StaffAssignment[];
 }
 
+// TODO: Move labels to translation system
 const statusLabels: Record<string, string> = {
   PLANUNG: "Planung",
   AKTIV: "Aktiv",
@@ -117,6 +119,8 @@ export default function AlltagsverwaltungPage() {
   const [assignForm, setAssignForm] = useState({ userId: "", vehicleId: "", role: "", startDate: "", endDate: "", notes: "" });
   const [saving, setSaving] = useState(false);
 
+  const { t } = useTranslation();
+
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/alltagsverwaltung");
@@ -139,7 +143,7 @@ export default function AlltagsverwaltungPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9eb552]" /></div>;
-  if (!data) return <div className="p-8 text-center text-gray-500">Fehler beim Laden der Daten</div>;
+  if (!data) return <div className="p-8 text-center text-gray-500">{t("common.fehlerAufgetreten")}</div>;
 
   const checkedInCount = data.employees.filter(e => e.isCheckedIn).length;
   const activeProjects = data.projects.filter(p => p.status === "AKTIV").length;
@@ -170,8 +174,8 @@ export default function AlltagsverwaltungPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Alltagsverwaltung</h1>
-          <p className="text-sm text-gray-500 mt-1">Tagesgeschäft verwalten – Projekte, Mitarbeiter, Fahrzeuge & Material</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("alltag.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("alltag.subtitle")}</p>
         </div>
       </div>
 
@@ -180,25 +184,25 @@ export default function AlltagsverwaltungPage() {
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><Users className="h-5 w-5 text-green-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-900">{checkedInCount}</p><p className="text-xs text-gray-500">Eingestempelt</p></div>
+            <div><p className="text-2xl font-bold text-gray-900">{checkedInCount}</p><p className="text-xs text-gray-500">{t("alltag.eingestempelt")}</p></div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FolderKanban className="h-5 w-5 text-blue-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-900">{activeProjects}</p><p className="text-xs text-gray-500">Aktive Projekte</p></div>
+            <div><p className="text-2xl font-bold text-gray-900">{activeProjects}</p><p className="text-xs text-gray-500">{t("alltag.aktiveProjekte")}</p></div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><Car className="h-5 w-5 text-purple-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-900">{vehiclesWithGps.length}/{data.vehicles.length}</p><p className="text-xs text-gray-500">Fahrzeuge m. GPS</p></div>
+            <div><p className="text-2xl font-bold text-gray-900">{vehiclesWithGps.length}/{data.vehicles.length}</p><p className="text-xs text-gray-500">{t("alltag.fahrzeugeMitGps")}</p></div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center"><Package className="h-5 w-5 text-orange-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-900">{pendingCount}</p><p className="text-xs text-gray-500">Material-Anfragen</p></div>
+            <div><p className="text-2xl font-bold text-gray-900">{pendingCount}</p><p className="text-xs text-gray-500">{t("alltag.materialAnfragen")}</p></div>
           </CardContent>
         </Card>
       </div>
@@ -206,15 +210,15 @@ export default function AlltagsverwaltungPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
         {([
-          { key: "karte", label: "Karte & Übersicht", icon: MapPin },
-          { key: "projekte", label: "Projekte", icon: FolderKanban },
-          { key: "zuordnung", label: "Zuordnung", icon: UserPlus },
-          { key: "material", label: "Material-Freigabe", icon: Package },
-        ] as const).map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-            <t.icon className="h-4 w-4" />{t.label}
-            {t.key === "material" && pendingCount > 0 && (
+          { key: "karte", label: t("alltag.karteUebersicht"), icon: MapPin },
+          { key: "projekte", label: t("alltag.projekte"), icon: FolderKanban },
+          { key: "zuordnung", label: t("alltag.zuordnung"), icon: UserPlus },
+          { key: "material", label: t("alltag.materialFreigabe"), icon: Package },
+        ] as const).map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <tab.icon className="h-4 w-4" />{tab.label}
+            {tab.key === "material" && pendingCount > 0 && (
               <span className="ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
             )}
           </button>
@@ -227,7 +231,7 @@ export default function AlltagsverwaltungPage() {
           {/* Karte */}
           <Card className="lg:col-span-2 border-0 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2"><MapPin className="h-4 w-4 text-[#9eb552]" />Fahrzeug- & Projekt-Karte</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2"><MapPin className="h-4 w-4 text-[#9eb552]" />{t("alltag.fahrzeugProjektKarte")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="bg-gray-100 rounded-lg overflow-hidden relative" style={{ height: 480 }}>
@@ -244,7 +248,7 @@ export default function AlltagsverwaltungPage() {
           <div className="space-y-4">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-green-600" />Mitarbeiter-Status</CardTitle>
+                <CardTitle className="text-base font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-green-600" />{t("alltag.mitarbeiterStatus")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 max-h-[250px] overflow-y-auto">
                 {data.employees.map(emp => {
@@ -274,7 +278,7 @@ export default function AlltagsverwaltungPage() {
               <Card className="border-0 shadow-sm border-l-4 border-l-orange-400">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-semibold flex items-center gap-2 text-orange-600">
-                    <AlertTriangle className="h-4 w-4" />Material-Anfragen ({pendingCount})
+                    <AlertTriangle className="h-4 w-4" />{t("alltag.materialAnfragen")} ({pendingCount})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -304,7 +308,7 @@ export default function AlltagsverwaltungPage() {
             {/* Fahrzeuge */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-purple-600" />Fahrzeuge im Einsatz</CardTitle>
+                <CardTitle className="text-base font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-purple-600" />{t("alltag.fahrzeugeImEinsatz")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 max-h-[200px] overflow-y-auto">
                 {data.vehicles.map(v => (
@@ -329,7 +333,7 @@ export default function AlltagsverwaltungPage() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input placeholder="Projekt suchen..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder={t("alltag.projektSuchen")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
             </div>
           </div>
           <div className="grid gap-4">
@@ -358,7 +362,7 @@ export default function AlltagsverwaltungPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => { setAssignDialog(p.id); setAssignForm({ userId: "", vehicleId: "", role: "", startDate: today, endDate: "", notes: "" }); }}>
-                          <UserPlus className="h-3.5 w-3.5 mr-1" />Zuordnen
+                          <UserPlus className="h-3.5 w-3.5 mr-1" />{t("common.zuweisen")}
                         </Button>
                         <a href={`/projekte/${p.id}`}><Button variant="ghost" size="sm"><Eye className="h-3.5 w-3.5" /></Button></a>
                       </div>
@@ -398,11 +402,11 @@ export default function AlltagsverwaltungPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Heutige Einsatzplanung</CardTitle>
+              <CardTitle className="text-base font-semibold">{t("alltag.heutigeEinsatzplanung")}</CardTitle>
             </CardHeader>
             <CardContent>
               {todayAssignments.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">Keine Zuordnungen für heute</p>
+                <p className="text-sm text-gray-400 text-center py-6">{t("alltag.keineZuordnungen")}</p>
               ) : (
                 <div className="space-y-3">
                   {todayAssignments.map(a => {
@@ -426,7 +430,7 @@ export default function AlltagsverwaltungPage() {
 
           <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Neue Zuordnung erstellen</CardTitle>
+              <CardTitle className="text-base font-semibold">{t("alltag.neueZuordnung")}</CardTitle>
             </CardHeader>
             <CardContent>
               <QuickAssignForm
@@ -444,7 +448,7 @@ export default function AlltagsverwaltungPage() {
           {/* Wochenübersicht */}
           <Card className="lg:col-span-2 border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Wochenübersicht</CardTitle>
+              <CardTitle className="text-base font-semibold">{t("alltag.wochenuebersicht")}</CardTitle>
             </CardHeader>
             <CardContent>
               <WeekView assignments={data.staffAssignments} projects={data.projects} employees={data.employees} getVehicleLabel={getVehicleLabel} />
@@ -459,8 +463,8 @@ export default function AlltagsverwaltungPage() {
           {data.pendingMaterials.length === 0 ? (
             <Card className="border-0 shadow-sm"><CardContent className="p-8 text-center">
               <Package className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500 font-medium">Keine offenen Material-Anfragen</p>
-              <p className="text-sm text-gray-400 mt-1">Alle Anfragen wurden bearbeitet</p>
+              <p className="text-gray-500 font-medium">{t("alltag.keineOffenen")}</p>
+              <p className="text-sm text-gray-400 mt-1">{t("alltag.alleBearbeitet")}</p>
             </CardContent></Card>
           ) : (
             data.pendingMaterials.map(m => (
@@ -469,25 +473,25 @@ export default function AlltagsverwaltungPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Badge className="bg-orange-100 text-orange-700">Ausstehend</Badge>
+                        <Badge className="bg-orange-100 text-orange-700">{t("common.ausstehend")}</Badge>
                         <span className="text-xs text-gray-400">{m.project.projectNumber}</span>
                       </div>
                       <h3 className="font-semibold text-gray-900">{m.name}</h3>
                       {m.description && <p className="text-sm text-gray-500 mt-1">{m.description}</p>}
                       <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
                         <span>Projekt: {m.project.name}</span>
-                        <span>Menge: {m.quantityPlanned} {unitLabels[m.unit] || m.unit}</span>
-                        {m.pricePerUnit > 0 && <span>Preis: {m.pricePerUnit.toFixed(2)} €/{unitLabels[m.unit] || m.unit}</span>}
-                        {m.requestedBy && <span>Angefordert von: {m.requestedBy.firstName} {m.requestedBy.lastName}</span>}
+                        <span>{t("alltag.menge")} {m.quantityPlanned} {unitLabels[m.unit] || m.unit}</span>
+                        {m.pricePerUnit > 0 && <span>{t("alltag.preisLabel")} {m.pricePerUnit.toFixed(2)} €/{unitLabels[m.unit] || m.unit}</span>}
+                        {m.requestedBy && <span>{t("alltag.angeforderVon")} {m.requestedBy.firstName} {m.requestedBy.lastName}</span>}
                         {m.requestedAt && <span>{new Date(m.requestedAt).toLocaleDateString("de-DE")}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <Button onClick={() => doAction({ action: "approve-material", materialId: m.id })} disabled={saving} size="sm" className="bg-green-600 hover:bg-green-700">
-                        <Check className="h-4 w-4 mr-1" />Freigeben
+                        <Check className="h-4 w-4 mr-1" />{t("common.freigeben")}
                       </Button>
                       <Button onClick={() => doAction({ action: "reject-material", materialId: m.id })} disabled={saving} variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
-                        <X className="h-4 w-4 mr-1" />Ablehnen
+                        <X className="h-4 w-4 mr-1" />{t("common.ablehnen")}
                       </Button>
                     </div>
                   </div>
@@ -502,10 +506,10 @@ export default function AlltagsverwaltungPage() {
       {assignDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Mitarbeiter zuordnen</h3>
+            <h3 className="text-lg font-semibold mb-4">{t("alltag.mitarbeiterZuordnen")}</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Mitarbeiter *</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.mitarbeiter")} *</label>
                 <NativeSelect value={assignForm.userId} onChange={e => setAssignForm(f => ({ ...f, userId: e.target.value }))}>
                   <option value="">Mitarbeiter wählen...</option>
                   {data.employees.map(e => <option key={e.id} value={e.id}>{e.fullName}</option>)}
@@ -514,36 +518,36 @@ export default function AlltagsverwaltungPage() {
               <div>
                 <label className="text-xs font-medium text-gray-600 mb-1 block">Fahrzeug</label>
                 <NativeSelect value={assignForm.vehicleId} onChange={e => setAssignForm(f => ({ ...f, vehicleId: e.target.value }))}>
-                  <option value="">Kein Fahrzeug</option>
+                  <option value="">{t("alltag.keinFahrzeug")}</option>
                   {data.vehicles.map(v => <option key={v.id} value={v.id}>{v.licensePlate} – {v.brand} {v.model}</option>)}
                 </NativeSelect>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Rolle/Funktion</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">{t("alltag.rolleFunktion")}</label>
                 <Input value={assignForm.role} onChange={e => setAssignForm(f => ({ ...f, role: e.target.value }))} placeholder="z.B. Bauleiter, Monteur..." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Von</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.von")}</label>
                   <Input type="date" value={assignForm.startDate} onChange={e => setAssignForm(f => ({ ...f, startDate: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Bis</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.bis")}</label>
                   <Input type="date" value={assignForm.endDate} onChange={e => setAssignForm(f => ({ ...f, endDate: e.target.value }))} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Notizen</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.notizen")}</label>
                 <Textarea value={assignForm.notes} onChange={e => setAssignForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setAssignDialog(null)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setAssignDialog(null)}>{t("common.abbrechen")}</Button>
               <Button disabled={!assignForm.userId || saving} onClick={async () => {
                 await doAction({ action: "assign-staff", projectId: assignDialog, ...assignForm });
                 setAssignDialog(null);
               }}>
-                <UserPlus className="h-4 w-4 mr-1" />Zuordnen
+                <UserPlus className="h-4 w-4 mr-1" />{t("common.zuweisen")}
               </Button>
             </div>
           </div>
@@ -660,6 +664,7 @@ function QuickAssignForm({ projects, employees, vehicles, onAssign, saving }: {
   saving: boolean;
 }) {
   const [form, setForm] = useState({ projectId: "", userId: "", vehicleId: "", role: "", startDate: new Date().toISOString().slice(0, 10), endDate: "", notes: "" });
+  const { t } = useTranslation();
   return (
     <div className="space-y-3">
       <div>
@@ -670,7 +675,7 @@ function QuickAssignForm({ projects, employees, vehicles, onAssign, saving }: {
         </NativeSelect>
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Mitarbeiter *</label>
+        <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.mitarbeiter")} *</label>
         <NativeSelect value={form.userId} onChange={e => setForm(f => ({ ...f, userId: e.target.value }))}>
           <option value="">Mitarbeiter wählen...</option>
           {employees.map(e => <option key={e.id} value={e.id}>{e.fullName}</option>)}
@@ -679,7 +684,7 @@ function QuickAssignForm({ projects, employees, vehicles, onAssign, saving }: {
       <div>
         <label className="text-xs font-medium text-gray-600 mb-1 block">Fahrzeug</label>
         <NativeSelect value={form.vehicleId} onChange={e => setForm(f => ({ ...f, vehicleId: e.target.value }))}>
-          <option value="">Kein Fahrzeug</option>
+          <option value="">{t("alltag.keinFahrzeug")}</option>
           {vehicles.map(v => <option key={v.id} value={v.id}>{v.licensePlate} – {v.brand} {v.model}</option>)}
         </NativeSelect>
       </div>
@@ -689,23 +694,23 @@ function QuickAssignForm({ projects, employees, vehicles, onAssign, saving }: {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-gray-600 mb-1 block">Von</label>
+          <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.von")}</label>
           <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 mb-1 block">Bis</label>
+          <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.bis")}</label>
           <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Notizen</label>
+        <label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.notizen")}</label>
         <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
       </div>
       <Button className="w-full" disabled={!form.projectId || !form.userId || saving} onClick={async () => {
         await onAssign(form);
         setForm(f => ({ ...f, userId: "", vehicleId: "", role: "", notes: "" }));
       }}>
-        <Plus className="h-4 w-4 mr-1" />Zuordnung erstellen
+        <Plus className="h-4 w-4 mr-1" />{t("alltag.neueZuordnung")}
       </Button>
     </div>
   );

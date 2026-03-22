@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,8 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { LineChart } from "@/components/charts/line-chart";
 import { formatCurrency } from "@/lib/utils";
-
-const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 export default function BuchhaltungDashboardPage() {
   const searchParams = useSearchParams();
@@ -29,6 +28,25 @@ export default function BuchhaltungDashboardPage() {
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [institutionSearch, setInstitutionSearch] = useState("");
   const [connecting, setConnecting] = useState(false);
+
+  const { t } = useTranslation();
+  const months = useMemo(
+    () => [
+      t("monat.jan"),
+      t("monat.feb"),
+      t("monat.mar"),
+      t("monat.apr"),
+      t("monat.maiK"),
+      t("monat.jun"),
+      t("monat.jul"),
+      t("monat.aug"),
+      t("monat.sep"),
+      t("monat.okt"),
+      t("monat.nov"),
+      t("monat.dez"),
+    ],
+    [t]
+  );
 
   async function load() {
     const [oRes, bRes] = await Promise.all([
@@ -112,7 +130,7 @@ export default function BuchhaltungDashboardPage() {
   const differenz = einnahmenTotal - ausgabenTotal;
 
   const chartData = monthly.map((m: any, i: number) => ({
-    label: MONTHS[i],
+    label: months[i],
     value1: valueMode === "brutto" ? m.einnahmen : m.einnahmenNetto,
     value2: valueMode === "brutto" ? m.ausgaben : m.ausgabenNetto,
   }));
@@ -125,16 +143,16 @@ export default function BuchhaltungDashboardPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Buchhaltung</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("buch.title")}</h1>
         <div className="flex items-center gap-2">
           <Link href="/buchhaltung/belege">
             <Button variant="outline" size="sm" className="gap-1.5">
-              <Plus className="h-4 w-4" />Neuen Beleg erfassen
+              <Plus className="h-4 w-4" />{t("buch.neuerBeleg")}
             </Button>
           </Link>
           <Link href="/rechnungen">
             <Button size="sm" className="gap-1.5">
-              <FileText className="h-4 w-4" />Neue Rechnung
+              <FileText className="h-4 w-4" />{t("buch.neueRechnung")}
             </Button>
           </Link>
         </div>
@@ -148,7 +166,7 @@ export default function BuchhaltungDashboardPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold text-gray-900">Aufgaben</h2>
+                <h2 className="text-sm font-bold text-gray-900">{t("buch.aufgaben")}</h2>
                 <button onClick={load} className="text-gray-400 hover:text-gray-600"><RefreshCw className="h-3.5 w-3.5" /></button>
               </div>
 
@@ -156,7 +174,7 @@ export default function BuchhaltungDashboardPage() {
                 {/* Finanzen */}
                 {a.bankTxUnassigned > 0 && (
                   <div className="border-b pb-3">
-                    <p className="text-xs font-semibold text-gray-500 mb-1">Finanzen</p>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.finanzen")}</p>
                     <Link href="/buchhaltung/belege" className="text-xs text-blue-600 hover:underline">
                       {a.bankTxUnassigned} Kontoumsätze jetzt zuordnen
                     </Link>
@@ -166,10 +184,10 @@ export default function BuchhaltungDashboardPage() {
                 {/* Einnahmen */}
                 <div className="border-b pb-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-semibold text-gray-500">Einnahmen</p>
+                    <p className="text-xs font-semibold text-gray-500">{t("buch.einnahmen")}</p>
                     <p className="text-sm font-bold text-gray-900">{formatCurrency(a.offeneRechnungenSumme || 0)}</p>
                   </div>
-                  <p className="text-xs text-gray-600">{a.offeneRechnungen || 0} offene Posten</p>
+                  <p className="text-xs text-gray-600">{a.offeneRechnungen || 0} {t("buch.offenePosten")}</p>
                   {a.ueberfaelligeRechnungen > 0 && (
                     <Link href="/rechnungen" className="text-xs text-red-600 hover:underline">
                       {a.ueberfaelligeRechnungen} überfällige Rechnungen
@@ -180,15 +198,15 @@ export default function BuchhaltungDashboardPage() {
                 {/* Ausgaben */}
                 <div className="border-b pb-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-semibold text-gray-500">Ausgaben</p>
+                    <p className="text-xs font-semibold text-gray-500">{t("buch.ausgaben")}</p>
                   </div>
-                  <p className="text-xs text-gray-600">{a.offeneEingangsrechnungen || 0} offene Posten</p>
+                  <p className="text-xs text-gray-600">{a.offeneEingangsrechnungen || 0} {t("buch.offenePosten")}</p>
                 </div>
 
                 {/* Angebote */}
                 <div className="border-b pb-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-semibold text-gray-500">Angebote</p>
+                    <p className="text-xs font-semibold text-gray-500">{t("buch.angebote")}</p>
                     <p className="text-sm font-bold text-gray-900">{formatCurrency(a.offeneAngeboteSumme || 0)}</p>
                   </div>
                   <p className="text-xs text-gray-600">{a.offeneAngebote || 0} offene Angebote</p>
@@ -201,7 +219,7 @@ export default function BuchhaltungDashboardPage() {
 
                 {/* Belege */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Belege</p>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.belege")}</p>
                   <Link href="/buchhaltung/belege" className="text-xs text-gray-600 hover:underline">
                     {(a.offeneRechnungen || 0) + (a.offeneEingangsrechnungen || 0)} Belege zu prüfen
                   </Link>
@@ -209,7 +227,7 @@ export default function BuchhaltungDashboardPage() {
 
                 {/* Buchungen */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Buchungen</p>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.buchungen")}</p>
                   <Link href="/buchhaltung/uebersicht" className="text-xs text-blue-600 hover:underline">
                     Ausgaben erfassen und verwalten
                   </Link>
@@ -224,7 +242,7 @@ export default function BuchhaltungDashboardPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-900">Finanzen</h2>
+                <h2 className="text-sm font-bold text-gray-900">{t("buch.finanzen")}</h2>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={handleSync}
@@ -239,7 +257,7 @@ export default function BuchhaltungDashboardPage() {
 
               {/* Gesamtkontostand */}
               <div className="flex items-center justify-between mb-4 pb-3 border-b">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Gesamtkontostand</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("buch.kontostand")}</p>
                 <div className="flex items-center gap-1">
                   <p className="text-sm font-bold text-gray-900">{formatCurrency(totalBalance)}</p>
                   <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
@@ -274,7 +292,7 @@ export default function BuchhaltungDashboardPage() {
               )}
 
               <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs mb-4" onClick={loadInstitutions}>
-                <Building2 className="h-3.5 w-3.5" />Bankkonto verbinden
+                <Building2 className="h-3.5 w-3.5" />{t("buch.bankVerbinden")}
               </Button>
 
               {/* USt-Voranmeldung */}
@@ -303,21 +321,21 @@ export default function BuchhaltungDashboardPage() {
         <div className="lg:col-span-6">
           <Card>
             <CardContent className="p-4">
-              <h2 className="text-sm font-bold text-gray-900 mb-3">Übersicht</h2>
+              <h2 className="text-sm font-bold text-gray-900 mb-3">{t("nav.uebersicht")}</h2>
 
               {/* Summary numbers */}
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <p className="text-xs text-gray-500">Einnahmen</p>
+                    <p className="text-xs text-gray-500">{t("buch.einnahmen")}</p>
                   </div>
                   <p className="text-lg font-bold text-gray-900">{formatCurrency(einnahmenTotal)}</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <div className="h-2 w-2 rounded-full bg-red-500" />
-                    <p className="text-xs text-gray-500">Ausgaben</p>
+                    <p className="text-xs text-gray-500">{t("buch.ausgaben")}</p>
                   </div>
                   <p className="text-lg font-bold text-gray-900">{formatCurrency(ausgabenTotal)}</p>
                 </div>
@@ -368,7 +386,7 @@ export default function BuchhaltungDashboardPage() {
       <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Bankkonto verbinden</DialogTitle>
+            <DialogTitle>{t("buch.bankVerbinden")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-500">Wähle deine Bank aus der Liste. Du wirst zur Authentifizierung weitergeleitet.</p>
           <Input

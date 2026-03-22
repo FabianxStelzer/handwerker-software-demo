@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface VacationRequest {
   id: string;
@@ -40,11 +42,13 @@ interface UserInfo {
   vacationRequests: VacationRequest[];
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  AUSSTEHEND: { label: "Ausstehend", color: "bg-amber-100 text-amber-700", icon: Clock },
-  GENEHMIGT: { label: "Genehmigt", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
-  ABGELEHNT: { label: "Abgelehnt", color: "bg-red-100 text-red-700", icon: XCircle },
-};
+function getStatusConfig(t: (key: TranslationKey) => string): Record<string, { label: string; color: string; icon: React.ElementType }> {
+  return {
+    AUSSTEHEND: { label: t("urlaub.ausstehend"), color: "bg-amber-100 text-amber-700", icon: Clock },
+    GENEHMIGT: { label: t("urlaub.genehmigt"), color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+    ABGELEHNT: { label: t("urlaub.abgelehnt"), color: "bg-red-100 text-red-700", icon: XCircle },
+  };
+}
 
 const EMPLOYEE_COLORS = [
   "bg-blue-200 text-blue-900",
@@ -83,6 +87,7 @@ function isSameDay(a: Date, b: Date) {
 }
 
 function TeamCalendar({ vacations }: { vacations: VacationRequest[] }) {
+  const { t } = useTranslation();
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
@@ -137,7 +142,7 @@ function TeamCalendar({ vacations }: { vacations: VacationRequest[] }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <CalendarDays className="h-5 w-5" />
-            Urlaubskalender
+            {t("urlaub.uebersicht")}
           </h3>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => {
@@ -186,7 +191,7 @@ function TeamCalendar({ vacations }: { vacations: VacationRequest[] }) {
                     <div
                       key={vi}
                       className={`rounded px-1 py-0.5 text-[10px] leading-tight font-medium truncate ${v.color}`}
-                      title={`${v.name}${v.status === "AUSSTEHEND" ? " (ausstehend)" : ""}`}
+                      title={`${v.name}${v.status === "AUSSTEHEND" ? ` (${t("urlaub.ausstehend")})` : ""}`}
                     >
                       {v.name.split(" ")[0]}
                     </div>
@@ -208,7 +213,7 @@ function TeamCalendar({ vacations }: { vacations: VacationRequest[] }) {
               </span>
             ))}
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 border-dashed">
-              Ausstehend
+              {t("urlaub.ausstehend")}
             </span>
           </div>
         )}
@@ -218,10 +223,13 @@ function TeamCalendar({ vacations }: { vacations: VacationRequest[] }) {
 }
 
 export default function UrlaubsplanungPage() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
   const userRole = (session?.user as { role?: string })?.role;
   const isAdmin = userRole === "ADMIN" || userRole === "BAULEITER";
+
+  const statusConfig = getStatusConfig(t);
 
   const [ownData, setOwnData] = useState<UserInfo | null>(null);
   const [allUsers, setAllUsers] = useState<UserInfo[]>([]);
@@ -310,19 +318,19 @@ export default function UrlaubsplanungPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Urlaubsplanung</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("urlaub.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">Urlaub beantragen und verwalten</p>
         </div>
         <Button onClick={() => setShowForm(!showForm)} className="gap-2">
           <Plus className="h-4 w-4" />
-          Urlaub beantragen
+          {t("urlaub.antragStellen")}
         </Button>
       </div>
 
       {showForm && (
         <Card className="border-blue-200">
           <CardContent className="p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Neuer Urlaubsantrag</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("urlaub.antrag")}</h3>
             <form onSubmit={handleSubmit} className="space-y-3 max-w-md">
               {isAdmin && (
                 <div>
@@ -341,7 +349,7 @@ export default function UrlaubsplanungPage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Von</label>
+                  <label className="text-xs font-medium text-gray-600">{t("urlaub.von")}</label>
                   <Input
                     type="date"
                     value={form.startDate}
@@ -351,7 +359,7 @@ export default function UrlaubsplanungPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600">Bis</label>
+                  <label className="text-xs font-medium text-gray-600">{t("urlaub.bis")}</label>
                   <Input
                     type="date"
                     value={form.endDate}
@@ -364,11 +372,11 @@ export default function UrlaubsplanungPage() {
               </div>
               {form.startDate && form.endDate && (
                 <p className="text-sm text-blue-600">
-                  = {calcWorkdays(form.startDate, form.endDate)} Arbeitstage
+                  = {calcWorkdays(form.startDate, form.endDate)} {t("zeit.werktage")}
                 </p>
               )}
               <div>
-                <label className="text-xs font-medium text-gray-600">Grund (optional)</label>
+                <label className="text-xs font-medium text-gray-600">{t("urlaub.grund")}</label>
                 <Textarea
                   value={form.reason}
                   onChange={(e) => setForm({ ...form, reason: e.target.value })}
@@ -379,10 +387,10 @@ export default function UrlaubsplanungPage() {
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>
-                  Abbrechen
+                  {t("common.abbrechen")}
                 </Button>
                 <Button type="submit" size="sm" disabled={submitting}>
-                  {submitting ? "Senden..." : "Antrag einreichen"}
+                  {submitting ? `${t("common.senden")}...` : t("urlaub.antragStellen")}
                 </Button>
               </div>
             </form>
@@ -392,15 +400,17 @@ export default function UrlaubsplanungPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Urlaubstage gesamt</p>
+          <p className="text-xs font-medium text-gray-400">
+            {t("mitarbeiter.urlaubstage")} {t("common.gesamt").toLowerCase()}
+          </p>
           <p className="text-2xl font-bold text-gray-900">{totalDays}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Genommen</p>
+          <p className="text-xs font-medium text-gray-400">{t("urlaub.verbraucht")}</p>
           <p className="text-2xl font-bold text-blue-600">{approvedDays}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Resturlaub</p>
+          <p className="text-xs font-medium text-gray-400">{t("urlaub.resturlaub")}</p>
           <div className="flex items-center gap-2">
             <Palmtree className={`h-5 w-5 ${remaining > 5 ? "text-green-600" : "text-amber-600"}`} />
             <p className={`text-2xl font-bold ${remaining > 5 ? "text-green-600" : "text-amber-600"}`}>
@@ -409,12 +419,12 @@ export default function UrlaubsplanungPage() {
           </div>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Ausstehend</p>
+          <p className="text-xs font-medium text-gray-400">{t("urlaub.ausstehend")}</p>
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-amber-500" />
             <p className="text-2xl font-bold text-amber-600">{pendingDays}</p>
           </div>
-          <p className="text-xs text-gray-500">Tage beantragt</p>
+          <p className="text-xs text-gray-500">{`${t("urlaub.tage")} beantragt`}</p>
         </Card>
       </div>
 
@@ -438,7 +448,7 @@ export default function UrlaubsplanungPage() {
                       {req.user?.firstName} {req.user?.lastName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatDate(req.startDate)} – {formatDate(req.endDate)} · {req.days} Tage
+                      {formatDate(req.startDate)} – {formatDate(req.endDate)} · {req.days} {t("urlaub.tage")}
                       {req.reason && <> · {req.reason}</>}
                     </p>
                   </div>
@@ -449,7 +459,7 @@ export default function UrlaubsplanungPage() {
                       onClick={() => handleStatusChange(req.id, "GENEHMIGT", req.userId)}
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      Genehmigen
+                      {t("urlaub.genehmigen")}
                     </Button>
                     <Button
                       size="sm"
@@ -458,7 +468,7 @@ export default function UrlaubsplanungPage() {
                       onClick={() => handleStatusChange(req.id, "ABGELEHNT", req.userId)}
                     >
                       <XCircle className="h-4 w-4" />
-                      Ablehnen
+                      {t("urlaub.ablehnen")}
                     </Button>
                   </div>
                 </div>
@@ -474,7 +484,7 @@ export default function UrlaubsplanungPage() {
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Bearbeitete Anträge (alle Mitarbeiter)</h3>
             <div className="space-y-2">
               {allRecentRequests.map((req) => {
-                const conf = STATUS_CONFIG[req.status] || STATUS_CONFIG.AUSSTEHEND;
+                const conf = statusConfig[req.status] || statusConfig.AUSSTEHEND;
                 const StatusIcon = conf.icon;
                 return (
                   <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
@@ -487,7 +497,7 @@ export default function UrlaubsplanungPage() {
                           {req.user?.firstName} {req.user?.lastName}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(req.startDate)} – {formatDate(req.endDate)} · {req.days} Tage
+                          {formatDate(req.startDate)} – {formatDate(req.endDate)} · {req.days} {t("urlaub.tage")}
                           {req.reason && <> · {req.reason}</>}
                         </p>
                       </div>
@@ -511,7 +521,7 @@ export default function UrlaubsplanungPage() {
         ) : (
           <div className="space-y-2">
             {(ownData?.vacationRequests || []).map((req) => {
-              const conf = STATUS_CONFIG[req.status] || STATUS_CONFIG.AUSSTEHEND;
+              const conf = statusConfig[req.status] || statusConfig.AUSSTEHEND;
               const StatusIcon = conf.icon;
               return (
                 <Card key={req.id} className="p-4">
@@ -525,7 +535,7 @@ export default function UrlaubsplanungPage() {
                           {formatDate(req.startDate)} – {formatDate(req.endDate)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {req.days} Tage{req.reason && ` · ${req.reason}`}
+                          {req.days} {t("urlaub.tage")}{req.reason && ` · ${req.reason}`}
                         </p>
                       </div>
                     </div>

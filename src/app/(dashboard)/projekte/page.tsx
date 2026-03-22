@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Table, Columns3, LayoutGrid } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,17 +26,18 @@ interface Project {
   _count: { tasks: number; entries: number; documents: number };
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "success" | "warning" | "secondary" | "destructive"; color: string }> = {
-  PLANUNG: { label: "Planung", variant: "secondary", color: "bg-gray-100 border-gray-300" },
-  AKTIV: { label: "Aktiv", variant: "default", color: "bg-blue-50 border-blue-300" },
-  PAUSIERT: { label: "Pausiert", variant: "warning", color: "bg-yellow-50 border-yellow-300" },
-  ABGESCHLOSSEN: { label: "Abgeschlossen", variant: "success", color: "bg-green-50 border-green-300" },
-  STORNIERT: { label: "Storniert", variant: "destructive", color: "bg-red-50 border-red-300" },
+const statusConfig: Record<string, { labelKey: string; variant: "default" | "success" | "warning" | "secondary" | "destructive"; color: string }> = {
+  PLANUNG: { labelKey: "projekte.status.planung", variant: "secondary", color: "bg-gray-100 border-gray-300" },
+  AKTIV: { labelKey: "projekte.status.aktiv", variant: "default", color: "bg-blue-50 border-blue-300" },
+  PAUSIERT: { labelKey: "projekte.status.pausiert", variant: "warning", color: "bg-yellow-50 border-yellow-300" },
+  ABGESCHLOSSEN: { labelKey: "projekte.status.abgeschlossen", variant: "success", color: "bg-green-50 border-green-300" },
+  STORNIERT: { labelKey: "projekte.status.storniert", variant: "destructive", color: "bg-red-50 border-red-300" },
 };
 
 type ViewMode = "table" | "kanban" | "grid";
 
 export default function ProjektePage() {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [customers, setCustomers] = useState<Array<{ id: string; firstName: string; lastName: string; company: string | null; type: string }>>([]);
   const [view, setView] = useState<ViewMode>("table");
@@ -81,8 +83,8 @@ export default function ProjektePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projekte</h1>
-          <p className="text-sm text-gray-500 mt-1">{projects.length} Projekte</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("projekte.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{projects.length} {t("projekte.title")}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-gray-200 p-0.5">
@@ -98,15 +100,15 @@ export default function ProjektePage() {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4" />Neues Projekt</Button>
+              <Button><Plus className="h-4 w-4" />{t("projekte.neuesProjekt")}</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Neues Projekt</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t("projekte.neuesProjekt")}</DialogTitle></DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kunde</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.kunde")}</label>
                   <NativeSelect name="customerId" required>
-                    <option value="">Kunde wählen...</option>
+                    <option value="">{t("projekte.kundeWaehlen")}</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.type === "GESCHAEFT" && c.company ? c.company : `${c.firstName} ${c.lastName}`}
@@ -115,32 +117,32 @@ export default function ProjektePage() {
                   </NativeSelect>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Projektname (optional)</label>
-                  <Input name="name" placeholder="Wird automatisch generiert" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("projekte.projektname")} ({t("common.optional")})</label>
+                  <Input name="name" placeholder={t("projekte.automatischGeneriert")} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.beschreibung")}</label>
                   <Textarea name="description" rows={2} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Startdatum</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("projekte.startdatum")}</label>
                     <Input name="startDate" type="date" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Enddatum</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("projekte.enddatum")}</label>
                     <Input name="endDate" type="date" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Baustellenadresse</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("projekte.baustellenadresse")}</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <Input name="siteStreet" placeholder="Straße" className="col-span-2" />
-                    <Input name="siteZip" placeholder="PLZ" />
+                    <Input name="siteStreet" placeholder={t("common.strasse")} className="col-span-2" />
+                    <Input name="siteZip" placeholder={t("common.plz")} />
                   </div>
-                  <Input name="siteCity" placeholder="Ort" className="mt-2" />
+                  <Input name="siteCity" placeholder={t("common.ort")} className="mt-2" />
                 </div>
-                <Button type="submit" className="w-full">Projekt anlegen</Button>
+                <Button type="submit" className="w-full">{t("projekte.projektAnlegen")}</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -153,12 +155,12 @@ export default function ProjektePage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm font-medium text-gray-500">
-                  <th className="px-4 py-3">Nr.</th>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Kunde</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Zeitraum</th>
-                  <th className="px-4 py-3">Aufgaben</th>
+                  <th className="px-4 py-3">{t("common.nummer")}</th>
+                  <th className="px-4 py-3">{t("common.name")}</th>
+                  <th className="px-4 py-3">{t("common.kunde")}</th>
+                  <th className="px-4 py-3">{t("common.status")}</th>
+                  <th className="px-4 py-3">{t("common.zeitraum")}</th>
+                  <th className="px-4 py-3">{t("projekte.aufgaben")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,13 +179,13 @@ export default function ProjektePage() {
                     <td className="px-4 py-3 text-sm text-gray-500">{p.customerName}</td>
                     <td className="px-4 py-3">
                       <Badge variant={statusConfig[p.status]?.variant || "secondary"}>
-                        {statusConfig[p.status]?.label || p.status}
+                        {statusConfig[p.status]?.labelKey ? t(statusConfig[p.status].labelKey as any) : p.status}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {p.startDate && p.endDate
                         ? `${formatDate(p.startDate)} – ${formatDate(p.endDate)}`
-                        : p.startDate ? `Ab ${formatDate(p.startDate)}` : "–"}
+                        : p.startDate ? `${t("common.von")} ${formatDate(p.startDate)}` : "–"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">{p._count.tasks}</td>
                   </tr>
@@ -199,7 +201,7 @@ export default function ProjektePage() {
           {kanbanStatuses.map((status) => (
             <div key={status} className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-700">{statusConfig[status]?.label}</h3>
+                <h3 className="text-sm font-semibold text-gray-700">{statusConfig[status]?.labelKey ? t(statusConfig[status].labelKey as any) : status}</h3>
                 <Badge variant="secondary">{projects.filter((p) => p.status === status).length}</Badge>
               </div>
               <div className="space-y-2">
@@ -229,7 +231,7 @@ export default function ProjektePage() {
                   <div className="flex items-start justify-between mb-3">
                     <span className="text-xs font-mono text-gray-400">{p.projectNumber}</span>
                     <Badge variant={statusConfig[p.status]?.variant || "secondary"}>
-                      {statusConfig[p.status]?.label || p.status}
+                      {statusConfig[p.status]?.labelKey ? t(statusConfig[p.status].labelKey as any) : p.status}
                     </Badge>
                   </div>
                   <h3 className="font-semibold text-gray-900">{p.name}</h3>
@@ -238,9 +240,10 @@ export default function ProjektePage() {
                     <p className="text-sm text-gray-400 mt-2 line-clamp-2">{p.description}</p>
                   )}
                   <div className="flex gap-3 mt-4 text-xs text-gray-400">
-                    <span>{p._count.tasks} Aufgaben</span>
-                    <span>{p._count.entries} Einträge</span>
-                    <span>{p._count.documents} Dokumente</span>
+                    <span>{p._count.tasks} {t("projekte.aufgaben")}</span>
+                    {/* "Einträge" has no standalone translation key */}
+                    <span>{p._count.entries} {t("common.zeilen")}</span>
+                    <span>{p._count.documents} {t("common.dokumente")}</span>
                   </div>
                 </CardContent>
               </Card>

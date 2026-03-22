@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import { type TranslationKey } from "@/lib/i18n/translations";
 import {
   getPlaceholdersForType, getDefaultTemplate, getSampleData,
   replaceTemplatePlaceholders, printDocument,
@@ -64,6 +66,7 @@ const EMPTY_COMPANY: CompanySettings = {
 export default function EinstellungenPage() {
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
+  const { t } = useTranslation();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [company, setCompany] = useState<CompanySettings | null>(null);
@@ -253,10 +256,10 @@ export default function EinstellungenPage() {
         setTimeout(() => setSaved(false), 3000);
       } else {
         const err = await res.json().catch(() => ({}));
-        setProfileSaveError(err.error || `Fehler ${res.status}`);
+        setProfileSaveError(err.error || `${t("common.fehler")} ${res.status}`);
       }
     } catch {
-      setProfileSaveError("Netzwerkfehler. Bitte Verbindung prüfen.");
+      setProfileSaveError(t("common.netzwerkfehler"));
     } finally {
       setSaving(false);
     }
@@ -266,8 +269,8 @@ export default function EinstellungenPage() {
     e.preventDefault();
     setPasswordError("");
     setPasswordSaved(false);
-    if (passwordForm.neu !== passwordForm.confirm) { setPasswordError("Passwörter stimmen nicht überein"); return; }
-    if (passwordForm.neu.length < 6) { setPasswordError("Mindestens 6 Zeichen"); return; }
+    if (passwordForm.neu !== passwordForm.confirm) { setPasswordError(t("profil.passwortNichtGleich")); return; }
+    if (passwordForm.neu.length < 6) { setPasswordError(t("profil.mindestens6")); return; }
     const res = await fetch(`/api/mitarbeiter/${userId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: passwordForm.neu }),
@@ -277,7 +280,7 @@ export default function EinstellungenPage() {
       setPasswordForm({ current: "", neu: "", confirm: "" });
       setTimeout(() => setPasswordSaved(false), 3000);
     } else {
-      setPasswordError("Fehler beim Ändern des Passworts");
+      setPasswordError(t("profil.fehlerAendern"));
     }
   }
 
@@ -307,10 +310,10 @@ export default function EinstellungenPage() {
         setTimeout(() => setCompanySaved(false), 3000);
       } else {
         const err = await res.json().catch(() => ({}));
-        setCompanySaveError(err.error || `Fehler ${res.status}`);
+        setCompanySaveError(err.error || `${t("common.fehler")} ${res.status}`);
       }
     } catch {
-      setCompanySaveError("Netzwerkfehler.");
+      setCompanySaveError(t("common.netzwerkfehler"));
     } finally {
       setCompanySaving(false);
     }
@@ -323,7 +326,7 @@ export default function EinstellungenPage() {
   if (!userId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("settings.title")}</h1>
         <Card className="p-8 text-center text-gray-500">Bitte melden Sie sich an.</Card>
       </div>
     );
@@ -332,24 +335,22 @@ export default function EinstellungenPage() {
   if (!profile) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
-        <Card className="p-8 text-center text-gray-500">Profil konnte nicht geladen werden.</Card>
+        <h1 className="text-2xl font-bold text-gray-900">{t("settings.title")}</h1>
+        <Card className="p-8 text-center text-gray-500">{t("profil.nichtGeladen")}</Card>
       </div>
     );
   }
-
-  const roleLabels: Record<string, string> = { ADMIN: "Administrator", BAULEITER: "Bauleiter", MITARBEITER: "Mitarbeiter" };
 
   function SaveButton({ isSaving, isSaved }: { isSaving: boolean; isSaved: boolean }) {
     return (
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isSaving}>
           <Save className="mr-2 h-4 w-4" />
-          {isSaving ? "Speichern..." : "Speichern"}
+          {isSaving ? `${t("common.speichern")}...` : t("common.speichern")}
         </Button>
         {isSaved && (
           <span className="flex items-center gap-1 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" />Gespeichert
+            <CheckCircle2 className="h-4 w-4" />{t("common.gespeichert")}
           </span>
         )}
       </div>
@@ -359,30 +360,30 @@ export default function EinstellungenPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
-        <p className="text-sm text-gray-500">Profil, Firma und Systemeinstellungen verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("settings.title")}</h1>
+        <p className="text-sm text-gray-500">{t("settings.subtitle")}</p>
       </div>
 
       <Tabs defaultValue="firma">
         <div className="space-y-2">
           {/* Zeile 1: Firma & Betrieb */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Firma</span>
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">{t("settings.firma")}</span>
             <TabsList>
               <TabsTrigger value="firma">
-                <Building2 className="mr-2 h-4 w-4" />Firma
+                <Building2 className="mr-2 h-4 w-4" />{t("settings.firma")}
               </TabsTrigger>
               <TabsTrigger value="logo">
-                <Image className="mr-2 h-4 w-4" />Logo & Branding
+                <Image className="mr-2 h-4 w-4" />{t("settings.logo")}
               </TabsTrigger>
               <TabsTrigger value="arbeitszeit">
-                <Clock className="mr-2 h-4 w-4" />Arbeitszeit
+                <Clock className="mr-2 h-4 w-4" />{t("settings.arbeitszeit")}
               </TabsTrigger>
               <TabsTrigger value="vorlagen">
-                <FileCode className="mr-2 h-4 w-4" />Dokumentvorlagen
+                <FileCode className="mr-2 h-4 w-4" />{t("settings.vorlagen")}
               </TabsTrigger>
               <TabsTrigger value="regieberichte">
-                <FileText className="mr-2 h-4 w-4" />Regieberichte
+                <FileText className="mr-2 h-4 w-4" />{t("settings.regieberichte")}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -391,16 +392,16 @@ export default function EinstellungenPage() {
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">System</span>
             <TabsList>
               <TabsTrigger value="banking">
-                <Landmark className="mr-2 h-4 w-4" />Banking
+                <Landmark className="mr-2 h-4 w-4" />{t("settings.banking")}
               </TabsTrigger>
               <TabsTrigger value="ki-modelle">
-                <Bot className="mr-2 h-4 w-4" />KI-Modelle
+                <Bot className="mr-2 h-4 w-4" />{t("settings.kiModelle")}
               </TabsTrigger>
               <TabsTrigger value="berechtigungen">
-                <Shield className="mr-2 h-4 w-4" />Berechtigungen
+                <Shield className="mr-2 h-4 w-4" />{t("settings.berechtigungen")}
               </TabsTrigger>
               <TabsTrigger value="buchhaltung-settings">
-                <Calculator className="mr-2 h-4 w-4" />Buchhaltung
+                <Calculator className="mr-2 h-4 w-4" />{t("settings.buchhaltung")}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -409,29 +410,29 @@ export default function EinstellungenPage() {
         {/* ── Firma ───────────────────────────────────── */}
         <TabsContent value="firma">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Firmeninformationen</h3>
-            <p className="text-sm text-gray-500 mb-4">Adresse, Kontaktdaten und Steuerdaten deiner Firma.</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("settings.firmeninformationen")}</h3>
+            <p className="text-sm text-gray-500 mb-4">{t("settings.firmeninfoBeschreibung")}</p>
             {company ? (
               <form onSubmit={saveCompany} className="max-w-2xl space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Firmenname</label>
+                    <label className="text-sm font-medium text-gray-700">{t("settings.firmenname")}</label>
                     <Input value={company.name || ""} onChange={(e) => setCompany({ ...company, name: e.target.value })} className="mt-1" placeholder="Muster GmbH" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Straße</label>
+                    <label className="text-sm font-medium text-gray-700">{t("common.strasse")}</label>
                     <Input value={company.street || ""} onChange={(e) => setCompany({ ...company, street: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">PLZ</label>
+                    <label className="text-sm font-medium text-gray-700">{t("common.plz")}</label>
                     <Input value={company.zip || ""} onChange={(e) => setCompany({ ...company, zip: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Stadt</label>
+                    <label className="text-sm font-medium text-gray-700">{t("common.stadt")}</label>
                     <Input value={company.city || ""} onChange={(e) => setCompany({ ...company, city: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Telefon</label>
+                    <label className="text-sm font-medium text-gray-700">{t("common.telefon")}</label>
                     <Input value={company.phone || ""} onChange={(e) => setCompany({ ...company, phone: e.target.value })} className="mt-1" />
                   </div>
                   <div>
@@ -439,7 +440,7 @@ export default function EinstellungenPage() {
                     <Input value={company.fax || ""} onChange={(e) => setCompany({ ...company, fax: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">E-Mail</label>
+                    <label className="text-sm font-medium text-gray-700">{t("common.email")}</label>
                     <Input type="email" value={company.email || ""} onChange={(e) => setCompany({ ...company, email: e.target.value })} className="mt-1" />
                   </div>
                   <div>
@@ -447,11 +448,11 @@ export default function EinstellungenPage() {
                     <Input value={company.website || ""} onChange={(e) => setCompany({ ...company, website: e.target.value })} className="mt-1" placeholder="www.beispiel.de" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Steuernummer</label>
+                    <label className="text-sm font-medium text-gray-700">{t("settings.steuernummer")}</label>
                     <Input value={company.taxId || ""} onChange={(e) => setCompany({ ...company, taxId: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">USt-IdNr.</label>
+                    <label className="text-sm font-medium text-gray-700">{t("settings.ustId")}</label>
                     <Input value={company.vatId || ""} onChange={(e) => setCompany({ ...company, vatId: e.target.value })} className="mt-1" placeholder="DE..." />
                   </div>
                   <div>
@@ -469,7 +470,7 @@ export default function EinstellungenPage() {
         {/* ── Logo & Branding ─────────────────────────── */}
         <TabsContent value="logo">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Logo & Branding</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("settings.logo")}</h3>
             <p className="text-sm text-gray-500 mb-4">Firmenlogo für Regieberichte, Rechnungen und Angebote.</p>
             {company ? (
               <div className="max-w-2xl space-y-5">
@@ -544,7 +545,7 @@ export default function EinstellungenPage() {
         {/* ── Arbeitszeit ─────────────────────────────── */}
         <TabsContent value="arbeitszeit">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Arbeitszeiteinstellungen</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("settings.arbeitszeit")}</h3>
             <p className="text-sm text-gray-500 mb-4">Mittagspause und Sollstunden für die Zeiterfassung.</p>
             {company ? (
               <form onSubmit={saveCompany} className="max-w-md space-y-4">
@@ -578,7 +579,7 @@ export default function EinstellungenPage() {
         {/* ── Regieberichte ───────────────────────────── */}
         <TabsContent value="regieberichte">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Regiebericht-Einstellungen</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("settings.regieberichte")}</h3>
             <p className="text-sm text-gray-500 mb-4">Stundensatz und Standardwerte für automatische Rechnungserstellung.</p>
             {company ? (
               <form onSubmit={saveCompany} className="max-w-md space-y-4">
@@ -625,7 +626,7 @@ export default function EinstellungenPage() {
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Dokumentvorlagen</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{t("settings.vorlagen")}</h3>
                   <p className="text-sm text-gray-500">HTML-Vorlagen für Rechnungen, Angebote und Regieberichte verwalten.</p>
                 </div>
                 <NativeSelect value={tplType} onChange={(e) => { setTplType(e.target.value as any); setTplHtml(""); setTplName(""); setEditingTpl(null); }} className="w-48">
@@ -652,8 +653,8 @@ export default function EinstellungenPage() {
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => startEditTemplate(tpl)}>
-                          <FileCode className="h-3 w-3" />Bearbeiten
-                        </Button>
+                        <FileCode className="h-3 w-3" />{t("common.bearbeiten")}
+                      </Button>
                         <Button variant="ghost" size="sm" className="text-xs gap-1 text-red-500" onClick={() => deleteTemplate(tpl.id)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -689,10 +690,10 @@ export default function EinstellungenPage() {
                         <Eye className="h-3.5 w-3.5" />Vorschau
                       </Button>
                       <Button size="sm" className="gap-1" onClick={saveTemplate} disabled={tplSaving || !tplName}>
-                        <Save className="h-3.5 w-3.5" />{tplSaving ? "Speichern..." : "Speichern"}
+                        <Save className="h-3.5 w-3.5" />{tplSaving ? `${t("common.speichern")}...` : t("common.speichern")}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => { setTplHtml(""); setTplName(""); setEditingTpl(null); }}>
-                        Abbrechen
+                        {t("common.abbrechen")}
                       </Button>
                     </div>
                   </div>
@@ -741,7 +742,7 @@ export default function EinstellungenPage() {
         {/* ── Banking ──────────────────────────────── */}
         <TabsContent value="banking">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Banking-Integration</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("settings.banking")}</h3>
             <p className="text-sm text-gray-500 mb-4">
               Verbinde dein Bankkonto über GoCardless (Open Banking), um Kontostände und Umsätze automatisch abzurufen.
             </p>
@@ -885,6 +886,7 @@ const PROVIDER_PRESETS: Record<string, { label: string; icon: string; color: str
 };
 
 function KiModelleTab() {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -1141,7 +1143,7 @@ function KiModelleTab() {
           </div>
           <div className="mt-3 flex items-center gap-2">
             <Button size="sm" className="gap-1.5 text-xs" onClick={saveAssignments} disabled={assignSaving}>
-              {assignSaving ? "Speichere…" : assignSaved ? <><Check className="h-3 w-3" />Gespeichert</> : <><Save className="h-3 w-3" />Zuordnung speichern</>}
+              {assignSaving ? `${t("common.speichern")}…` : assignSaved ? <><Check className="h-3 w-3" />{t("common.gespeichert")}</> : <><Save className="h-3 w-3" />{t("common.speichern")}</>}
             </Button>
           </div>
         </Card>
@@ -1150,9 +1152,9 @@ function KiModelleTab() {
       {/* Provider List */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-gray-900">Konfigurierte KI-Modelle</h3>
+          <h3 className="text-sm font-bold text-gray-900">{t("settings.kiModelle")}</h3>
           <Button size="sm" className="gap-1.5" onClick={() => { setAddOpen(!addOpen); setTestResult(null); }}>
-            <Plus className="h-3.5 w-3.5" />Hinzufügen
+            <Plus className="h-3.5 w-3.5" />{t("common.hinzufuegen")}
           </Button>
         </div>
 
@@ -1190,8 +1192,8 @@ function KiModelleTab() {
                       <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => testConnection(p)} disabled={testing === p.id}>
                         {testing === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}Verbindung testen
                       </Button>
-                      <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => isEditing ? setEditingId(null) : startEditing(p)}>
-                        <Eye className="h-3 w-3" />{isEditing ? "Schließen" : "Bearbeiten"}
+                        <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => isEditing ? setEditingId(null) : startEditing(p)}>
+                        <Eye className="h-3 w-3" />{isEditing ? t("common.schliessen") : t("common.bearbeiten")}
                       </Button>
                       {!p.isDefault && (
                         <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => setDefault(p.id)}>
@@ -1199,7 +1201,7 @@ function KiModelleTab() {
                         </Button>
                       )}
                       <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => toggleActive(p)}>
-                        {p.isActive ? "Deaktivieren" : "Aktivieren"}
+                        {p.isActive ? t("common.inaktiv") : t("common.aktiv")}
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteProvider(p.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1249,9 +1251,9 @@ function KiModelleTab() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Button size="sm" className="gap-1.5 text-xs" onClick={() => saveEdit(p)} disabled={saving}>
-                          <Save className="h-3 w-3" />{saving ? "Speichere…" : "Speichern"}
+                          <Save className="h-3 w-3" />{saving ? `${t("common.speichern")}…` : t("common.speichern")}
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingId(null)}>Abbrechen</Button>
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingId(null)}>{t("common.abbrechen")}</Button>
                       </div>
                     </div>
                   )}
@@ -1345,7 +1347,7 @@ function KiModelleTab() {
               <Button size="sm" className="gap-1.5 text-xs" onClick={addProviderFn} disabled={saving || (PROVIDER_PRESETS[addProvider].needsApiKey && !addApiKey)}>
                 {saving ? <><Loader2 className="h-3 w-3 animate-spin" />Verbindung wird hergestellt…</> : <><Zap className="h-3.5 w-3.5" />Verbindung herstellen & Speichern</>}
               </Button>
-              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAddOpen(false)}>Abbrechen</Button>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAddOpen(false)}>{t("common.abbrechen")}</Button>
             </div>
 
             {testResult?.id === "new" && (
@@ -1364,15 +1366,16 @@ function KiModelleTab() {
 // ── Buchhaltung Settings Tab ─────────────────────────────────
 
 const BUCH_SECTIONS = [
-  { key: "allgemein", label: "Allgemeine Einstellungen" },
-  { key: "benutzer", label: "Benutzer und Berechtigungen" },
-  { key: "steuerberater", label: "Mein Steuerberater" },
-  { key: "email", label: "E-Mail Versand" },
-  { key: "nummernkreise", label: "Nummernkreise" },
-  { key: "export", label: "Export" },
+  { key: "allgemein", tKey: "settings.allgemein" as TranslationKey },
+  { key: "benutzer", tKey: "settings.benutzerBerechtigungen" as TranslationKey },
+  { key: "steuerberater", tKey: "settings.steuerberater" as TranslationKey },
+  { key: "email", tKey: "settings.emailVersand" as TranslationKey },
+  { key: "nummernkreise", tKey: "settings.nummernkreise" as TranslationKey },
+  { key: "export", tKey: "settings.exportTab" as TranslationKey },
 ] as const;
 
 function BuchhaltungSettingsTab() {
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   if (!activeSection) {
@@ -1384,7 +1387,7 @@ function BuchhaltungSettingsTab() {
             onClick={() => setActiveSection(s.key)}
             className="rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all px-6 py-5 text-center text-sm font-medium text-gray-700 hover:text-gray-900"
           >
-            {s.label}
+            {t(s.tKey)}
           </button>
         ))}
       </div>
@@ -1397,7 +1400,7 @@ function BuchhaltungSettingsTab() {
         onClick={() => setActiveSection(null)}
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
       >
-        ← Zurück zur Übersicht
+        ← {t("common.zurueck")}
       </button>
 
       {activeSection === "allgemein" && <BuchAllgemeinSection />}
@@ -1433,6 +1436,7 @@ const UNTERNEHMENSTYPEN = [
 ];
 
 function BuchAllgemeinSection() {
+  const { t } = useTranslation();
   const [data, setData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1497,8 +1501,8 @@ function BuchAllgemeinSection() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Allgemeine Einstellungen</h2>
-        <span className="text-xs text-gray-400">* Pflichtfelder</span>
+        <h2 className="text-xl font-bold text-gray-900">{t("settings.allgemein")}</h2>
+        <span className="text-xs text-gray-400">* {t("common.pflichtfeld")}</span>
       </div>
 
       <Card className="p-6">
@@ -1649,7 +1653,7 @@ function BuchAllgemeinSection() {
           {/* Speichern */}
           <div className="flex justify-end pt-4">
             <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
-              {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+              {saving ? `${t("common.speichern")}...` : saved ? `${t("common.gespeichert")}!` : t("common.speichern")}
             </Button>
           </div>
         </div>
@@ -1673,6 +1677,7 @@ const STB_BERECHTIGUNGEN = [
 ];
 
 function BuchBenutzerSection() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState<"user" | "stb" | null>(null);
@@ -1769,7 +1774,7 @@ function BuchBenutzerSection() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-900">Benutzer und Berechtigungen</h2>
+        <h2 className="text-xl font-bold text-gray-900">{t("settings.benutzerBerechtigungen")}</h2>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setAddOpen("stb")} className="border-[#9eb552] text-[#9eb552] hover:bg-[#9eb552]/10">
             <Plus className="h-4 w-4 mr-1" />Steuerberater anlegen
@@ -1786,19 +1791,19 @@ function BuchBenutzerSection() {
           <h3 className="text-base font-semibold text-gray-900 mb-4">Neuen Benutzer anlegen</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Vorname *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.vorname")} *</label>
               <Input value={addForm.firstName} onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })} />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Nachname *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.nachname")} *</label>
               <Input value={addForm.lastName} onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.email")} *</label>
               <Input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Passwort</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.passwort")}</label>
               <Input type="password" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} placeholder="Wird generiert wenn leer" />
             </div>
             <div className="sm:col-span-2">
@@ -1818,9 +1823,9 @@ function BuchBenutzerSection() {
           <div className="flex items-center gap-2 mt-4">
             <Button size="sm" onClick={createUser} disabled={saving || !addForm.firstName || !addForm.email}
               className="bg-[#9eb552] hover:bg-[#8da348] text-white">
-              {saving ? "Speichern..." : "Benutzer anlegen"}
+              {saving ? `${t("common.speichern")}...` : "Benutzer anlegen"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>Abbrechen</Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>{t("common.abbrechen")}</Button>
           </div>
         </Card>
       )}
@@ -1831,19 +1836,19 @@ function BuchBenutzerSection() {
           <h3 className="text-base font-semibold text-gray-900 mb-4">Steuerberater anlegen</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Vorname *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.vorname")} *</label>
               <Input value={stbForm.firstName} onChange={(e) => setStbForm({ ...stbForm, firstName: e.target.value })} />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Nachname *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.nachname")} *</label>
               <Input value={stbForm.lastName} onChange={(e) => setStbForm({ ...stbForm, lastName: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">E-Mail *</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.email")} *</label>
               <Input type="email" value={stbForm.email} onChange={(e) => setStbForm({ ...stbForm, email: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Passwort</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">{t("common.passwort")}</label>
               <Input type="password" value={stbForm.password} onChange={(e) => setStbForm({ ...stbForm, password: e.target.value })} placeholder="Wird generiert wenn leer" />
             </div>
             <div className="sm:col-span-2">
@@ -1863,9 +1868,9 @@ function BuchBenutzerSection() {
           <div className="flex items-center gap-2 mt-4">
             <Button size="sm" onClick={createStb} disabled={saving || !stbForm.firstName || !stbForm.email}
               className="bg-[#9eb552] hover:bg-[#8da348] text-white">
-              {saving ? "Speichern..." : "Steuerberater anlegen"}
+              {saving ? `${t("common.speichern")}...` : "Steuerberater anlegen"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>Abbrechen</Button>
+            <Button variant="ghost" size="sm" onClick={() => setAddOpen(null)}>{t("common.abbrechen")}</Button>
           </div>
         </Card>
       )}
@@ -1895,8 +1900,8 @@ function BuchBenutzerSection() {
                           <span className="text-gray-600">{b}</span>
                         </label>
                       ))}
-                      <Button size="sm" className="h-6 text-[10px] px-2 bg-[#9eb552] hover:bg-[#8da348] text-white ml-2" onClick={() => savePerms(u.id)}>Speichern</Button>
-                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditId(null)}>Abbrechen</Button>
+                      <Button size="sm" className="h-6 text-[10px] px-2 bg-[#9eb552] hover:bg-[#8da348] text-white ml-2" onClick={() => savePerms(u.id)}>{t("common.speichern")}</Button>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setEditId(null)}>{t("common.abbrechen")}</Button>
                     </div>
                   ) : (
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -1915,10 +1920,10 @@ function BuchBenutzerSection() {
                   {menuId === u.id && (
                     <div className="absolute right-0 top-full mt-1 w-44 bg-white border rounded-lg shadow-lg z-10 py-1">
                       <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" onClick={() => { setEditId(u.id); setEditPerms(perms); setMenuId(null); }}>
-                        Berechtigungen bearbeiten
+                        {t("settings.berechtigungenVerwalten")}
                       </button>
                       <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50" onClick={() => deactivateUser(u.id)}>
-                        Deaktivieren
+                        {t("mitarbeiter.deaktiviert")}
                       </button>
                     </div>
                   )}
@@ -1997,6 +2002,7 @@ const KANZLEI_OPTIONS = [
 ] as const;
 
 function BuchSteuerberaterSection() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
   const userId = (session?.user as any)?.id;
@@ -2038,15 +2044,15 @@ function BuchSteuerberaterSection() {
   if (!isAllowed) {
     return (
       <Card className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Mein Steuerberater</h2>
-        <p className="text-sm text-gray-500">Sie haben keine Berechtigung, diese Seite aufzurufen. Nur Geschäftsführer, Buchhaltung und Steuerberater haben Zugriff.</p>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">{t("settings.steuerberater")}</h2>
+        <p className="text-sm text-gray-500">{t("common.berechtigungFehlt")}</p>
       </Card>
     );
   }
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Mein Steuerberater</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{t("settings.steuerberater")}</h2>
 
       {/* Steuerberater in der Benutzerverwaltung */}
       <Card className="p-6 mb-6">
@@ -2101,7 +2107,7 @@ function BuchSteuerberaterSection() {
 
         <div className="flex justify-end pt-6">
           <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
-            {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+            {saving ? `${t("common.speichern")}...` : saved ? `${t("common.gespeichert")}!` : t("common.speichern")}
           </Button>
         </div>
       </Card>
@@ -2121,6 +2127,7 @@ const EMAIL_VORLAGE_TYPEN = [
 ] as const;
 
 function BuchEmailSection() {
+  const { t } = useTranslation();
   const [absenderName, setAbsenderName] = useState("");
   const [absenderEmail, setAbsenderEmail] = useState("");
   const [vorlagen, setVorlagen] = useState<Record<string, { betreff: string; text: string }>>({});
@@ -2189,7 +2196,7 @@ function BuchEmailSection() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-6">E-Mail Versand</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{t("settings.emailVersand")}</h2>
 
       {/* Absender-Adresse */}
       <Card className="p-6 mb-6">
@@ -2208,9 +2215,9 @@ function BuchEmailSection() {
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={saveAbsender} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white">
-                {saving ? "Speichern..." : "Speichern"}
+                {saving ? `${t("common.speichern")}...` : t("common.speichern")}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setEditAbsender(false)}>Abbrechen</Button>
+              <Button variant="ghost" size="sm" onClick={() => setEditAbsender(false)}>{t("common.abbrechen")}</Button>
             </div>
           </div>
         ) : (
@@ -2260,9 +2267,9 @@ function BuchEmailSection() {
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => saveVorlage(editVorlage)} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white">
-                  {saving ? "Speichern..." : "Vorlage speichern"}
+                  {saving ? `${t("common.speichern")}...` : t("common.speichern")}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setEditVorlage(null)}>Abbrechen</Button>
+                <Button variant="ghost" size="sm" onClick={() => setEditVorlage(null)}>{t("common.abbrechen")}</Button>
               </div>
             </div>
           </Card>
@@ -2293,11 +2300,11 @@ function BuchEmailSection() {
                         <div className="absolute right-0 top-full mt-1 w-40 bg-white border rounded-lg shadow-lg z-10 py-1">
                           <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
                             onClick={() => { setEditVorlage(typ.key); setEditBetreff(vorlage.betreff); setEditText(vorlage.text); setMenuOpen(null); }}>
-                            Bearbeiten
+                            {t("common.bearbeiten")}
                           </button>
                           <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                             onClick={() => deleteVorlage(typ.key)}>
-                            Löschen
+                            {t("common.loeschen")}
                           </button>
                         </div>
                       )}
@@ -2339,6 +2346,7 @@ const MINDESTLAENGE_OPTIONS = [
 type BelegNk = { kuerzel: string; freifeld: string; naechster: number; mindestlaenge: number };
 
 function BuchNummernkreiseSection() {
+  const { t } = useTranslation();
   const [kundenNaechster, setKundenNaechster] = useState(10064);
   const [lieferantenNaechster, setLieferantenNaechster] = useState(70089);
   const [belege, setBelege] = useState<Record<string, BelegNk>>({});
@@ -2399,7 +2407,7 @@ function BuchNummernkreiseSection() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Nummernkreise</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{t("settings.nummernkreise")}</h2>
 
       {/* Belege */}
       <Card className="p-6 mb-6">
@@ -2473,7 +2481,7 @@ function BuchNummernkreiseSection() {
       {/* Speichern */}
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="bg-[#9eb552] hover:bg-[#8da348] text-white px-6">
-          {saving ? "Speichern..." : saved ? "Gespeichert!" : "Speichern"}
+          {saving ? `${t("common.speichern")}...` : saved ? `${t("common.gespeichert")}!` : t("common.speichern")}
         </Button>
       </div>
     </div>
@@ -2483,6 +2491,7 @@ function BuchNummernkreiseSection() {
 // ── Export ─────────────────────────────────────────────────────
 
 function BuchExportSection() {
+  const { t } = useTranslation();
   const [zeitraumTyp, setZeitraumTyp] = useState<"vordefiniert" | "individuell">("individuell");
   const [von, setVon] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1);
@@ -2514,7 +2523,7 @@ function BuchExportSection() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Export</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{t("settings.exportTab")}</h2>
 
       <Card className="p-6 mb-6">
         {/* Zeitraum */}
@@ -2656,21 +2665,21 @@ function BuchExportSection() {
 /* ─── Berechtigungen ──────────────────────────────────────────── */
 
 const ALL_PAGES = [
-  { key: "dashboard", label: "Dashboard", path: "/" },
-  { key: "alltagsverwaltung", label: "Alltagsverwaltung", path: "/alltagsverwaltung" },
-  { key: "meineAufgaben", label: "Meine Aufgaben", path: "/meine-aufgaben" },
-  { key: "kunden", label: "Kunden", path: "/kunden" },
-  { key: "projekte", label: "Projekte", path: "/projekte" },
-  { key: "katalog", label: "Katalog", path: "/katalog" },
-  { key: "aufmass", label: "Aufmaß", path: "/aufmass" },
-  { key: "buchhaltung", label: "Buchhaltung", path: "/buchhaltung" },
-  { key: "mitarbeiter", label: "Mitarbeiter", path: "/mitarbeiter" },
-  { key: "fahrzeuge", label: "Fahrzeuge", path: "/fahrzeuge" },
-  { key: "werkzeuge", label: "Werkzeuge", path: "/werkzeuge" },
-  { key: "kiAssistent", label: "KI-Assistent", path: "/ki-assistent" },
-  { key: "einstellungen", label: "Einstellungen", path: "/einstellungen" },
-  { key: "zeiterfassung", label: "Zeiterfassung", path: "/mitarbeiter/zeiterfassung" },
-  { key: "urlaubsplanung", label: "Urlaubsplanung", path: "/mitarbeiter/urlaubsplanung" },
+  { key: "dashboard", tKey: "nav.dashboard" as TranslationKey, path: "/" },
+  { key: "alltagsverwaltung", tKey: "nav.alltagsverwaltung" as TranslationKey, path: "/alltagsverwaltung" },
+  { key: "meineAufgaben", tKey: "nav.meineAufgaben" as TranslationKey, path: "/meine-aufgaben" },
+  { key: "kunden", tKey: "nav.kunden" as TranslationKey, path: "/kunden" },
+  { key: "projekte", tKey: "nav.projekte" as TranslationKey, path: "/projekte" },
+  { key: "katalog", tKey: "nav.katalog" as TranslationKey, path: "/katalog" },
+  { key: "aufmass", tKey: "nav.aufmass" as TranslationKey, path: "/aufmass" },
+  { key: "buchhaltung", tKey: "nav.buchhaltung" as TranslationKey, path: "/buchhaltung" },
+  { key: "mitarbeiter", tKey: "nav.mitarbeiter" as TranslationKey, path: "/mitarbeiter" },
+  { key: "fahrzeuge", tKey: "nav.fahrzeuge" as TranslationKey, path: "/fahrzeuge" },
+  { key: "werkzeuge", tKey: "nav.werkzeuge" as TranslationKey, path: "/werkzeuge" },
+  { key: "kiAssistent", tKey: "nav.kiAssistent" as TranslationKey, path: "/ki-assistent" },
+  { key: "einstellungen", tKey: "nav.einstellungen" as TranslationKey, path: "/einstellungen" },
+  { key: "zeiterfassung", tKey: "nav.zeiterfassung" as TranslationKey, path: "/mitarbeiter/zeiterfassung" },
+  { key: "urlaubsplanung", tKey: "nav.urlaubsplanung" as TranslationKey, path: "/mitarbeiter/urlaubsplanung" },
 ];
 
 type Permission = "none" | "read" | "write";
@@ -2679,6 +2688,7 @@ type UserPerms = Record<string, Permission>;
 interface PermUser { id: string; firstName: string; lastName: string; role: string; permissions: string | null }
 
 function PermissionsTab() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<PermUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -2728,7 +2738,7 @@ function PermissionsTab() {
     setPerms(p);
   };
 
-  const roleLabels: Record<string, string> = { ADMIN: "Administrator", BAULEITER: "Bauleiter", MITARBEITER: "Mitarbeiter" };
+  const roleKeyMap: Record<string, TranslationKey> = { ADMIN: "role.ADMIN", BAULEITER: "role.BAULEITER", MITARBEITER: "role.MITARBEITER" };
 
   if (loading) return <Card className="p-6"><div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#9eb552]" /></div></Card>;
 
@@ -2738,23 +2748,23 @@ function PermissionsTab() {
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-1">
         <Shield className="h-5 w-5 text-[#9eb552]" />
-        <h3 className="text-lg font-semibold text-gray-900">Berechtigungen verwalten</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t("settings.berechtigungenVerwalten")}</h3>
       </div>
-      <p className="text-sm text-gray-500 mb-6">Legen Sie fest, auf welche Seiten jeder Mitarbeiter zugreifen kann und ob er nur lesen oder auch schreiben darf.</p>
+      <p className="text-sm text-gray-500 mb-6">{t("settings.berechtigungenBeschreibung")}</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* User-Liste */}
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Mitarbeiter</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t("common.mitarbeiter")}</p>
           {users.map(u => (
             <button key={u.id} onClick={() => selectUser(u.id)}
               className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selectedUser === u.id ? "bg-[#9eb552]/15 border border-[#9eb552]/30" : "hover:bg-gray-50 border border-transparent"}`}>
               <div className="w-8 h-8 rounded-full bg-[#354360] flex items-center justify-center text-white text-xs font-bold">{u.firstName[0]}{u.lastName[0]}</div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
-                <p className="text-[10px] text-gray-400">{roleLabels[u.role] || u.role}</p>
+                <p className="text-[10px] text-gray-400">{roleKeyMap[u.role] ? t(roleKeyMap[u.role]) : u.role}</p>
               </div>
-              {u.permissions && <div className="w-2 h-2 rounded-full bg-[#9eb552]" title="Berechtigungen gesetzt" />}
+              {u.permissions && <div className="w-2 h-2 rounded-full bg-[#9eb552]" title={t("settings.berechtigungenGesetzt")} />}
             </button>
           ))}
         </div>
@@ -2762,15 +2772,15 @@ function PermissionsTab() {
         {/* Permissions-Matrix */}
         <div className="lg:col-span-2">
           {!selectedUser ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">Wählen Sie einen Mitarbeiter aus</div>
+            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">{t("settings.mitarbeiterAuswaehlen")}</div>
           ) : (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-semibold text-gray-900">{selectedUserData?.firstName} {selectedUserData?.lastName}</h4>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setAll("write")}>Alle: Schreiben</Button>
-                  <Button size="sm" variant="outline" onClick={() => setAll("read")}>Alle: Lesen</Button>
-                  <Button size="sm" variant="outline" onClick={() => setAll("none")}>Alle: Kein Zugriff</Button>
+                  <Button size="sm" variant="outline" onClick={() => setAll("write")}>{t("settings.alleSchreiben")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setAll("read")}>{t("settings.alleLesen")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setAll("none")}>{t("settings.alleKeinZugriff")}</Button>
                 </div>
               </div>
 
@@ -2779,9 +2789,9 @@ function PermissionsTab() {
                   <thead>
                     <tr className="bg-gray-50 border-b">
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Seite</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Kein Zugriff</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Lesen</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Schreiben</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">{t("settings.keinZugriff")}</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">{t("settings.lesen")}</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">{t("settings.schreiben")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2789,7 +2799,7 @@ function PermissionsTab() {
                       const val = getPerm(pg.key);
                       return (
                         <tr key={pg.key} className="border-b last:border-0 hover:bg-gray-50/50">
-                          <td className="py-2 px-3 text-gray-900">{pg.label}</td>
+                          <td className="py-2 px-3 text-gray-900">{t(pg.tKey)}</td>
                           {(["none", "read", "write"] as Permission[]).map(pv => (
                             <td key={pv} className="text-center py-2 px-3">
                               <input type="radio" name={`perm-${pg.key}`} checked={val === pv} onChange={() => setPerm(pg.key, pv)}
@@ -2805,9 +2815,9 @@ function PermissionsTab() {
 
               <div className="flex items-center gap-3 mt-4">
                 <Button onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />{saving ? "Speichert..." : "Berechtigungen speichern"}
+                  <Save className="h-4 w-4 mr-2" />{saving ? `${t("common.speichern")}...` : t("settings.berechtigungenSpeichern")}
                 </Button>
-                {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />Gespeichert</span>}
+                {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />{t("common.gespeichert")}</span>}
               </div>
             </div>
           )}

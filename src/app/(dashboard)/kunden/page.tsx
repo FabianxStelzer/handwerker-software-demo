@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Search, Building2, User, Mail, MapPin } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +26,7 @@ interface Customer {
 }
 
 export default function KundenPage() {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,70 +65,70 @@ export default function KundenPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Kunden</h1>
-          <p className="text-sm text-gray-500 mt-1">{customers.length} Kunden</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("kunden.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{customers.length} {t("kunden.title")}</p>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4" />
-              Neuer Kunde
+              {t("kunden.neuerKunde")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Neuen Kunden anlegen</DialogTitle>
+              <DialogTitle>{t("kunden.kundeAnlegen")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kundentyp</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("kunden.kundentyp")}</label>
                 <NativeSelect name="type" defaultValue="PRIVAT">
-                  <option value="PRIVAT">Privatkunde</option>
-                  <option value="GESCHAEFT">Geschäftskunde</option>
+                  <option value="PRIVAT">{t("kunden.privatkunde")}</option>
+                  <option value="GESCHAEFT">{t("kunden.geschaeftskunde")}</option>
                 </NativeSelect>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Firma (optional)</label>
-                <Input name="company" placeholder="Firmenname" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("kunden.firmaOptional")}</label>
+                <Input name="company" placeholder={t("kunden.firmenname")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.vorname")}</label>
                   <Input name="firstName" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.nachname")}</label>
                   <Input name="lastName" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.email")}</label>
                 <Input name="email" type="email" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.telefon")}</label>
                 <Input name="phone" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Straße</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.strasse")}</label>
                   <Input name="street" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.plz")}</label>
                   <Input name="zip" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.ort")}</label>
                 <Input name="city" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label>
                 <Textarea name="notes" rows={2} />
               </div>
-              <Button type="submit" className="w-full">Kunde anlegen</Button>
+              <Button type="submit" className="w-full">{t("kunden.kundeAnlegen")}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -137,7 +139,7 @@ export default function KundenPage() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Kunden suchen nach Name, Firma, E-Mail, Ort..."
+          placeholder={t("kunden.kundenSuchen")}
           className="pl-10"
         />
       </div>
@@ -149,7 +151,7 @@ export default function KundenPage() {
       ) : customers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">
-            {search ? "Keine Kunden gefunden" : "Noch keine Kunden angelegt"}
+            {search ? t("kunden.keineGefunden") : t("kunden.keineAngelegt")}
           </CardContent>
         </Card>
       ) : (
@@ -187,8 +189,8 @@ export default function KundenPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{c._count.projects} Projekte</Badge>
-                    <Badge variant="outline">{c._count.orders} Aufträge</Badge>
+                    <Badge variant="secondary">{c._count.projects} {t("nav.projekte")}</Badge>
+                    <Badge variant="outline">{c._count.orders} {t("projekte.auftraege")}</Badge>
                   </div>
                 </CardContent>
               </Card>

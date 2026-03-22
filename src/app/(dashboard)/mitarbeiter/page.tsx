@@ -10,12 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
-
-const roleLabels: Record<string, string> = {
-  ADMIN: "Administrator",
-  BAULEITER: "Bauleiter",
-  MITARBEITER: "Mitarbeiter",
-};
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface ActiveEntry {
   id: string;
@@ -36,8 +32,16 @@ interface UserInfo {
   avatarUrl: string | null;
 }
 
+function roleTranslationKey(role: string): TranslationKey | null {
+  if (role === "ADMIN" || role === "BAULEITER" || role === "MITARBEITER") {
+    return `role.${role}` as TranslationKey;
+  }
+  return null;
+}
+
 export default function MitarbeiterPage() {
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const currentRole = (session?.user as { role?: string })?.role;
   const isAdmin = currentRole === "ADMIN" || currentRole === "BAULEITER";
 
@@ -89,61 +93,61 @@ export default function MitarbeiterPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mitarbeiter</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("mitarbeiter.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {totalActive} aktiv · {activeCount} aktuell eingestempelt
+            {`${totalActive} ${t("common.aktiv")} · ${activeCount} ${t("mitarbeiter.eingestempelt")}`}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Aktualisieren
+            {t("common.aktualisieren")}
           </Button>
           {isAdmin && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />Neuer Mitarbeiter</Button>
+                <Button><Plus className="h-4 w-4 mr-2" />{t("mitarbeiter.neuerMitarbeiter")}</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Neuer Mitarbeiter</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{t("mitarbeiter.neuerMitarbeiter")}</DialogTitle></DialogHeader>
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.vorname")}</label>
                       <Input name="firstName" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.nachname")}</label>
                       <Input name="lastName" required />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.email")}</label>
                     <Input name="email" type="email" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.passwort")}</label>
                     <Input name="password" type="password" defaultValue="changeme123" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.rolle")}</label>
                       <NativeSelect name="role" defaultValue="MITARBEITER">
-                        <option value="ADMIN">Administrator</option>
-                        <option value="BAULEITER">Bauleiter</option>
-                        <option value="MITARBEITER">Mitarbeiter</option>
+                        <option value="ADMIN">{t("role.ADMIN")}</option>
+                        <option value="BAULEITER">{t("role.BAULEITER")}</option>
+                        <option value="MITARBEITER">{t("role.MITARBEITER")}</option>
                       </NativeSelect>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                      <Input name="position" placeholder="z.B. Schlosser" />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.position")}</label>
+                      <Input name="position" placeholder={t("mitarbeiter.positionPlaceholder")} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.telefon")}</label>
                     <Input name="phone" />
                   </div>
-                  <Button type="submit" className="w-full">Mitarbeiter anlegen</Button>
+                  <Button type="submit" className="w-full">{t("mitarbeiter.mitarbeiterAnlegen")}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -156,7 +160,7 @@ export default function MitarbeiterPage() {
           <CardContent className="p-5">
             <h3 className="text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Aktuell eingestempelt ({activeCount})
+              {t("mitarbeiter.eingestempelt")} ({activeCount})
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {users.filter((u) => getActiveEntry(u.id)).map((u) => {
@@ -172,7 +176,7 @@ export default function MitarbeiterPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
                       <p className="text-xs text-gray-500">
-                        Seit {entry.startTime} Uhr
+                        {`${t("mitarbeiter.seit")} ${entry.startTime} ${t("common.uhr")}`}
                         {entry.project && (
                           <> · <span className="text-blue-600">{entry.project.name}</span></>
                         )}
@@ -190,6 +194,7 @@ export default function MitarbeiterPage() {
         {users.map((user) => {
           const entry = getActiveEntry(user.id);
           const isWorking = !!entry;
+          const rk = roleTranslationKey(user.role);
 
           return (
             <Link key={user.id} href={`/mitarbeiter/${user.id}`}>
@@ -209,19 +214,19 @@ export default function MitarbeiterPage() {
                       <p className="text-sm text-gray-500">{user.position || "–"}</p>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
-                          {roleLabels[user.role] || user.role}
+                          {rk ? t(rk) : user.role}
                         </Badge>
-                        {!user.isActive && <Badge variant="destructive">Deaktiviert</Badge>}
+                        {!user.isActive && <Badge variant="destructive">{t("mitarbeiter.deaktiviert")}</Badge>}
                         {isWorking && (
                           <Badge className="bg-green-100 text-green-700 gap-1">
                             <CheckCircle2 className="h-3 w-3" />
-                            Arbeitet seit {entry.startTime}
+                            {`${t("mitarbeiter.arbeitSeit")} ${entry.startTime}`}
                           </Badge>
                         )}
                         {user.isActive && !isWorking && (
                           <Badge className="bg-gray-100 text-gray-500 gap-1">
                             <XCircle className="h-3 w-3" />
-                            Nicht eingestempelt
+                            {t("zeit.nichtEingestempelt")}
                           </Badge>
                         )}
                       </div>

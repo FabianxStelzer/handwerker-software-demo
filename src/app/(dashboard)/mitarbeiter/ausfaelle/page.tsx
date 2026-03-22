@@ -9,12 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trophy, TrendingDown, Calendar, HeartPulse, Trash2, User, AlertTriangle } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
-const TYPE_LABELS: Record<string, string> = {
-  KRANKHEIT: "Krankheit", UNFALL_ARBEIT: "Arbeitsunfall", UNFALL_PRIVAT: "Privatunfall",
-  KIND_KRANK: "Kind krank", ARZTBESUCH: "Arztbesuch", REHA: "Reha",
-  QUARANTAENE: "Quarantäne", SONSTIGES: "Sonstiges",
-};
+function getTypeLabels(t: (key: TranslationKey) => string): Record<string, string> {
+  return {
+    KRANKHEIT: t("ausfaelle.krankheit"),
+    UNFALL_ARBEIT: "Arbeitsunfall",
+    UNFALL_PRIVAT: "Privatunfall",
+    KIND_KRANK: "Kind krank",
+    ARZTBESUCH: "Arztbesuch",
+    REHA: "Reha",
+    QUARANTAENE: t("ausfaelle.quarantaene"),
+    SONSTIGES: t("ausfaelle.sonstiges"),
+  };
+}
 
 const TYPE_COLORS: Record<string, string> = {
   KRANKHEIT: "bg-red-100 text-red-700", UNFALL_ARBEIT: "bg-orange-100 text-orange-700",
@@ -23,14 +32,23 @@ const TYPE_COLORS: Record<string, string> = {
   QUARANTAENE: "bg-gray-100 text-gray-700", SONSTIGES: "bg-gray-100 text-gray-500",
 };
 
-const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-
 function formatDate(d: string | null) {
   if (!d) return "–";
   return new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 export default function AusfaellePage() {
+  const { t } = useTranslation();
+  const typeLabels = useMemo(() => getTypeLabels(t), [t]);
+  const MONTHS_T = useMemo(
+    () => [
+      t("monat.jan"), t("monat.feb"), t("monat.mar"), t("monat.apr"),
+      t("monat.maiK"), t("monat.jun"), t("monat.jul"), t("monat.aug"),
+      t("monat.sep"), t("monat.okt"), t("monat.nov"), t("monat.dez"),
+    ],
+    [t],
+  );
+
   const [data, setData] = useState<{ absences: any[]; employees: any[] }>({ absences: [], employees: [] });
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -61,7 +79,7 @@ export default function AusfaellePage() {
   }
 
   async function deleteAbsence(id: string) {
-    if (!confirm("Ausfall wirklich löschen?")) return;
+    if (!confirm(t("ausfaelle.loeschen"))) return;
     await fetch(`/api/ausfaelle/${id}`, { method: "DELETE" });
     load();
   }
@@ -129,8 +147,8 @@ export default function AusfaellePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ausfälle</h1>
-          <p className="text-sm text-gray-500 mt-1">Krankheits- und Ausfallstatistiken</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("ausfaelle.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("ausfaelle.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <NativeSelect value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
@@ -153,12 +171,12 @@ export default function AusfaellePage() {
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.avgDays} Tage</p>
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] text-gray-400 uppercase font-medium">Häufigster Grund</p>
-          <p className="text-lg font-bold text-gray-900 mt-1">{stats.topType ? TYPE_LABELS[stats.topType[0]] : "–"}</p>
+          <p className="text-[10px] text-gray-400 uppercase font-medium">{t("ausfaelle.haeufigsterGrund")}</p>
+          <p className="text-lg font-bold text-gray-900 mt-1">{stats.topType ? typeLabels[stats.topType[0]] : "–"}</p>
           {stats.topType && <p className="text-xs text-gray-400">{stats.topType[1]} Tage</p>}
         </Card>
         <Card className="p-4">
-          <p className="text-[10px] text-gray-400 uppercase font-medium flex items-center gap-1">Unfälle <AlertTriangle className="h-3 w-3 text-orange-500" /></p>
+          <p className="text-[10px] text-gray-400 uppercase font-medium flex items-center gap-1">{t("ausfaelle.unfaelle")} <AlertTriangle className="h-3 w-3 text-orange-500" /></p>
           <p className={`text-2xl font-bold mt-1 ${stats.accidents.length > 0 ? "text-orange-600" : "text-gray-900"}`}>{stats.accidents.length}</p>
         </Card>
       </div>
@@ -168,16 +186,16 @@ export default function AusfaellePage() {
         {/* Monthly Distribution */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Ausfälle nach Monat</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-4">{t("ausfaelle.nachMonat")}</h3>
             <div className="flex items-end gap-1.5 h-32">
               {stats.byMonth.map((val, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full rounded-t" style={{ height: `${(val / stats.maxMonthVal) * 100}%`, minHeight: val > 0 ? 4 : 0, backgroundColor: i === stats.peakMonth && val > 0 ? "#ef4444" : "#9eb552" }} />
-                  <span className="text-[10px] text-gray-400">{MONTHS[i]}</span>
+                  <span className="text-[10px] text-gray-400">{MONTHS_T[i]}</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-2">Meiste Ausfälle im <strong>{MONTHS[stats.peakMonth]}</strong></p>
+            <p className="text-xs text-gray-500 mt-2">Meiste Ausfälle im <strong>{MONTHS_T[stats.peakMonth]}</strong></p>
           </CardContent>
         </Card>
 
@@ -188,7 +206,7 @@ export default function AusfaellePage() {
             <div className="space-y-2">
               {Object.entries(stats.byType).sort(([, a], [, b]) => (b as number) - (a as number)).map(([type, days]) => (
                 <div key={type} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-600 w-28 shrink-0">{TYPE_LABELS[type] || type}</span>
+                  <span className="text-xs text-gray-600 w-28 shrink-0">{typeLabels[type] || type}</span>
                   <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-[#9eb552]" style={{ width: `${((days as number) / stats.totalDays) * 100}%` }} />
                   </div>
@@ -208,8 +226,8 @@ export default function AusfaellePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b">
-                <th className="text-left py-2 text-xs text-gray-500 font-medium">Mitarbeiter</th>
-                <th className="text-right py-2 text-xs text-gray-500 font-medium">Ausfälle</th>
+                <th className="text-left py-2 text-xs text-gray-500 font-medium">{t("common.mitarbeiter")}</th>
+                <th className="text-right py-2 text-xs text-gray-500 font-medium">{t("ausfaelle.title")}</th>
                 <th className="text-right py-2 text-xs text-gray-500 font-medium">Tage</th>
                 <th className="text-right py-2 text-xs text-gray-500 font-medium">Ø Dauer</th>
                 <th className="py-2 text-xs text-gray-500 font-medium w-48"></th>
@@ -264,7 +282,7 @@ export default function AusfaellePage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-gray-900">Alle Ausfälle {filterYear}</h3>
             <NativeSelect value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}>
-              <option value="">Alle Mitarbeiter</option>
+              <option value="">{`${t("common.alle")} ${t("common.mitarbeiter")}`}</option>
               {data.employees.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
             </NativeSelect>
           </div>
@@ -285,7 +303,7 @@ export default function AusfaellePage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={TYPE_COLORS[a.type]}>{TYPE_LABELS[a.type]}</Badge>
+                    <Badge className={TYPE_COLORS[a.type]}>{typeLabels[a.type]}</Badge>
                     {a.hasAttest && <Badge variant="outline" className="text-[10px]">Attest</Badge>}
                     <button onClick={() => deleteAbsence(a.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
@@ -301,25 +319,25 @@ export default function AusfaellePage() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Ausfall eintragen</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Mitarbeiter *</label>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{`${t("common.mitarbeiter")} *`}</label>
               <NativeSelect name="userId" required>
-                <option value="">Auswählen...</option>
+                <option value="">{t("common.auswaehlen")}</option>
                 {data.employees.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
               </NativeSelect>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Art *</label>
               <NativeSelect name="type" required>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </NativeSelect>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Von *</label><Input type="date" name="startDate" required /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Bis *</label><Input type="date" name="endDate" required /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{`${t("common.von")} *`}</label><Input type="date" name="startDate" required /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{`${t("common.bis")} *`}</label><Input type="date" name="endDate" required /></div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Grund</label><Input name="reason" placeholder="z. B. Grippe, Bandscheibe..." /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label><Textarea name="notes" rows={2} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label><Textarea name="notes" rows={2} /></div>
             <label className="flex items-center gap-2"><input type="checkbox" name="hasAttest" className="h-4 w-4 accent-[#354360] rounded" /><span className="text-sm text-gray-700">Ärztliches Attest vorhanden</span></label>
-            <Button type="submit" disabled={saving} className="w-full bg-[#9eb552] hover:bg-[#8da348] text-white">{saving ? "Speichern..." : "Ausfall eintragen"}</Button>
+            <Button type="submit" disabled={saving} className="w-full bg-[#9eb552] hover:bg-[#8da348] text-white">{saving ? `${t("common.speichern")}...` : "Ausfall eintragen"}</Button>
           </form>
         </DialogContent>
       </Dialog>

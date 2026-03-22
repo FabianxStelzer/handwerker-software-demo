@@ -30,6 +30,7 @@ import {
   Users,
   UserPlus,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface ProjectTask {
   id: string;
@@ -84,6 +85,7 @@ function getNoteStyle(color: string) {
   return NOTE_COLORS.find((c) => c.value === color) || NOTE_COLORS[0];
 }
 
+// TODO: Move labels to translation system
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   DRINGEND: { label: "Dringend", color: "bg-red-100 text-red-700" },
   HOCH: { label: "Hoch", color: "bg-orange-100 text-orange-700" },
@@ -140,6 +142,7 @@ export default function MeineAufgabenPage() {
   const { data: session } = useSession();
   const userRole = (session?.user as { role?: string })?.role;
   const isAdmin = userRole === "ADMIN" || userRole === "BAULEITER";
+  const { t } = useTranslation();
 
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [schlosserAufgaben, setSchlosserAufgaben] = useState<SchlosserAufgabe[]>([]);
@@ -227,7 +230,7 @@ export default function MeineAufgabenPage() {
   }
 
   async function deleteNote(id: string) {
-    if (!confirm("Notiz wirklich löschen?")) return;
+    if (!confirm(t("aufgaben.notizLoeschen"))) return;
     await fetch("/api/meine-notizen", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -274,7 +277,7 @@ export default function MeineAufgabenPage() {
   }
 
   async function deleteTask(task: AdminTask) {
-    if (!confirm("Aufgabe wirklich löschen?")) return;
+    if (!confirm(t("aufgaben.aufgabeLoeschen"))) return;
     await fetch(`/api/projekte/${task.project.id}/aufgaben`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -283,9 +286,9 @@ export default function MeineAufgabenPage() {
     loadData();
   }
 
-  const filteredAdminTasks = adminTasks.filter((t) => {
-    if (adminFilter.assigneeId && t.assigneeId !== adminFilter.assigneeId) return false;
-    if (adminFilter.status && t.status !== adminFilter.status) return false;
+  const filteredAdminTasks = adminTasks.filter((task) => {
+    if (adminFilter.assigneeId && task.assigneeId !== adminFilter.assigneeId) return false;
+    if (adminFilter.status && task.status !== adminFilter.status) return false;
     return true;
   });
 
@@ -299,26 +302,26 @@ export default function MeineAufgabenPage() {
 
   const totalOpenTasks = projectTasks.length + schlosserAufgaben.length;
   const highPriorityCount =
-    projectTasks.filter((t) => t.priority === "HOCH").length +
+    projectTasks.filter((task) => task.priority === "HOCH").length +
     schlosserAufgaben.filter((a) => a.prioritaet === "HOCH" || a.prioritaet === "DRINGEND").length;
   const overdueCount =
-    projectTasks.filter((t) => isOverdue(t.dueDate)).length +
+    projectTasks.filter((task) => isOverdue(task.dueDate)).length +
     schlosserAufgaben.filter((a) => isOverdue(a.faelligAm)).length;
 
   const tabs = [
-    { key: "alle" as const, label: "Übersicht" },
-    { key: "projekte" as const, label: `Projekte (${assignedProjects.length})` },
-    { key: "aufgaben" as const, label: `Projekt-Aufgaben (${projectTasks.length})` },
-    ...(schlosserAufgaben.length > 0 ? [{ key: "schlosser" as const, label: `Schlosser (${schlosserAufgaben.length})` }] : []),
-    { key: "notizen" as const, label: `Notizen (${notes.length})` },
-    ...(isAdmin ? [{ key: "admin" as const, label: `Alle Aufgaben (${adminTasks.length})` }] : []),
+    { key: "alle" as const, label: t("nav.uebersicht") },
+    { key: "projekte" as const, label: `${t("aufgaben.meineProjekte")} (${assignedProjects.length})` },
+    { key: "aufgaben" as const, label: `${t("aufgaben.projektAufgaben")} (${projectTasks.length})` },
+    ...(schlosserAufgaben.length > 0 ? [{ key: "schlosser" as const, label: `${t("aufgaben.schlosser")} (${schlosserAufgaben.length})` }] : []),
+    { key: "notizen" as const, label: `${t("aufgaben.notizen")} (${notes.length})` },
+    ...(isAdmin ? [{ key: "admin" as const, label: `${t("aufgaben.alleAufgaben")} (${adminTasks.length})` }] : []),
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Meine Aufgaben</h1>
-        <p className="text-sm text-gray-500 mt-1">Zugewiesene Projekte und offene Aufgaben</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("aufgaben.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("aufgaben.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -328,7 +331,7 @@ export default function MeineAufgabenPage() {
               <ClipboardList className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-400">Offene Aufgaben</p>
+              <p className="text-xs font-medium text-gray-400">{t("aufgaben.offeneAufgaben")}</p>
               <p className="text-2xl font-bold text-gray-900">{totalOpenTasks}</p>
             </div>
           </div>
@@ -339,7 +342,7 @@ export default function MeineAufgabenPage() {
               <AlertTriangle className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-400">Hohe Priorität</p>
+              <p className="text-xs font-medium text-gray-400">{t("aufgaben.hohePrioritaet")}</p>
               <p className="text-2xl font-bold text-orange-600">{highPriorityCount}</p>
             </div>
           </div>
@@ -350,7 +353,7 @@ export default function MeineAufgabenPage() {
               <CalendarDays className={`h-5 w-5 ${overdueCount > 0 ? "text-red-600" : "text-green-600"}`} />
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-400">Überfällig</p>
+              <p className="text-xs font-medium text-gray-400">{t("aufgaben.ueberfaellig")}</p>
               <p className={`text-2xl font-bold ${overdueCount > 0 ? "text-red-600" : "text-green-600"}`}>{overdueCount}</p>
             </div>
           </div>
@@ -375,7 +378,7 @@ export default function MeineAufgabenPage() {
 
       {(activeTab === "alle" || activeTab === "projekte") && assignedProjects.length > 0 && (
         <div>
-          {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900 mb-3">Meine Projekte</h2>}
+          {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("aufgaben.meineProjekte")}</h2>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {assignedProjects.map((p) => {
               const pStatus = PROJECT_STATUS[p.status] || PROJECT_STATUS.AKTIV;
@@ -420,7 +423,7 @@ export default function MeineAufgabenPage() {
 
       {(activeTab === "alle" || activeTab === "aufgaben") && projectTasks.length > 0 && (
         <div>
-          {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900 mb-3">Projekt-Aufgaben</h2>}
+          {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("aufgaben.projektAufgaben")}</h2>}
           <div className="space-y-2">
             {projectTasks.map((task) => {
               const pri = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MITTEL;
@@ -448,7 +451,7 @@ export default function MeineAufgabenPage() {
                       <div className="flex items-center gap-2 shrink-0">
                         {task.dueDate && (
                           <span className={`text-xs font-medium ${overdue ? "text-red-600" : dueSoon ? "text-amber-600" : "text-gray-500"}`}>
-                            {overdue ? "Überfällig: " : ""}{formatDate(task.dueDate)}
+                            {overdue ? `${t("aufgaben.ueberfaellig")}: ` : ""}{formatDate(task.dueDate)}
                           </span>
                         )}
                         <Badge className={pri.color}>{pri.label}</Badge>
@@ -493,7 +496,7 @@ export default function MeineAufgabenPage() {
                       <div className="flex items-center gap-2 shrink-0">
                         {aufgabe.faelligAm && (
                           <span className={`text-xs font-medium ${overdue ? "text-red-600" : dueSoon ? "text-amber-600" : "text-gray-500"}`}>
-                            {overdue ? "Überfällig: " : ""}{formatDate(aufgabe.faelligAm)}
+                            {overdue ? `${t("aufgaben.ueberfaellig")}: ` : ""}{formatDate(aufgabe.faelligAm)}
                           </span>
                         )}
                         <Badge className={pri.color}>{pri.label}</Badge>
@@ -511,7 +514,7 @@ export default function MeineAufgabenPage() {
       {(activeTab === "alle" || activeTab === "notizen") && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900">Meine Notizen</h2>}
+            {activeTab === "alle" && <h2 className="text-lg font-semibold text-gray-900">{t("aufgaben.notizen")}</h2>}
             {activeTab === "notizen" && <div />}
             <Button size="sm" className="gap-1.5" onClick={() => { setShowNoteForm(true); setEditingNote(null); }}>
               <Plus className="h-4 w-4" />
@@ -523,7 +526,7 @@ export default function MeineAufgabenPage() {
             <Card className="mb-4 border-blue-200 p-4">
               <div className="space-y-3">
                 <Input
-                  placeholder="Titel"
+                  placeholder={t("common.titel")}
                   value={noteForm.title}
                   onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })}
                   autoFocus
@@ -546,8 +549,8 @@ export default function MeineAufgabenPage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setShowNoteForm(false)}>Abbrechen</Button>
-                  <Button size="sm" onClick={createNote} disabled={!noteForm.title.trim()}>Speichern</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowNoteForm(false)}>{t("common.abbrechen")}</Button>
+                  <Button size="sm" onClick={createNote} disabled={!noteForm.title.trim()}>{t("common.speichern")}</Button>
                 </div>
               </div>
             </Card>
@@ -652,7 +655,7 @@ export default function MeineAufgabenPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <NativeSelect value={adminFilter.assigneeId} onChange={(e) => setAdminFilter({ ...adminFilter, assigneeId: e.target.value })} className="text-xs h-8 w-auto">
-                <option value="">Alle Mitarbeiter</option>
+                <option value="">{`${t("common.alle")} ${t("common.mitarbeiter")}`}</option>
                 {employees.filter((e) => e.isActive).map((e) => (
                   <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
                 ))}
@@ -740,15 +743,15 @@ export default function MeineAufgabenPage() {
           <DialogHeader><DialogTitle>Neue Aufgabe erstellen</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <label className="text-sm font-medium text-gray-700">Titel *</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.titel")} *</label>
               <Input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} className="mt-1" placeholder="Aufgabe beschreiben..." />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.beschreibung")}</label>
               <Textarea value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className="mt-1" rows={2} placeholder="Details (optional)" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Projekt *</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.projekt")} *</label>
               <NativeSelect value={taskForm.projectId} onChange={(e) => setTaskForm({ ...taskForm, projectId: e.target.value })} className="mt-1">
                 <option value="">Projekt wählen...</option>
                 {allProjects.map((p: any) => (
@@ -767,7 +770,7 @@ export default function MeineAufgabenPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Priorität</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.prioritaet")}</label>
                 <NativeSelect value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className="mt-1">
                   <option value="NIEDRIG">Niedrig</option>
                   <option value="MITTEL">Mittel</option>
@@ -775,12 +778,12 @@ export default function MeineAufgabenPage() {
                 </NativeSelect>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Fällig am</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.faelligAm")}</label>
                 <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} className="mt-1" />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setCreateTaskOpen(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setCreateTaskOpen(false)}>{t("common.abbrechen")}</Button>
               <Button onClick={createTask} disabled={!taskForm.title.trim() || !taskForm.projectId}>Aufgabe erstellen</Button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { Bell, CheckCheck, ExternalLink, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Notification {
   id: string;
@@ -19,6 +20,7 @@ interface Notification {
 export default function BenachrichtigungenPage() {
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +63,7 @@ export default function BenachrichtigungenPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Benachrichtigungen</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {unreadCount > 0 ? `${unreadCount} ungelesen` : "Alle gelesen"}
+            {unreadCount > 0 ? `${unreadCount} ${t("benachrichtigungen.ungelesen")}` : t("benachrichtigungen.alleGelesen")}
           </p>
         </div>
         {unreadCount > 0 && (
@@ -75,7 +77,7 @@ export default function BenachrichtigungenPage() {
         <Card>
           <CardContent className="p-10 text-center">
             <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">Keine Benachrichtigungen vorhanden</p>
+            <p className="text-sm text-gray-500">{t("benachrichtigungen.keine")}</p>
           </CardContent>
         </Card>
       ) : (

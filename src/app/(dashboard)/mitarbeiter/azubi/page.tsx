@@ -12,6 +12,7 @@ import {
   GraduationCap, FileText, Clock, Download, Send, AlertTriangle,
   CheckCircle2, XCircle, School, ClipboardList,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -34,7 +35,6 @@ interface Report {
   user: { id: string; firstName: string; lastName: string };
 }
 
-const statusLabels: Record<string, string> = { ENTWURF: "Entwurf", EINGEREICHT: "Eingereicht", GENEHMIGT: "Genehmigt", ABGELEHNT: "Abgelehnt" };
 const statusColors: Record<string, string> = { ENTWURF: "bg-gray-100 text-gray-600", EINGEREICHT: "bg-blue-100 text-blue-700", GENEHMIGT: "bg-green-100 text-green-700", ABGELEHNT: "bg-red-100 text-red-700" };
 const pruefungTypes: Record<string, string> = { ZWISCHEN: "Zwischenprüfung", ABSCHLUSS_TEIL1: "Abschluss Teil 1", ABSCHLUSS_TEIL2: "Abschluss Teil 2", GESELLENPRUEFUNG: "Gesellenprüfung", SONSTIGE: "Sonstige" };
 
@@ -55,6 +55,7 @@ function getWeekDates(week: number, year: number): { start: Date; end: Date } {
 /* ─── Main Page ──────────────────────────────────────────────── */
 
 export default function AzubiPage() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState<AzubiProfile[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -82,6 +83,13 @@ export default function AzubiPage() {
 
   const [showRejectDialog, setShowRejectDialog] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  const statusLabelsT: Record<string, string> = {
+    ENTWURF: t("common.entwurf"),
+    EINGEREICHT: "Eingereicht",
+    GENEHMIGT: t("urlaub.genehmigt"),
+    ABGELEHNT: t("urlaub.abgelehnt"),
+  };
 
   const load = useCallback(async () => {
     try {
@@ -139,22 +147,22 @@ export default function AzubiPage() {
     if (!currentProfile) return;
     const sorted = [...azubiReports].sort((a, b) => a.year - b.year || a.weekNumber - b.weekNumber);
     const lines: string[] = [];
-    lines.push(`BERICHTSHEFT – ${currentProfile.user.firstName} ${currentProfile.user.lastName}`);
-    lines.push(`Ausbildungsberuf: ${currentProfile.ausbildungsberuf}`);
-    lines.push(`Berufsschule: ${currentProfile.berufsschule || "–"}`);
-    lines.push(`Ausbilder: ${currentProfile.ausbilderName || getEmployeeName(currentProfile.ausbilderId || "")}`);
-    lines.push(`Zeitraum: ${currentProfile.ausbildungsBeginn ? fmtDate(currentProfile.ausbildungsBeginn) : "–"} bis ${currentProfile.ausbildungsEnde ? fmtDate(currentProfile.ausbildungsEnde) : "–"}`);
+    lines.push(`${t("azubi.berichtsheft").toUpperCase()} – ${currentProfile.user.firstName} ${currentProfile.user.lastName}`);
+    lines.push(`${t("azubi.ausbildungsberuf")}: ${currentProfile.ausbildungsberuf}`);
+    lines.push(`${t("azubi.berufsschule")}: ${currentProfile.berufsschule || "–"}`);
+    lines.push(`${t("azubi.ausbilder")}: ${currentProfile.ausbilderName || getEmployeeName(currentProfile.ausbilderId || "")}`);
+    lines.push(`${t("common.zeitraum")}: ${currentProfile.ausbildungsBeginn ? fmtDate(currentProfile.ausbildungsBeginn) : "–"} bis ${currentProfile.ausbildungsEnde ? fmtDate(currentProfile.ausbildungsEnde) : "–"}`);
     lines.push("═".repeat(80));
     lines.push("");
     sorted.forEach(r => {
-      lines.push(`KW ${r.weekNumber}/${r.year} (${fmtDate(r.startDate)} – ${fmtDate(r.endDate)})  [${statusLabels[r.status]}]`);
+      lines.push(`KW ${r.weekNumber}/${r.year} (${fmtDate(r.startDate)} – ${fmtDate(r.endDate)})  [${statusLabelsT[r.status]}]`);
       lines.push("─".repeat(60));
-      if (r.betrieblich) { lines.push("Betriebliche Tätigkeiten:"); lines.push(r.betrieblich); lines.push(""); }
+      if (r.betrieblich) { lines.push(`${t("azubi.betrieblicheTaetigkeiten")}:`); lines.push(r.betrieblich); lines.push(""); }
       if (r.schulisch) { lines.push("Schulische Inhalte:"); lines.push(r.schulisch); lines.push(""); }
-      if (r.unterweisungen) { lines.push("Unterweisungen:"); lines.push(r.unterweisungen); lines.push(""); }
+      if (r.unterweisungen) { lines.push(`${t("azubi.unterweisungen")}:`); lines.push(r.unterweisungen); lines.push(""); }
       if (r.stunden) lines.push(`Stunden: ${r.stunden}`);
       if (r.status === "GENEHMIGT" && r.approvedAt) lines.push(`✓ Genehmigt am ${fmtDate(r.approvedAt)}`);
-      if (r.status === "ABGELEHNT" && r.rejectionReason) lines.push(`✗ Abgelehnt: ${r.rejectionReason}`);
+      if (r.status === "ABGELEHNT" && r.rejectionReason) lines.push(`✗ ${t("urlaub.abgelehnt")}: ${r.rejectionReason}`);
       lines.push(""); lines.push("");
     });
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
@@ -172,8 +180,8 @@ export default function AzubiPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Azubi-Verwaltung</h1>
-          <p className="text-sm text-gray-500 mt-1">Auszubildende, Berufsschule, Prüfungen & Berichtshefte</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("azubi.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("azubi.subtitle")}</p>
         </div>
         <Button size="sm" onClick={openCreateProfile}><Plus className="h-4 w-4 mr-1" />Azubi anlegen</Button>
       </div>
@@ -194,7 +202,7 @@ export default function AzubiPage() {
         </CardContent></Card>
         <Card className="border-0 shadow-sm"><CardContent className="p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center"><XCircle className="h-5 w-5 text-red-600" /></div>
-          <div><p className="text-2xl font-bold text-gray-900">{rejectedCount}</p><p className="text-xs text-gray-500">Abgelehnt</p></div>
+          <div><p className="text-2xl font-bold text-gray-900">{rejectedCount}</p><p className="text-xs text-gray-500">{t("urlaub.abgelehnt")}</p></div>
         </CardContent></Card>
       </div>
 
@@ -212,12 +220,12 @@ export default function AzubiPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
         {([
-          { key: "uebersicht" as const, label: "Übersicht & Schule", icon: School },
-          { key: "berichtsheft" as const, label: "Berichtsheft", icon: FileText },
-        ]).map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-            <t.icon className="h-4 w-4" />{t.label}
+          { key: "uebersicht" as const, label: t("azubi.uebersichtSchule"), icon: School },
+          { key: "berichtsheft" as const, label: t("azubi.berichtsheft"), icon: FileText },
+        ]).map((tab) => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <tab.icon className="h-4 w-4" />{tab.label}
           </button>
         ))}
       </div>
@@ -239,20 +247,20 @@ export default function AzubiPage() {
                   <p className="text-xs text-gray-500">{currentProfile.ausbildungsberuf}</p>
                 </div>
               </div>
-              <InfoRow label="Ausbildungsjahr" value={`${currentProfile.ausbildungsJahr}. Lehrjahr`} />
+              <InfoRow label={t("azubi.ausbildungsjahr")} value={`${currentProfile.ausbildungsJahr}. Lehrjahr`} />
               <InfoRow label="Beginn" value={currentProfile.ausbildungsBeginn ? fmtDate(currentProfile.ausbildungsBeginn) : "–"} />
               <InfoRow label="Ende (geplant)" value={currentProfile.ausbildungsEnde ? fmtDate(currentProfile.ausbildungsEnde) : "–"} />
-              <InfoRow label="Ausbilder" value={currentProfile.ausbilderName || (currentProfile.ausbilderId ? getEmployeeName(currentProfile.ausbilderId) : "–")} />
-              <InfoRow label="Berufsschule" value={currentProfile.berufsschule || "–"} />
+              <InfoRow label={t("azubi.ausbilder")} value={currentProfile.ausbilderName || (currentProfile.ausbilderId ? getEmployeeName(currentProfile.ausbilderId) : "–")} />
+              <InfoRow label={t("azubi.berufsschule")} value={currentProfile.berufsschule || "–"} />
               <InfoRow label="Klasse" value={currentProfile.klassenbezeichnung || "–"} />
-              {currentProfile.notes && <div className="pt-2 border-t"><p className="text-xs text-gray-400">Notizen</p><p className="text-sm text-gray-600">{currentProfile.notes}</p></div>}
+              {currentProfile.notes && <div className="pt-2 border-t"><p className="text-xs text-gray-400">{t("common.notizen")}</p><p className="text-sm text-gray-600">{currentProfile.notes}</p></div>}
             </CardContent>
           </Card>
 
           {/* Berufsschule */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2"><School className="h-4 w-4 text-blue-600" />Berufsschule</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2"><School className="h-4 w-4 text-blue-600" />{t("azubi.berufsschule")}</CardTitle>
               <Button size="sm" variant="outline" onClick={() => { setSchultagProfileId(currentProfile.id); setSchultagForm({ date: new Date().toISOString().slice(0, 10), thema: "", notes: "" }); setShowSchultagDialog(true); }}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Tag
               </Button>
@@ -262,14 +270,14 @@ export default function AzubiPage() {
                 <p className="text-sm text-gray-400 text-center py-4">Keine Schultage eingetragen</p>
               ) : (
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {[...currentProfile.schulTage].reverse().map(t => (
-                    <div key={t.id} className="flex items-start justify-between p-2 bg-gray-50 rounded-lg group">
+                  {[...currentProfile.schulTage].reverse().map((schultag) => (
+                    <div key={schultag.id} className="flex items-start justify-between p-2 bg-gray-50 rounded-lg group">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{fmtDate(t.date)}</p>
-                        {t.thema && <p className="text-xs text-gray-500">{t.thema}</p>}
-                        {t.notes && <p className="text-[10px] text-gray-400">{t.notes}</p>}
+                        <p className="text-sm font-medium text-gray-900">{fmtDate(schultag.date)}</p>
+                        {schultag.thema && <p className="text-xs text-gray-500">{schultag.thema}</p>}
+                        {schultag.notes && <p className="text-[10px] text-gray-400">{schultag.notes}</p>}
                       </div>
-                      <button onClick={() => doAction({ action: "delete-schultag", schultagId: t.id })} className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
+                      <button onClick={() => doAction({ action: "delete-schultag", schultagId: schultag.id })} className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   ))}
                 </div>
@@ -283,14 +291,14 @@ export default function AzubiPage() {
           {/* Prüfungen */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2"><GraduationCap className="h-4 w-4 text-purple-600" />Prüfungen</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2"><GraduationCap className="h-4 w-4 text-purple-600" />{t("azubi.pruefungen")}</CardTitle>
               <Button size="sm" variant="outline" onClick={() => { setPruefungProfileId(currentProfile.id); setEditPruefung(null); setPruefungForm({ title: "", date: "", type: "ZWISCHEN", result: "", passed: "", notes: "" }); setShowPruefungDialog(true); }}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Prüfung
               </Button>
             </CardHeader>
             <CardContent>
               {currentProfile.pruefungen.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">Keine Prüfungen eingetragen</p>
+                <p className="text-sm text-gray-400 text-center py-4">{t("azubi.keinePruefungen")}</p>
               ) : (
                 <div className="space-y-2">
                   {currentProfile.pruefungen.map(p => (
@@ -327,9 +335,9 @@ export default function AzubiPage() {
       {activeTab === "berichtsheft" && currentProfile && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Berichtsheft – {currentProfile.user.firstName} {currentProfile.user.lastName}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t("azubi.berichtsheft")} – {currentProfile.user.firstName} {currentProfile.user.lastName}</h3>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportBerichtsheft}><Download className="h-4 w-4 mr-1" />Export</Button>
+              <Button variant="outline" size="sm" onClick={handleExportBerichtsheft}><Download className="h-4 w-4 mr-1" />{t("common.export")}</Button>
               <Button size="sm" onClick={openNewReport}><Plus className="h-4 w-4 mr-1" />Neuer Eintrag</Button>
             </div>
           </div>
@@ -349,12 +357,12 @@ export default function AzubiPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-bold text-gray-900">KW {r.weekNumber}/{r.year}</span>
-                          <Badge className={`text-[10px] ${statusColors[r.status]}`}>{statusLabels[r.status]}</Badge>
+                          <Badge className={`text-[10px] ${statusColors[r.status]}`}>{statusLabelsT[r.status]}</Badge>
                         </div>
                         <p className="text-xs text-gray-500">{fmtDate(r.startDate)} – {fmtDate(r.endDate)}{r.stunden ? ` · ${r.stunden} Std.` : ""}</p>
-                        {r.betrieblich && <div className="mt-2"><p className="text-[10px] font-medium text-gray-400 uppercase">Betrieblich</p><p className="text-sm text-gray-700 whitespace-pre-line">{r.betrieblich}</p></div>}
+                        {r.betrieblich && <div className="mt-2"><p className="text-[10px] font-medium text-gray-400 uppercase">{t("azubi.betrieblicheTaetigkeiten")}</p><p className="text-sm text-gray-700 whitespace-pre-line">{r.betrieblich}</p></div>}
                         {r.schulisch && <div className="mt-1"><p className="text-[10px] font-medium text-gray-400 uppercase">Schulisch</p><p className="text-sm text-gray-700 whitespace-pre-line">{r.schulisch}</p></div>}
-                        {r.unterweisungen && <div className="mt-1"><p className="text-[10px] font-medium text-gray-400 uppercase">Unterweisungen</p><p className="text-sm text-gray-700 whitespace-pre-line">{r.unterweisungen}</p></div>}
+                        {r.unterweisungen && <div className="mt-1"><p className="text-[10px] font-medium text-gray-400 uppercase">{t("azubi.unterweisungen")}</p><p className="text-sm text-gray-700 whitespace-pre-line">{r.unterweisungen}</p></div>}
                         {r.status === "ABGELEHNT" && r.rejectionReason && (
                           <div className="mt-2 p-2 bg-red-50 rounded-lg"><p className="text-xs text-red-700"><strong>Begründung:</strong> {r.rejectionReason}</p></div>
                         )}
@@ -371,8 +379,8 @@ export default function AzubiPage() {
                         )}
                         {r.status === "EINGEREICHT" && (
                           <>
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => doAction({ action: "approve-report", reportId: r.id })} disabled={saving}><Check className="h-3.5 w-3.5 mr-1" />Genehmigen</Button>
-                            <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => { setShowRejectDialog(r.id); setRejectReason(""); }}><X className="h-3.5 w-3.5 mr-1" />Ablehnen</Button>
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => doAction({ action: "approve-report", reportId: r.id })} disabled={saving}><Check className="h-3.5 w-3.5 mr-1" />{t("urlaub.genehmigen")}</Button>
+                            <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => { setShowRejectDialog(r.id); setRejectReason(""); }}><X className="h-3.5 w-3.5 mr-1" />{t("azubi.ablehnen")}</Button>
                           </>
                         )}
                         {r.status === "ENTWURF" && (
@@ -399,25 +407,25 @@ export default function AzubiPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">{editProfile ? "Azubi bearbeiten" : "Neuen Azubi anlegen"}</h3>
             <div className="space-y-3">
-              {!editProfile && <div><label className="text-xs font-medium text-gray-600 mb-1 block">Mitarbeiter *</label><NativeSelect value={profileForm.userId} onChange={e => setProfileForm(f => ({ ...f, userId: e.target.value }))}><option value="">Wählen...</option>{employees.filter(e => !profiles.some(p => p.userId === e.id)).map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}</NativeSelect></div>}
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Ausbildungsberuf *</label><Input value={profileForm.ausbildungsberuf} onChange={e => setProfileForm(f => ({ ...f, ausbildungsberuf: e.target.value }))} placeholder="z.B. Anlagenmechaniker SHK" /></div>
+              {!editProfile && <div><label className="text-xs font-medium text-gray-600 mb-1 block">{`${t("common.mitarbeiter")} *`}</label><NativeSelect value={profileForm.userId} onChange={e => setProfileForm(f => ({ ...f, userId: e.target.value }))}><option value="">{t("azubi.mitarbeiterWaehlen")}</option>{employees.filter(e => !profiles.some(p => p.userId === e.id)).map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}</NativeSelect></div>}
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{`${t("azubi.ausbildungsberuf")} *`}</label><Input value={profileForm.ausbildungsberuf} onChange={e => setProfileForm(f => ({ ...f, ausbildungsberuf: e.target.value }))} placeholder="z.B. Anlagenmechaniker SHK" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Beginn</label><Input type="date" value={profileForm.ausbildungsBeginn} onChange={e => setProfileForm(f => ({ ...f, ausbildungsBeginn: e.target.value }))} /></div>
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Ende (geplant)</label><Input type="date" value={profileForm.ausbildungsEnde} onChange={e => setProfileForm(f => ({ ...f, ausbildungsEnde: e.target.value }))} /></div>
               </div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Ausbildungsjahr</label><NativeSelect value={profileForm.ausbildungsJahr} onChange={e => setProfileForm(f => ({ ...f, ausbildungsJahr: e.target.value }))}><option value="1">1. Lehrjahr</option><option value="2">2. Lehrjahr</option><option value="3">3. Lehrjahr</option><option value="4">4. Lehrjahr</option></NativeSelect></div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Zuständiger Ausbilder</label><NativeSelect value={profileForm.ausbilderId} onChange={e => setProfileForm(f => ({ ...f, ausbilderId: e.target.value }))}><option value="">Wählen...</option>{employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}</NativeSelect></div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Berufsschule</label><Input value={profileForm.berufsschule} onChange={e => setProfileForm(f => ({ ...f, berufsschule: e.target.value }))} placeholder="Name der Berufsschule" /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("azubi.ausbildungsjahr")}</label><NativeSelect value={profileForm.ausbildungsJahr} onChange={e => setProfileForm(f => ({ ...f, ausbildungsJahr: e.target.value }))}><option value="1">1. Lehrjahr</option><option value="2">2. Lehrjahr</option><option value="3">3. Lehrjahr</option><option value="4">4. Lehrjahr</option></NativeSelect></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("azubi.zustaendigerAusbilder")}</label><NativeSelect value={profileForm.ausbilderId} onChange={e => setProfileForm(f => ({ ...f, ausbilderId: e.target.value }))}><option value="">{t("azubi.mitarbeiterWaehlen")}</option>{employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}</NativeSelect></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("azubi.berufsschule")}</label><Input value={profileForm.berufsschule} onChange={e => setProfileForm(f => ({ ...f, berufsschule: e.target.value }))} placeholder="Name der Berufsschule" /></div>
               <div><label className="text-xs font-medium text-gray-600 mb-1 block">Klasse</label><Input value={profileForm.klassenbezeichnung} onChange={e => setProfileForm(f => ({ ...f, klassenbezeichnung: e.target.value }))} placeholder="z.B. SHK 24a" /></div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Notizen</label><Textarea value={profileForm.notes} onChange={e => setProfileForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.notizen")}</label><Textarea value={profileForm.notes} onChange={e => setProfileForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowProfileDialog(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setShowProfileDialog(false)}>{t("common.abbrechen")}</Button>
               <Button disabled={(!editProfile && !profileForm.userId) || !profileForm.ausbildungsberuf || saving} onClick={async () => {
                 if (editProfile) { await doAction({ action: "update-profile", profileId: editProfile.id, ...profileForm }); }
                 else { await doAction({ action: "create-profile", ...profileForm }); }
                 setShowProfileDialog(false);
-              }}>{editProfile ? "Speichern" : "Anlegen"}</Button>
+              }}>{editProfile ? t("common.speichern") : t("common.anlegen")}</Button>
             </div>
           </div>
         </div>
@@ -428,12 +436,12 @@ export default function AzubiPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold mb-4">Schultag eintragen</h3>
             <div className="space-y-3">
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Datum *</label><Input type="date" value={schultagForm.date} onChange={e => setSchultagForm(f => ({ ...f, date: e.target.value }))} /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{`${t("common.datum")} *`}</label><Input type="date" value={schultagForm.date} onChange={e => setSchultagForm(f => ({ ...f, date: e.target.value }))} /></div>
               <div><label className="text-xs font-medium text-gray-600 mb-1 block">Thema</label><Input value={schultagForm.thema} onChange={e => setSchultagForm(f => ({ ...f, thema: e.target.value }))} placeholder="Unterrichtsthema" /></div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Notizen</label><Textarea value={schultagForm.notes} onChange={e => setSchultagForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.notizen")}</label><Textarea value={schultagForm.notes} onChange={e => setSchultagForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowSchultagDialog(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setShowSchultagDialog(false)}>{t("common.abbrechen")}</Button>
               <Button disabled={!schultagForm.date || saving} onClick={async () => { await doAction({ action: "add-schultag", profileId: schultagProfileId, ...schultagForm }); setShowSchultagDialog(false); }}>Eintragen</Button>
             </div>
           </div>
@@ -443,27 +451,27 @@ export default function AzubiPage() {
       {showPruefungDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">{editPruefung ? "Prüfung bearbeiten" : "Prüfung eintragen"}</h3>
+            <h3 className="text-lg font-semibold mb-4">{editPruefung ? t("azubi.pruefungBearbeiten") : t("azubi.pruefungEintragen")}</h3>
             <div className="space-y-3">
               <div><label className="text-xs font-medium text-gray-600 mb-1 block">Bezeichnung *</label><Input value={pruefungForm.title} onChange={e => setPruefungForm(f => ({ ...f, title: e.target.value }))} placeholder="z.B. Zwischenprüfung Teil 1" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-gray-600 mb-1 block">Datum *</label><Input type="date" value={pruefungForm.date} onChange={e => setPruefungForm(f => ({ ...f, date: e.target.value }))} /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1 block">{`${t("common.datum")} *`}</label><Input type="date" value={pruefungForm.date} onChange={e => setPruefungForm(f => ({ ...f, date: e.target.value }))} /></div>
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Art</label><NativeSelect value={pruefungForm.type} onChange={e => setPruefungForm(f => ({ ...f, type: e.target.value }))}>{Object.entries(pruefungTypes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Ergebnis</label><Input value={pruefungForm.result} onChange={e => setPruefungForm(f => ({ ...f, result: e.target.value }))} placeholder="z.B. 78 Punkte" /></div>
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Bestanden?</label><NativeSelect value={pruefungForm.passed} onChange={e => setPruefungForm(f => ({ ...f, passed: e.target.value }))}><option value="">Offen</option><option value="true">Bestanden</option><option value="false">Nicht bestanden</option></NativeSelect></div>
               </div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Notizen</label><Textarea value={pruefungForm.notes} onChange={e => setPruefungForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.notizen")}</label><Textarea value={pruefungForm.notes} onChange={e => setPruefungForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowPruefungDialog(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setShowPruefungDialog(false)}>{t("common.abbrechen")}</Button>
               <Button disabled={!pruefungForm.title || !pruefungForm.date || saving} onClick={async () => {
                 const data = { ...pruefungForm, passed: pruefungForm.passed === "" ? null : pruefungForm.passed === "true" };
                 if (editPruefung) { await doAction({ action: "update-pruefung", pruefungId: editPruefung.id, profileId: pruefungProfileId, ...data }); }
                 else { await doAction({ action: "add-pruefung", profileId: pruefungProfileId, ...data }); }
                 setShowPruefungDialog(false);
-              }}>{editPruefung ? "Speichern" : "Eintragen"}</Button>
+              }}>{editPruefung ? t("common.speichern") : "Eintragen"}</Button>
             </div>
           </div>
         </div>
@@ -480,19 +488,19 @@ export default function AzubiPage() {
                 <div><label className="text-xs font-medium text-gray-600 mb-1 block">Stunden</label><Input type="number" value={reportForm.stunden} onChange={e => setReportForm(f => ({ ...f, stunden: e.target.value }))} step="0.5" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-gray-600 mb-1 block">Von</label><Input type="date" value={reportForm.startDate} onChange={e => setReportForm(f => ({ ...f, startDate: e.target.value }))} /></div>
-                <div><label className="text-xs font-medium text-gray-600 mb-1 block">Bis</label><Input type="date" value={reportForm.endDate} onChange={e => setReportForm(f => ({ ...f, endDate: e.target.value }))} /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.von")}</label><Input type="date" value={reportForm.startDate} onChange={e => setReportForm(f => ({ ...f, startDate: e.target.value }))} /></div>
+                <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("common.bis")}</label><Input type="date" value={reportForm.endDate} onChange={e => setReportForm(f => ({ ...f, endDate: e.target.value }))} /></div>
               </div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Betriebliche Tätigkeiten</label><Textarea value={reportForm.betrieblich} onChange={e => setReportForm(f => ({ ...f, betrieblich: e.target.value }))} rows={4} placeholder="Was wurde im Betrieb gemacht?" /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("azubi.betrieblicheTaetigkeiten")}</label><Textarea value={reportForm.betrieblich} onChange={e => setReportForm(f => ({ ...f, betrieblich: e.target.value }))} rows={4} placeholder="Was wurde im Betrieb gemacht?" /></div>
               <div><label className="text-xs font-medium text-gray-600 mb-1 block">Schulische Inhalte</label><Textarea value={reportForm.schulisch} onChange={e => setReportForm(f => ({ ...f, schulisch: e.target.value }))} rows={3} placeholder="Was wurde in der Berufsschule gelernt?" /></div>
-              <div><label className="text-xs font-medium text-gray-600 mb-1 block">Unterweisungen</label><Textarea value={reportForm.unterweisungen} onChange={e => setReportForm(f => ({ ...f, unterweisungen: e.target.value }))} rows={2} placeholder="Durchgeführte Unterweisungen..." /></div>
+              <div><label className="text-xs font-medium text-gray-600 mb-1 block">{t("azubi.unterweisungen")}</label><Textarea value={reportForm.unterweisungen} onChange={e => setReportForm(f => ({ ...f, unterweisungen: e.target.value }))} rows={2} placeholder="Durchgeführte Unterweisungen..." /></div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowReportDialog(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setShowReportDialog(false)}>{t("common.abbrechen")}</Button>
               <Button disabled={!reportForm.weekNumber || !reportForm.year || saving} onClick={async () => {
                 await doAction({ action: "save-report", ...reportForm, weekNumber: parseInt(reportForm.weekNumber), year: parseInt(reportForm.year) });
                 setShowReportDialog(false);
-              }}>Speichern</Button>
+              }}>{t("common.speichern")}</Button>
             </div>
           </div>
         </div>
@@ -502,13 +510,13 @@ export default function AzubiPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Bericht ablehnen</h3>
-            <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Begründung für die Ablehnung..." />
+            <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder={t("azubi.begruendung")} />
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowRejectDialog(null)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setShowRejectDialog(null)}>{t("common.abbrechen")}</Button>
               <Button className="bg-red-600 hover:bg-red-700" disabled={saving} onClick={async () => {
                 await doAction({ action: "reject-report", reportId: showRejectDialog, reason: rejectReason });
                 setShowRejectDialog(null);
-              }}>Ablehnen</Button>
+              }}>{t("azubi.ablehnen")}</Button>
             </div>
           </div>
         </div>

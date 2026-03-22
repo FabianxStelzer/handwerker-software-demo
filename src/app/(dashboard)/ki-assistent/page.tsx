@@ -10,6 +10,7 @@ import { NativeSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface AiProviderOption {
   id: string;
@@ -34,6 +35,7 @@ export default function KIAssistentPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = session?.user?.id;
+  const { t } = useTranslation();
 
   const [chatProviderId, setChatProviderId] = useState<string | null>(null);
 
@@ -150,7 +152,7 @@ export default function KIAssistentPage() {
     <div className="flex h-[calc(100vh-8rem)] gap-4">
       <div className="w-72 shrink-0 flex flex-col">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-900">Gespräche</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t("ki.gespraeche")}</h2>
           <Button size="sm" onClick={createConversation}>
             <Plus className="h-4 w-4" />
           </Button>
@@ -159,20 +161,20 @@ export default function KIAssistentPage() {
         <div className="mb-3">
           {providers.length > 0 ? (
             <div className="p-2 bg-gray-50 rounded-lg border">
-              <p className="text-[10px] uppercase font-medium text-gray-400 mb-1">Aktives KI-Modell</p>
+              <p className="text-[10px] uppercase font-medium text-gray-400 mb-1">{t("ki.aktivesModell")}</p>
               <div className="flex items-center gap-1.5">
                 {activeProvider?.isLocal && <Shield className="h-3 w-3 text-green-600" />}
                 <p className="text-xs font-medium text-gray-800">{activeProvider?.name}</p>
               </div>
-              <p className="text-[10px] text-gray-500 mt-0.5">{activeProvider?.model || "Standard"}</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">{activeProvider?.model || t("ki.standard")}</p>
             </div>
           ) : (
             <Link href="/einstellungen" className="block p-2 bg-amber-50 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors">
               <div className="flex items-center gap-1.5">
                 <Settings className="h-3.5 w-3.5 text-amber-600" />
-                <p className="text-xs text-amber-700 font-medium">KI-Modell einrichten</p>
+                <p className="text-xs text-amber-700 font-medium">{t("ki.modellEinrichten")}</p>
               </div>
-              <p className="text-[10px] text-amber-600 mt-0.5">Unter Einstellungen → KI-Modelle</p>
+              <p className="text-[10px] text-amber-600 mt-0.5">{t("ki.unterEinstellungen")}</p>
             </Link>
           )}
         </div>
@@ -199,8 +201,8 @@ export default function KIAssistentPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-gray-400">
               <Bot className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">KI-Assistent</p>
-              <p className="text-sm mt-1">Wählen Sie ein Gespräch oder starten Sie ein neues</p>
+              <p className="text-lg font-medium">{t("ki.title")}</p>
+              <p className="text-sm mt-1">{t("ki.waehleGespraech")}</p>
             </div>
           </div>
         ) : (
@@ -209,7 +211,7 @@ export default function KIAssistentPage() {
               <div>
                 <h3 className="font-semibold">{activeConv?.title || "Gespräch"}</h3>
                 <Badge variant="secondary" className="text-xs mt-1">
-                  {activeProvider?.name || "Kein KI-Modell"}
+                  {activeProvider?.name || t("ki.keinModell")}
                 </Badge>
               </div>
             </div>
@@ -229,7 +231,7 @@ export default function KIAssistentPage() {
                         {msg.fileUrl && (
                           <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer"
                             className={cn("ml-auto shrink-0 underline text-[10px]", msg.role === "user" ? "text-blue-100" : "text-blue-600")}>
-                            Öffnen
+                            {t("common.oeffnen")}
                           </a>
                         )}
                       </div>
@@ -279,7 +281,7 @@ export default function KIAssistentPage() {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={attachedFile ? "Frage zur Datei stellen oder Nachricht eingeben..." : "Nachricht eingeben... z.B. 'Berechne die benötigte Dämmstoffmenge für 120m² Dachfläche'"}
+                  placeholder={t("ki.nachrichtEingeben")}
                   disabled={sending}
                 />
                 <Button type="submit" size="icon" disabled={sending || (!input.trim() && !attachedFile)}>

@@ -12,7 +12,9 @@ import {
   Plus, Search, Drill, User, Calendar, AlertTriangle, CheckCircle2,
   ArrowLeft, Trash2, RotateCcw, ClipboardCheck, X,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
+// TODO: Move labels to translation system
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   VERFUEGBAR: { label: "Verfügbar", color: "bg-green-100 text-green-700" },
   ZUGEWIESEN: { label: "Zugewiesen", color: "bg-blue-100 text-blue-700" },
@@ -51,6 +53,7 @@ export default function WerkzeugePage() {
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadTools();
@@ -141,16 +144,16 @@ export default function WerkzeugePage() {
     loadTools();
   }
 
-  const filtered = tools.filter((t) => {
+  const filtered = tools.filter((tool) => {
     const q = search.toLowerCase();
-    if (q && !t.name.toLowerCase().includes(q) && !(t.serialNumber || "").toLowerCase().includes(q) && !(t.inventoryNumber || "").toLowerCase().includes(q) && !(t.manufacturer || "").toLowerCase().includes(q)) return false;
-    if (filterCat && t.category !== filterCat) return false;
-    if (filterStatus && t.status !== filterStatus) return false;
+    if (q && !tool.name.toLowerCase().includes(q) && !(tool.serialNumber || "").toLowerCase().includes(q) && !(tool.inventoryNumber || "").toLowerCase().includes(q) && !(tool.manufacturer || "").toLowerCase().includes(q)) return false;
+    if (filterCat && tool.category !== filterCat) return false;
+    if (filterStatus && tool.status !== filterStatus) return false;
     return true;
   });
 
-  const overdueCount = tools.filter((t) => t.nextInspection && new Date(t.nextInspection) < new Date()).length;
-  const assignedCount = tools.filter((t) => t.status === "ZUGEWIESEN").length;
+  const overdueCount = tools.filter((tool) => tool.nextInspection && new Date(tool.nextInspection) < new Date()).length;
+  const assignedCount = tools.filter((tool) => tool.status === "ZUGEWIESEN").length;
 
   if (loading) {
     return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-[#9eb552] border-t-transparent" /></div>;
@@ -172,7 +175,7 @@ export default function WerkzeugePage() {
         <div className="flex gap-2 flex-wrap">
           {detailTool.status === "VERFUEGBAR" && (
             <Button size="sm" className="bg-[#9eb552] hover:bg-[#8da348] text-white" onClick={() => setAssignOpen(true)}>
-              <User className="h-4 w-4 mr-1" />Zuweisen
+              <User className="h-4 w-4 mr-1" />{t("common.zuweisen")}
             </Button>
           )}
           {detailTool.status === "ZUGEWIESEN" && (
@@ -186,7 +189,7 @@ export default function WerkzeugePage() {
             <Button size="sm" variant="outline" onClick={() => handleStatusChange(detailTool.id, "VERFUEGBAR")}>Reparatur beendet</Button>
           )}
           <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(detailTool.id)}>
-            <Trash2 className="h-4 w-4 mr-1" />Löschen
+            <Trash2 className="h-4 w-4 mr-1" />{t("common.loeschen")}
           </Button>
         </div>
 
@@ -195,10 +198,10 @@ export default function WerkzeugePage() {
             <CardContent className="p-5">
               <h3 className="text-sm font-bold text-gray-900 mb-3">Stammdaten</h3>
               <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                <div><p className="text-[10px] text-gray-400 uppercase">Kategorie</p><p className="text-gray-900">{detailTool.category || "–"}</p></div>
-                <div><p className="text-[10px] text-gray-400 uppercase">Hersteller</p><p className="text-gray-900">{detailTool.manufacturer || "–"}</p></div>
+                <div><p className="text-[10px] text-gray-400 uppercase">{t("common.kategorie")}</p><p className="text-gray-900">{detailTool.category || "–"}</p></div>
+                <div><p className="text-[10px] text-gray-400 uppercase">{t("werkzeuge.hersteller")}</p><p className="text-gray-900">{detailTool.manufacturer || "–"}</p></div>
                 <div><p className="text-[10px] text-gray-400 uppercase">Modell</p><p className="text-gray-900">{detailTool.model || "–"}</p></div>
-                <div><p className="text-[10px] text-gray-400 uppercase">Seriennummer</p><p className="text-gray-900">{detailTool.serialNumber || "–"}</p></div>
+                <div><p className="text-[10px] text-gray-400 uppercase">{t("werkzeuge.seriennummer")}</p><p className="text-gray-900">{detailTool.serialNumber || "–"}</p></div>
                 <div><p className="text-[10px] text-gray-400 uppercase">Inventarnummer</p><p className="text-gray-900">{detailTool.inventoryNumber || "–"}</p></div>
                 <div><p className="text-[10px] text-gray-400 uppercase">Standort</p><p className="text-gray-900">{detailTool.location || "–"}</p></div>
                 <div><p className="text-[10px] text-gray-400 uppercase">Kaufdatum</p><p className="text-gray-900">{formatDate(detailTool.purchaseDate)}</p></div>
@@ -215,7 +218,7 @@ export default function WerkzeugePage() {
                 <div><p className="text-[10px] text-gray-400 uppercase">Prüfintervall</p><p className="text-gray-900">{detailTool.inspectionInterval ? `${detailTool.inspectionInterval} Monate` : "–"}</p></div>
                 <div><p className="text-[10px] text-gray-400 uppercase">Letzte Prüfung</p><p className="text-gray-900">{formatDate(detailTool.lastInspection)}</p></div>
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase">Nächste Prüfung</p>
+                  <p className="text-[10px] text-gray-400 uppercase">{t("werkzeuge.naechstePruefung")}</p>
                   <p className={`text-gray-900 ${isOverdue ? "text-red-600 font-semibold" : ""}`}>
                     {formatDate(detailTool.nextInspection)} {isOverdue && "⚠ Überfällig"}
                   </p>
@@ -274,7 +277,7 @@ export default function WerkzeugePage() {
                       {ins.notes && <p className="text-xs text-gray-500">{ins.notes}</p>}
                     </div>
                     <Badge className={ins.result === "bestanden" ? "bg-green-100 text-green-700" : ins.result === "maengel" ? "bg-amber-100 text-amber-700" : ins.result === "nicht_bestanden" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}>
-                      {ins.result === "bestanden" ? "Bestanden" : ins.result === "maengel" ? "Mängel" : ins.result === "nicht_bestanden" ? "Nicht bestanden" : "–"}
+                      {ins.result === "bestanden" ? t("werkzeuge.bestanden") : ins.result === "maengel" ? t("werkzeuge.maengel") : ins.result === "nicht_bestanden" ? t("werkzeuge.nichtBestanden") : "–"}
                     </Badge>
                   </div>
                 ))}
@@ -289,7 +292,7 @@ export default function WerkzeugePage() {
             <DialogHeader><DialogTitle>Werkzeug zuweisen</DialogTitle></DialogHeader>
             <form onSubmit={handleAssign} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mitarbeiter *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.mitarbeiter")} *</label>
                 <NativeSelect name="userId" required>
                   <option value="">Auswählen...</option>
                   {employees.filter((e: any) => e.isActive !== false).map((e: any) => (
@@ -302,7 +305,7 @@ export default function WerkzeugePage() {
                 <Input name="notes" placeholder="z. B. Baustelle XY" />
               </div>
               <Button type="submit" disabled={saving} className="w-full bg-[#9eb552] hover:bg-[#8da348] text-white">
-                {saving ? "Zuweisen..." : "Zuweisen"}
+                {saving ? `${t("common.zuweisen")}...` : t("common.zuweisen")}
               </Button>
             </form>
           </DialogContent>
@@ -314,16 +317,16 @@ export default function WerkzeugePage() {
             <DialogHeader><DialogTitle>Prüfung eintragen</DialogTitle></DialogHeader>
             <form onSubmit={handleInspect} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.datum")}</label>
                 <Input type="date" name="inspectionDate" defaultValue={new Date().toISOString().split("T")[0]} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ergebnis *</label>
                 <NativeSelect name="result" required>
                   <option value="">Auswählen...</option>
-                  <option value="bestanden">Bestanden</option>
-                  <option value="maengel">Mängel festgestellt</option>
-                  <option value="nicht_bestanden">Nicht bestanden</option>
+                  <option value="bestanden">{t("werkzeuge.bestanden")}</option>
+                  <option value="maengel">{t("werkzeuge.maengel")}</option>
+                  <option value="nicht_bestanden">{t("werkzeuge.nichtBestanden")}</option>
                 </NativeSelect>
               </div>
               <div>
@@ -335,7 +338,7 @@ export default function WerkzeugePage() {
                 <Textarea name="notes" rows={2} />
               </div>
               <Button type="submit" disabled={saving} className="w-full bg-[#9eb552] hover:bg-[#8da348] text-white">
-                {saving ? "Speichern..." : "Prüfung speichern"}
+                {saving ? `${t("common.speichern")}...` : t("werkzeuge.pruefungSpeichern")}
               </Button>
             </form>
           </DialogContent>
@@ -349,18 +352,18 @@ export default function WerkzeugePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Werkzeuge</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("werkzeuge.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">{tools.length} Werkzeuge verwaltet</p>
         </div>
         <Button className="bg-[#9eb552] hover:bg-[#8da348] text-white" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />Werkzeug anlegen
+          <Plus className="h-4 w-4 mr-1" />{t("werkzeuge.neuesWerkzeug")}
         </Button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-4">
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Gesamt</p>
+          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{t("common.gesamt")}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{tools.length}</p>
         </Card>
         <Card className="p-4">
@@ -369,7 +372,7 @@ export default function WerkzeugePage() {
         </Card>
         <Card className="p-4">
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Verfügbar</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{tools.filter((t) => t.status === "VERFUEGBAR").length}</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{tools.filter((tool) => tool.status === "VERFUEGBAR").length}</p>
         </Card>
         <Card className="p-4">
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide flex items-center gap-1">
@@ -383,28 +386,28 @@ export default function WerkzeugePage() {
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Suchen nach Name, Seriennummer, Hersteller..." className="pl-10" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("werkzeuge.suchen")} className="pl-10" />
         </div>
         <NativeSelect value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
           <option value="">Alle Kategorien</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </NativeSelect>
         <NativeSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="">Alle Status</option>
+          <option value="">{t("werkzeuge.alleStatus")}</option>
           {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </NativeSelect>
       </div>
 
       {/* Werkzeug-Liste */}
       {filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-gray-500">{search || filterCat || filterStatus ? "Keine Werkzeuge gefunden" : "Noch keine Werkzeuge angelegt"}</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-gray-500">{search || filterCat || filterStatus ? t("werkzeuge.keineGefunden") : t("werkzeuge.keineAngelegt")}</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((t) => {
-            const currentUser = t.assignments?.[0]?.user;
-            const isOverdue = t.nextInspection && new Date(t.nextInspection) < new Date();
+          {filtered.map((tool) => {
+            const currentUser = tool.assignments?.[0]?.user;
+            const isOverdue = tool.nextInspection && new Date(tool.nextInspection) < new Date();
             return (
-              <Card key={t.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDetail(t.id)}>
+              <Card key={tool.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDetail(tool.id)}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500">
@@ -412,12 +415,12 @@ export default function WerkzeugePage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900">{t.name}</p>
-                        {t.inventoryNumber && <span className="text-xs text-gray-400">#{t.inventoryNumber}</span>}
+                        <p className="font-medium text-gray-900">{tool.name}</p>
+                        {tool.inventoryNumber && <span className="text-xs text-gray-400">#{tool.inventoryNumber}</span>}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                        {t.category && <span>{t.category}</span>}
-                        {t.manufacturer && <span>{t.manufacturer}{t.model ? ` ${t.model}` : ""}</span>}
+                        {tool.category && <span>{tool.category}</span>}
+                        {tool.manufacturer && <span>{tool.manufacturer}{tool.model ? ` ${tool.model}` : ""}</span>}
                         {currentUser && (
                           <span className="flex items-center gap-1 text-blue-600">
                             <User className="h-3 w-3" />{currentUser.firstName} {currentUser.lastName}
@@ -432,7 +435,7 @@ export default function WerkzeugePage() {
                         <AlertTriangle className="h-3 w-3 mr-0.5" />Prüfung fällig
                       </Badge>
                     )}
-                    <Badge className={STATUS_MAP[t.status]?.color}>{STATUS_MAP[t.status]?.label}</Badge>
+                    <Badge className={STATUS_MAP[tool.status]?.color}>{STATUS_MAP[tool.status]?.label}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -444,7 +447,7 @@ export default function WerkzeugePage() {
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Neues Werkzeug anlegen</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("werkzeuge.neuesWerkzeug")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung *</label>
@@ -452,14 +455,14 @@ export default function WerkzeugePage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.kategorie")}</label>
                 <NativeSelect name="category">
                   <option value="">Auswählen...</option>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </NativeSelect>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hersteller</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("werkzeuge.hersteller")}</label>
                 <Input name="manufacturer" placeholder="z. B. Bosch, Makita, Hilti" />
               </div>
             </div>
@@ -469,7 +472,7 @@ export default function WerkzeugePage() {
                 <Input name="model" placeholder="Modellbezeichnung" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seriennummer</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("werkzeuge.seriennummer")}</label>
                 <Input name="serialNumber" placeholder="S/N" />
               </div>
             </div>
@@ -504,11 +507,11 @@ export default function WerkzeugePage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label>
               <Textarea name="notes" rows={2} placeholder="Zusätzliche Informationen..." />
             </div>
             <Button type="submit" disabled={saving} className="w-full bg-[#9eb552] hover:bg-[#8da348] text-white">
-              {saving ? "Anlegen..." : "Werkzeug anlegen"}
+              {saving ? `${t("werkzeuge.neuesWerkzeug")}...` : t("werkzeuge.neuesWerkzeug")}
             </Button>
           </form>
         </DialogContent>

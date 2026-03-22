@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Vehicle {
   id: string;
@@ -50,6 +51,7 @@ export default function FahrzeugePage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isAdmin = role === "ADMIN" || role === "BAULEITER";
+  const { t } = useTranslation();
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [licenses, setLicenses] = useState<LicenseUpload[]>([]);
@@ -96,7 +98,7 @@ export default function FahrzeugePage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Fahrzeug wirklich löschen?")) return;
+    if (!confirm(t("fahrzeuge.loeschen"))) return;
     await fetch("/api/fahrzeuge", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     load();
   }
@@ -160,16 +162,16 @@ export default function FahrzeugePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fahrzeuge</h1>
-          <p className="text-sm text-gray-500 mt-1">Firmenwagen, Führerscheinkontrolle und GPS-Tracking</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("fahrzeuge.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("fahrzeuge.subtitle")}</p>
         </div>
       </div>
 
       <Tabs defaultValue="fahrzeuge">
         <TabsList>
-          <TabsTrigger value="fahrzeuge" className="gap-1.5"><Car className="h-4 w-4" />Fahrzeuge ({vehicles.length})</TabsTrigger>
-          <TabsTrigger value="fuehrerschein" className="gap-1.5"><Shield className="h-4 w-4" />Führerscheinkontrolle</TabsTrigger>
-          <TabsTrigger value="gps" className="gap-1.5"><MapPin className="h-4 w-4" />GPS-Tracking</TabsTrigger>
+          <TabsTrigger value="fahrzeuge" className="gap-1.5"><Car className="h-4 w-4" />{t("fahrzeuge.title")} ({vehicles.length})</TabsTrigger>
+          <TabsTrigger value="fuehrerschein" className="gap-1.5"><Shield className="h-4 w-4" />{t("fahrzeuge.fuehrerscheinkontrolle")}</TabsTrigger>
+          <TabsTrigger value="gps" className="gap-1.5"><MapPin className="h-4 w-4" />{t("fahrzeuge.gpsTracking")}</TabsTrigger>
         </TabsList>
 
         {/* ── Fahrzeuge ─────────────────────────────── */}
@@ -178,42 +180,42 @@ export default function FahrzeugePage() {
             <div className="flex justify-end mb-4">
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4" />Fahrzeug hinzufügen</Button>
+                  <Button size="sm"><Plus className="h-4 w-4" />{t("fahrzeuge.neuesFahrzeug")}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Neues Fahrzeug</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{t("fahrzeuge.neuesFahrzeug")}</DialogTitle></DialogHeader>
                   <form onSubmit={handleCreate} className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Kennzeichen *</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.kennzeichen")} *</label>
                         <Input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} required placeholder="AB-CD 1234" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Marke *</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.marke")} *</label>
                         <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} required placeholder="VW" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Modell *</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.modell")} *</label>
                         <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} required placeholder="Transporter" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Baujahr</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.baujahr")}</label>
                         <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="2023" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Farbe</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.farbe")}</label>
                         <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="Weiß" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Kilometerstand</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.kilometerstand")}</label>
                         <Input type="number" value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Nächste HU/TÜV</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.tuev")}</label>
                         <Input type="date" value={form.nextTuv} onChange={(e) => setForm({ ...form, nextTuv: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-gray-600">Nächste Inspektion</label>
+                        <label className="text-xs font-medium text-gray-600">{t("fahrzeuge.inspektion")}</label>
                         <Input type="date" value={form.nextInspection} onChange={(e) => setForm({ ...form, nextInspection: e.target.value })} />
                       </div>
                     </div>
@@ -226,10 +228,10 @@ export default function FahrzeugePage() {
                       <Input value={form.gpsDeviceId} onChange={(e) => setForm({ ...form, gpsDeviceId: e.target.value })} placeholder="Optional" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600">Notizen</label>
+                      <label className="text-xs font-medium text-gray-600">{t("common.notizen")}</label>
                       <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
                     </div>
-                    <Button type="submit" className="w-full">Fahrzeug anlegen</Button>
+                    <Button type="submit" className="w-full">{t("fahrzeuge.fahrzeugAnlegen")}</Button>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -239,7 +241,7 @@ export default function FahrzeugePage() {
           {vehicles.length === 0 ? (
             <Card><CardContent className="p-10 text-center">
               <Car className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">Noch keine Fahrzeuge angelegt</p>
+              <p className="text-sm text-gray-500">{t("fahrzeuge.keineAngelegt")}</p>
             </CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,14 +267,14 @@ export default function FahrzeugePage() {
 
                     <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-3">
                       {v.mileage && <span>{v.mileage.toLocaleString()} km</span>}
-                      {v.nextTuv && <span>TÜV: {new Date(v.nextTuv).toLocaleDateString("de-DE")}</span>}
-                      {v.nextInspection && <span>Inspektion: {new Date(v.nextInspection).toLocaleDateString("de-DE")}</span>}
+                      {v.nextTuv && <span>{t("fahrzeuge.tuev")}: {new Date(v.nextTuv).toLocaleDateString("de-DE")}</span>}
+                      {v.nextInspection && <span>{t("fahrzeuge.inspektion")}: {new Date(v.nextInspection).toLocaleDateString("de-DE")}</span>}
                       {v.gpsDeviceId && <Badge variant="outline" className="text-xs gap-1"><MapPin className="h-3 w-3" />GPS</Badge>}
                     </div>
 
                     <div className="border-t pt-3">
-                      <p className="text-xs font-medium text-gray-600 mb-2">Zugewiesene Mitarbeiter</p>
-                      {v.assignments.length === 0 && <p className="text-xs text-gray-400">Keine Zuweisung</p>}
+                      <p className="text-xs font-medium text-gray-600 mb-2">{t("fahrzeuge.zugewieseneMitarbeiter")}</p>
+                      {v.assignments.length === 0 && <p className="text-xs text-gray-400">{t("fahrzeuge.keineZuweisung")}</p>}
                       <div className="space-y-1">
                         {v.assignments.map((a) => (
                           <div key={a.id} className="flex items-center justify-between text-sm">
@@ -290,7 +292,7 @@ export default function FahrzeugePage() {
                           className="mt-2 text-sm"
                           onChange={(e) => { if (e.target.value) { handleAssign(v.id, e.target.value); e.target.value = ""; } }}
                         >
-                          <option value="">Mitarbeiter zuweisen...</option>
+                          <option value="">{t("fahrzeuge.mitarbeiterZuweisen")}</option>
                           {allUsers.filter((u: any) => !v.assignments.some((a) => a.userId === u.id)).map((u: any) => (
                             <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
                           ))}
@@ -310,7 +312,7 @@ export default function FahrzeugePage() {
             {!isAdmin && (
               <Card>
                 <CardContent className="p-5">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Führerschein hochladen</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("fahrzeuge.fuehrerscheinHochladen")}</h3>
                   <p className="text-xs text-gray-500 mb-3">Lade ein aktuelles Foto deines Führerscheins hoch. Dies wird alle 6 Monate benötigt.</p>
                   <input
                     ref={fileRef}
@@ -330,7 +332,7 @@ export default function FahrzeugePage() {
             {isAdmin && usersNeedingLicense.length > 0 && (
               <Card>
                 <CardContent className="p-5">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Führerschein-Status aller Fahrer</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("fahrzeuge.fuehrerscheinStatus")}</h3>
                   <div className="space-y-2">
                     {usersNeedingLicense.map((u: any) => {
                       const ls = getLicenseStatus(u.id);
@@ -351,10 +353,10 @@ export default function FahrzeugePage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {ls.status === "ok" && <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />Aktuell</Badge>}
-                            {ls.status === "expiring" && <Badge className="bg-amber-100 text-amber-700 gap-1"><Clock className="h-3 w-3" />Läuft bald ab</Badge>}
-                            {ls.status === "expired" && <Badge className="bg-red-100 text-red-700 gap-1"><AlertTriangle className="h-3 w-3" />Abgelaufen</Badge>}
-                            {ls.status === "missing" && <Badge className="bg-red-100 text-red-700 gap-1"><AlertTriangle className="h-3 w-3" />Fehlt</Badge>}
+                            {ls.status === "ok" && <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />{t("fahrzeuge.aktuell")}</Badge>}
+                            {ls.status === "expiring" && <Badge className="bg-amber-100 text-amber-700 gap-1"><Clock className="h-3 w-3" />{t("fahrzeuge.laeuftBaldAb")}</Badge>}
+                            {ls.status === "expired" && <Badge className="bg-red-100 text-red-700 gap-1"><AlertTriangle className="h-3 w-3" />{t("fahrzeuge.abgelaufen")}</Badge>}
+                            {ls.status === "missing" && <Badge className="bg-red-100 text-red-700 gap-1"><AlertTriangle className="h-3 w-3" />{t("fahrzeuge.fehlt")}</Badge>}
                             {ls.upload && (
                               <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setViewLicense(ls.upload!)}>
                                 <Eye className="h-3 w-3" />Ansehen
@@ -362,7 +364,7 @@ export default function FahrzeugePage() {
                             )}
                             {ls.upload && !ls.upload.verified && (
                               <Button size="sm" className="gap-1 text-xs" onClick={() => handleVerify(ls.upload!.id)}>
-                                <CheckCircle2 className="h-3 w-3" />Bestätigen
+                                <CheckCircle2 className="h-3 w-3" />{t("common.bestaetigen")}
                               </Button>
                             )}
                           </div>
@@ -379,7 +381,7 @@ export default function FahrzeugePage() {
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
                     <Button variant="ghost" size="sm" onClick={() => setViewLicense(null)}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />Zurück
+                      <ChevronLeft className="h-4 w-4 mr-1" />{t("common.zurueck")}
                     </Button>
                     <h3 className="text-sm font-semibold">Führerschein-Bild</h3>
                   </div>
@@ -400,10 +402,10 @@ export default function FahrzeugePage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-left text-xs text-gray-500">
-                          {isAdmin && <th className="px-3 py-2">Mitarbeiter</th>}
+                          {isAdmin && <th className="px-3 py-2">{t("common.mitarbeiter")}</th>}
                           <th className="px-3 py-2">Hochgeladen</th>
                           <th className="px-3 py-2">Gültig bis</th>
-                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">{t("common.status")}</th>
                           <th className="px-3 py-2"></th>
                         </tr>
                       </thead>
@@ -416,7 +418,7 @@ export default function FahrzeugePage() {
                             <td className="px-3 py-2">
                               {l.verified
                                 ? <Badge className="bg-green-100 text-green-700 text-xs">Verifiziert</Badge>
-                                : <Badge className="bg-amber-100 text-amber-700 text-xs">Offen</Badge>
+                                : <Badge className="bg-amber-100 text-amber-700 text-xs">{t("common.offen")}</Badge>
                               }
                             </td>
                             <td className="px-3 py-2">
@@ -442,7 +444,7 @@ export default function FahrzeugePage() {
               <Card>
                 <CardContent className="p-10 text-center">
                   <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">Noch keine Fahrzeuge mit GPS-Tracker verbunden</p>
+                  <p className="text-sm text-gray-500">{t("fahrzeuge.keineGps")}</p>
                   <p className="text-xs text-gray-400 mt-1">GPS-Geräte-ID beim Fahrzeug eintragen, um Tracking zu aktivieren.</p>
                 </CardContent>
               </Card>
@@ -473,7 +475,7 @@ export default function FahrzeugePage() {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-1"
                               >
-                                <MapPin className="h-3 w-3" />Auf Karte anzeigen
+                                <MapPin className="h-3 w-3" />{t("fahrzeuge.aufKarteAnzeigen")}
                               </a>
                             </>
                           ) : (
@@ -486,7 +488,7 @@ export default function FahrzeugePage() {
                 </div>
                 <Card>
                   <CardContent className="p-5">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">GPS-Integration</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("fahrzeuge.gpsIntegration")}</h3>
                     <p className="text-xs text-gray-500">Die GPS-Positionen werden über die API aktualisiert. Externe GPS-Tracker können Positionen per PUT an <code className="bg-gray-100 px-1 rounded">/api/fahrzeuge</code> mit <code className="bg-gray-100 px-1 rounded">{"{ action: 'gps', id, lat, lng }"}</code> senden.</p>
                   </CardContent>
                 </Card>

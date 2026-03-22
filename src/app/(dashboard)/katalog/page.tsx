@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Package, Wrench, Trash2, Upload, Download,
   Key, Copy, RefreshCw, CheckCircle2, AlertTriangle, Plug, ChevronRight,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,13 +17,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
 
-const unitLabels: Record<string, string> = {
-  STUECK: "Stk", METER: "m", QUADRATMETER: "m²", KUBIKMETER: "m³",
-  KILOGRAMM: "kg", LITER: "l", PALETTE: "Pal.", PAUSCHAL: "psch.", STUNDE: "Std",
-};
-
 export default function KatalogPage() {
+  const { t } = useTranslation();
   const router = useRouter();
+  const unitLabels: Record<string, string> = useMemo(() => ({
+    STUECK: t("common.stk"), METER: t("common.m"), QUADRATMETER: t("common.m2"), KUBIKMETER: t("common.m3"),
+    KILOGRAMM: t("common.kg"), LITER: t("common.l"), PALETTE: "Pal.", PAUSCHAL: t("common.psch"), STUNDE: t("common.std"),
+  }), [t]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [matDialogOpen, setMatDialogOpen] = useState(false);
@@ -85,13 +86,13 @@ export default function KatalogPage() {
   }
 
   async function deleteMaterial(id: string) {
-    if (!confirm("Material wirklich löschen?")) return;
+    if (!confirm(t("katalog.materialLoeschen"))) return;
     await fetch(`/api/katalog/materialien/${id}`, { method: "DELETE" });
     setMaterials(materials.filter((m) => m.id !== id));
   }
 
   async function deleteService(id: string) {
-    if (!confirm("Leistung wirklich löschen?")) return;
+    if (!confirm(t("katalog.leistungLoeschen"))) return;
     await fetch(`/api/katalog/leistungen/${id}`, { method: "DELETE" });
     setServices(services.filter((s) => s.id !== id));
   }
@@ -168,23 +169,23 @@ export default function KatalogPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Katalog</h1>
-        <p className="text-sm text-gray-500 mt-1">Materialien und Leistungen verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("katalog.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("katalog.subtitle")}</p>
       </div>
 
       <Tabs defaultValue="materialien">
         <TabsList className="flex-wrap">
           <TabsTrigger value="materialien" className="flex items-center gap-1.5">
-            <Package className="h-4 w-4" />Materialien ({materials.length})
+            <Package className="h-4 w-4" />{t("katalog.materialien")} ({materials.length})
           </TabsTrigger>
           <TabsTrigger value="leistungen" className="flex items-center gap-1.5">
-            <Wrench className="h-4 w-4" />Leistungen ({services.length})
+            <Wrench className="h-4 w-4" />{t("katalog.leistungen")} ({services.length})
           </TabsTrigger>
           <TabsTrigger value="import" className="flex items-center gap-1.5">
-            <Upload className="h-4 w-4" />Import
+            <Upload className="h-4 w-4" />{t("katalog.importieren")}
           </TabsTrigger>
           <TabsTrigger value="api" className="flex items-center gap-1.5" onClick={loadApiKey}>
-            <Plug className="h-4 w-4" />API-Schnittstelle
+            <Plug className="h-4 w-4" />{t("katalog.apiSchnittstelle")}
           </TabsTrigger>
         </TabsList>
 
@@ -192,39 +193,39 @@ export default function KatalogPage() {
         <TabsContent value="materialien">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <Input
-              placeholder="Materialien suchen..."
+              placeholder={t("katalog.materialSuchen")}
               value={matSearch}
               onChange={(e) => setMatSearch(e.target.value)}
               className="max-w-xs"
             />
             <Dialog open={matDialogOpen} onOpenChange={setMatDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4" />Neues Material</Button>
+                <Button size="sm"><Plus className="h-4 w-4" />{t("katalog.neuesMaterial")}</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Neues Material</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{t("katalog.neuesMaterial")}</DialogTitle></DialogHeader>
                 <form onSubmit={handleCreateMaterial} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("katalog.bezeichnung")} *</label>
                     <Input name="name" required />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.einheit")}</label>
                       <NativeSelect name="unit" defaultValue="STUECK">
                         {Object.entries(unitLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </NativeSelect>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Preis/Einheit (€)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.preis")}/{t("material.einheit")} (€)</label>
                       <Input name="pricePerUnit" type="number" step="0.01" defaultValue="0" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
-                    <Input name="category" placeholder="z.B. Eindeckung, Dämmung" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.kategorie")}</label>
+                    <Input name="category" />
                   </div>
-                  <Button type="submit" className="w-full">Anlegen & Details bearbeiten</Button>
+                  <Button type="submit" className="w-full">{t("katalog.anlegen")}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -235,19 +236,19 @@ export default function KatalogPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-gray-500">
-                    <th className="px-4 py-3">Bezeichnung</th>
-                    <th className="px-4 py-3">Art.-Nr.</th>
-                    <th className="px-4 py-3">Kategorie</th>
-                    <th className="px-4 py-3">Einheit</th>
-                    <th className="px-4 py-3 text-right">VK-Preis</th>
-                    <th className="px-4 py-3 text-right">MwSt</th>
-                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">{t("katalog.bezeichnung")}</th>
+                    <th className="px-4 py-3">{t("katalog.artikelNr")}</th>
+                    <th className="px-4 py-3">{t("material.kategorie")}</th>
+                    <th className="px-4 py-3">{t("material.einheit")}</th>
+                    <th className="px-4 py-3 text-right">{t("katalog.vkPreis")}</th>
+                    <th className="px-4 py-3 text-right">{t("common.mwst")}</th>
+                    <th className="px-4 py-3">{t("common.status")}</th>
                     <th className="px-4 py-3 w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredMats.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">Keine Materialien gefunden.</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">{t("katalog.keineGefunden")}</td></tr>
                   )}
                   {filteredMats.map((m) => (
                     <tr
@@ -268,8 +269,8 @@ export default function KatalogPage() {
                       <td className="px-4 py-3 text-sm text-gray-500 text-right">{m.taxRate ?? 19} %</td>
                       <td className="px-4 py-3">
                         {m.isActive === false
-                          ? <Badge className="bg-red-100 text-red-700 text-[10px]">Inaktiv</Badge>
-                          : <Badge className="bg-green-100 text-green-700 text-[10px]">Aktiv</Badge>}
+                          ? <Badge className="bg-red-100 text-red-700 text-[10px]">{t("common.inaktiv")}</Badge>
+                          : <Badge className="bg-green-100 text-green-700 text-[10px]">{t("common.aktiv")}</Badge>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -291,39 +292,39 @@ export default function KatalogPage() {
         <TabsContent value="leistungen">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <Input
-              placeholder="Leistungen suchen..."
+              placeholder={t("katalog.leistungenSuchen")}
               value={svcSearch}
               onChange={(e) => setSvcSearch(e.target.value)}
               className="max-w-xs"
             />
             <Dialog open={svcDialogOpen} onOpenChange={setSvcDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4" />Neue Leistung</Button>
+                <Button size="sm"><Plus className="h-4 w-4" />{t("katalog.neueLeistung")}</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Neue Leistung</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{t("katalog.neueLeistung")}</DialogTitle></DialogHeader>
                 <form onSubmit={handleCreateService} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("katalog.bezeichnung")} *</label>
                     <Input name="name" required />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.einheit")}</label>
                       <NativeSelect name="unit" defaultValue="STUNDE">
                         {Object.entries(unitLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </NativeSelect>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Preis/Einheit (€)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.preis")}/{t("material.einheit")} (€)</label>
                       <Input name="pricePerUnit" type="number" step="0.01" defaultValue="0" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
-                    <Input name="category" placeholder="z.B. Arbeit, Gerüst" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("material.kategorie")}</label>
+                    <Input name="category" />
                   </div>
-                  <Button type="submit" className="w-full">Anlegen & Details bearbeiten</Button>
+                  <Button type="submit" className="w-full">{t("katalog.anlegen")}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -334,19 +335,19 @@ export default function KatalogPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-gray-500">
-                    <th className="px-4 py-3">Bezeichnung</th>
-                    <th className="px-4 py-3">Lst.-Nr.</th>
-                    <th className="px-4 py-3">Kategorie</th>
-                    <th className="px-4 py-3">Einheit</th>
-                    <th className="px-4 py-3 text-right">Preis</th>
-                    <th className="px-4 py-3 text-right">MwSt</th>
-                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">{t("katalog.bezeichnung")}</th>
+                    <th className="px-4 py-3">{t("katalog.leistungsNr")}</th>
+                    <th className="px-4 py-3">{t("material.kategorie")}</th>
+                    <th className="px-4 py-3">{t("material.einheit")}</th>
+                    <th className="px-4 py-3 text-right">{t("material.preis")}</th>
+                    <th className="px-4 py-3 text-right">{t("common.mwst")}</th>
+                    <th className="px-4 py-3">{t("common.status")}</th>
                     <th className="px-4 py-3 w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSvcs.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">Keine Leistungen gefunden.</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">{t("katalog.keineGefunden")}</td></tr>
                   )}
                   {filteredSvcs.map((s) => (
                     <tr
@@ -367,8 +368,8 @@ export default function KatalogPage() {
                       <td className="px-4 py-3 text-sm text-gray-500 text-right">{s.taxRate ?? 19} %</td>
                       <td className="px-4 py-3">
                         {s.isActive === false
-                          ? <Badge className="bg-red-100 text-red-700 text-[10px]">Inaktiv</Badge>
-                          : <Badge className="bg-green-100 text-green-700 text-[10px]">Aktiv</Badge>}
+                          ? <Badge className="bg-red-100 text-red-700 text-[10px]">{t("common.inaktiv")}</Badge>
+                          : <Badge className="bg-green-100 text-green-700 text-[10px]">{t("common.aktiv")}</Badge>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -391,13 +392,14 @@ export default function KatalogPage() {
           <div className="space-y-6">
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Materialien importieren</h3>
-                <p className="text-sm text-gray-500 mb-4">Importiere Materialien aus einer CSV- oder JSON-Datei</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("katalog.materialien")} {t("common.import")}</h3>
+                {/* Descriptive sentence – no exact translation key available */}
+                <p className="text-sm text-gray-500 mb-4">{t("katalog.dateiAuswaehlen")} (CSV / JSON)</p>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-2">Datei auswählen (CSV oder JSON)</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">{t("katalog.dateiAuswaehlen")} (CSV / JSON)</label>
                       <input
                         ref={fileRef}
                         type="file"
@@ -409,7 +411,7 @@ export default function KatalogPage() {
                     {importing && (
                       <div className="flex items-center gap-2 text-sm text-blue-600">
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                        Import läuft...
+                        {t("katalog.importLaeuft")}
                       </div>
                     )}
                     {importResult && (
@@ -441,15 +443,16 @@ export default function KatalogPage() {
                     )}
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={downloadCSVTemplate}>
                       <Download className="h-4 w-4" />
-                      CSV-Vorlage herunterladen
+                      {t("katalog.csvVorlage")}
                     </Button>
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Unterstützte Formate</h4>
+                    {/* "Unterstützte Formate" – no exact translation key */}
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">CSV / JSON</h4>
                     <div className="space-y-3">
                       <Card className="p-3 bg-gray-50">
-                        <p className="text-xs font-semibold text-gray-700 mb-1">CSV (Semikolon oder Komma getrennt)</p>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">CSV (Semicolon / Comma)</p>
                         <pre className="text-[11px] text-gray-600 font-mono overflow-x-auto">
 {`name;beschreibung;kategorie;einheit;preis
 Schraube M8;Edelstahl A2;Befestigung;STUECK;0.35
@@ -473,7 +476,7 @@ Dachziegel;Ton, rot;Eindeckung;STUECK;1.20`}
                       <div className="text-xs text-gray-500 space-y-1">
                         <p><strong>Spalten:</strong> name*, beschreibung, kategorie, einheit, preis, gewicht, format, bildurl</p>
                         <p><strong>Einheiten:</strong> STUECK, METER, QUADRATMETER, KUBIKMETER, KILOGRAMM, LITER, PALETTE, PAUSCHAL, STUNDE</p>
-                        <p className="text-gray-400">* = Pflichtfeld</p>
+                        <p className="text-gray-400">* = {t("common.pflichtfeld")}</p>
                       </div>
                     </div>
                   </div>
@@ -488,46 +491,48 @@ Dachziegel;Ton, rot;Eindeckung;STUECK;1.20`}
           <div className="space-y-6">
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">API-Schnittstelle</h3>
-                <p className="text-sm text-gray-500 mb-4">Binde externe Systeme an, um Artikel automatisch zu synchronisieren</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">{t("katalog.apiSchnittstelle")}</h3>
+                {/* Descriptive sentence – no exact translation key */}
+                <p className="text-sm text-gray-500 mb-4">{t("katalog.apiSchnittstelle")}</p>
 
                 <div className="space-y-6">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                       <Key className="h-4 w-4" />
-                      API-Schlüssel
+                      {t("katalog.apiKey")}
                     </h4>
                     <div className="flex items-center gap-2">
                       <Input
-                        value={apiKey || "Kein API-Key generiert"}
+                        value={apiKey || t("katalog.keinApiKey")}
                         readOnly
                         className="font-mono text-sm max-w-lg"
                       />
                       {apiKey && (
                         <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={copyApiKey}>
                           {apiKeyCopied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                          {apiKeyCopied ? "Kopiert" : "Kopieren"}
+                          {apiKeyCopied ? t("katalog.kopiert") : t("common.kopieren")}
                         </Button>
                       )}
                       <Button size="sm" className="gap-1.5 shrink-0" onClick={generateApiKey} disabled={apiKeyLoading}>
                         <RefreshCw className={`h-4 w-4 ${apiKeyLoading ? "animate-spin" : ""}`} />
-                        {apiKey ? "Neu generieren" : "Generieren"}
+                        {apiKey ? t("katalog.neuGenerieren") : t("katalog.generieren")}
                       </Button>
                     </div>
+                    {/* Technical API description – no translation key available */}
                     <p className="text-xs text-gray-400 mt-1">
-                      Der API-Key wird als Bearer Token oder als Query-Parameter übergeben.
+                      Bearer Token / Query Parameter
                     </p>
                   </div>
 
                   <div className="border-t pt-6">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">API-Endpunkte</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">{t("katalog.apiEndpunkte")}</h4>
                     <div className="space-y-4">
                       <Card className="p-4 bg-gray-50">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge className="bg-green-100 text-green-700">GET</Badge>
                           <code className="text-sm font-mono text-gray-800">/api/katalog/extern</code>
                         </div>
-                        <p className="text-xs text-gray-600 mb-2">Alle Materialien abrufen. Optional mit Filtern.</p>
+                        <p className="text-xs text-gray-600 mb-2">{t("katalog.materialien")} – GET</p>
                         <pre className="text-[11px] text-gray-500 font-mono bg-white p-2 rounded border">
 {`# Alle Artikel abrufen
 curl -H "Authorization: Bearer DEIN_API_KEY" \\
@@ -543,7 +548,7 @@ curl -H "Authorization: Bearer DEIN_API_KEY" \\
                           <Badge className="bg-blue-100 text-blue-700">POST</Badge>
                           <code className="text-sm font-mono text-gray-800">/api/katalog/extern</code>
                         </div>
-                        <p className="text-xs text-gray-600 mb-2">Neue Materialien anlegen (einzeln oder mehrere).</p>
+                        <p className="text-xs text-gray-600 mb-2">{t("katalog.neuesMaterial")} – POST</p>
                         <pre className="text-[11px] text-gray-500 font-mono bg-white p-2 rounded border">
 {`curl -X POST -H "Authorization: Bearer DEIN_API_KEY" \\
   -H "Content-Type: application/json" \\
@@ -557,7 +562,7 @@ curl -H "Authorization: Bearer DEIN_API_KEY" \\
                           <Badge className="bg-amber-100 text-amber-700">PUT</Badge>
                           <code className="text-sm font-mono text-gray-800">/api/katalog/extern</code>
                         </div>
-                        <p className="text-xs text-gray-600 mb-2">Bestehendes Material aktualisieren.</p>
+                        <p className="text-xs text-gray-600 mb-2">{t("common.aktualisieren")} – PUT</p>
                         <pre className="text-[11px] text-gray-500 font-mono bg-white p-2 rounded border">
 {`curl -X PUT -H "Authorization: Bearer DEIN_API_KEY" \\
   -H "Content-Type: application/json" \\
@@ -571,7 +576,7 @@ curl -H "Authorization: Bearer DEIN_API_KEY" \\
                           <Badge className="bg-red-100 text-red-700">DELETE</Badge>
                           <code className="text-sm font-mono text-gray-800">/api/katalog/extern</code>
                         </div>
-                        <p className="text-xs text-gray-600 mb-2">Material löschen.</p>
+                        <p className="text-xs text-gray-600 mb-2">{t("common.loeschen")} – DELETE</p>
                         <pre className="text-[11px] text-gray-500 font-mono bg-white p-2 rounded border">
 {`curl -X DELETE -H "Authorization: Bearer DEIN_API_KEY" \\
   -H "Content-Type: application/json" \\

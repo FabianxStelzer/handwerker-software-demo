@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Clock, LogIn, LogOut, ChevronLeft, ChevronRight, Coffee,
   TrendingUp, TrendingDown, Minus, Users, User, Trash2, Pencil,
-  Plus, CheckCircle2, AlertCircle,
+  Plus,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Project {
   id: string;
@@ -63,6 +64,7 @@ function formatDate(d: string) {
 }
 
 export default function ZeiterfassungPage() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const userId = (session?.user as { id?: string })?.id;
   const userRole = (session?.user as { role?: string })?.role;
@@ -241,7 +243,6 @@ export default function ZeiterfassungPage() {
   }
 
   async function deleteEntry(id: string) {
-    if (!confirm("Eintrag wirklich löschen?")) return;
     await fetch("/api/zeiterfassung", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
@@ -307,11 +308,13 @@ export default function ZeiterfassungPage() {
   // Employees not currently checked in (for admin check-in)
   const checkedInIds = new Set(activeEntries.map((e) => e.userId));
 
+  const adminCheckInLabel = `${t("common.mitarbeiter")} ${t("zeit.einstempeln").toLowerCase()}`;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Zeiterfassung</h1>
-        <p className="text-sm text-gray-500 mt-1">Ein- und Auschecken, Arbeitszeiten verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("zeit.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("zeit.subtitle")}</p>
       </div>
 
       {/* ── Eigenes Stempeln ──────────────── */}
@@ -320,12 +323,12 @@ export default function ZeiterfassungPage() {
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="text-center">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-                {activeEntry ? "Arbeitszeit läuft" : "Nicht eingestempelt"}
+                {activeEntry ? t("zeit.arbeitszeitLaeuft") : t("zeit.nichtEingestempelt")}
               </p>
               <p className={`text-4xl font-mono font-bold ${activeEntry ? "text-green-700" : "text-gray-400"}`}>{elapsed}</p>
               {activeEntry && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Seit {activeEntry.startTime} Uhr{activeEntry.project && <> · {activeEntry.project.name}</>}
+                  Seit {activeEntry.startTime} {t("common.uhr")}{activeEntry.project && <> · {activeEntry.project.name}</>}
                 </p>
               )}
             </div>
@@ -338,11 +341,11 @@ export default function ZeiterfassungPage() {
               )}
               {activeEntry ? (
                 <Button onClick={handleCheckOut} size="lg" variant="destructive" className="gap-2">
-                  <LogOut className="h-5 w-5" />Auschecken
+                  <LogOut className="h-5 w-5" />{t("zeit.ausstempeln")}
                 </Button>
               ) : (
                 <Button onClick={handleCheckIn} size="lg" className="gap-2 bg-green-600 hover:bg-green-700">
-                  <LogIn className="h-5 w-5" />Einchecken
+                  <LogIn className="h-5 w-5" />{t("zeit.einstempeln")}
                 </Button>
               )}
             </div>
@@ -358,11 +361,11 @@ export default function ZeiterfassungPage() {
               <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-600" />
                 Eingestempelte Mitarbeiter
-                <Badge className="bg-green-100 text-green-700 ml-1">{activeEntries.length} aktiv</Badge>
+                <Badge className="bg-green-100 text-green-700 ml-1">{activeEntries.length} {t("common.aktiv").toLowerCase()}</Badge>
               </h2>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setAdminCheckInOpen(true); setAdminCheckInTime(nowTimeStr()); }}>
-                  <LogIn className="h-3.5 w-3.5" />Mitarbeiter einchecken
+                  <LogIn className="h-3.5 w-3.5" />{adminCheckInLabel}
                 </Button>
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setAddEntryOpen(true); setAddForm({ ...addForm, date: new Date().toISOString().split("T")[0] }); }}>
                   <Plus className="h-3.5 w-3.5" />Eintrag nachtragen
@@ -405,7 +408,7 @@ export default function ZeiterfassungPage() {
             {/* Nicht eingestempelte MA */}
             {employees.filter((e) => e.isActive && !checkedInIds.has(e.id)).length > 0 && (
               <div className="mt-4 pt-4 border-t">
-                <p className="text-xs font-medium text-gray-400 uppercase mb-2">Nicht eingestempelt</p>
+                <p className="text-xs font-medium text-gray-400 uppercase mb-2">{t("zeit.nichtEingestempelt")}</p>
                 <div className="flex flex-wrap gap-2">
                   {employees.filter((e) => e.isActive && !checkedInIds.has(e.id)).map((emp) => (
                     <span key={emp.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-600">
@@ -425,15 +428,15 @@ export default function ZeiterfassungPage() {
         <Card className="p-4">
           <p className="text-xs font-medium text-gray-400">Gearbeitete Stunden</p>
           <p className="text-2xl font-bold text-gray-900">{formatHours(totalHours)}</p>
-          <p className="text-xs text-gray-500">von {formatHours(targetHours)} Soll</p>
+          <p className="text-xs text-gray-500">{`${formatHours(targetHours)} ${t("zeit.vonSoll")}`}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Arbeitstage</p>
+          <p className="text-xs font-medium text-gray-400">{t("zeit.werktage")}</p>
           <p className="text-2xl font-bold text-gray-900">{sortedDates.length}</p>
-          <p className="text-xs text-gray-500">von {workdaysInMonth} Werktagen</p>
+          <p className="text-xs text-gray-500">{`${t("common.von")} ${workdaysInMonth} ${t("zeit.werktage")}`}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Überstunden</p>
+          <p className="text-xs font-medium text-gray-400">{t("zeit.ueberstunden")}</p>
           <div className="flex items-center gap-2">
             {overtime > 0.5 ? <TrendingUp className="h-5 w-5 text-green-600" /> : overtime < -0.5 ? <TrendingDown className="h-5 w-5 text-red-600" /> : <Minus className="h-5 w-5 text-gray-400" />}
             <p className={`text-2xl font-bold ${overtime > 0.5 ? "text-green-600" : overtime < -0.5 ? "text-red-600" : "text-gray-900"}`}>
@@ -442,7 +445,7 @@ export default function ZeiterfassungPage() {
           </div>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-gray-400">Mittagspause</p>
+          <p className="text-xs font-medium text-gray-400">{t("zeit.pause")}</p>
           <div className="flex items-center gap-2">
             <Coffee className="h-5 w-5 text-amber-600" />
             <p className="text-2xl font-bold text-gray-900">{config.lunchBreakMinutes} min</p>
@@ -467,7 +470,7 @@ export default function ZeiterfassungPage() {
 
       {/* Eigene Einträge */}
       {sortedDates.length === 0 ? (
-        <Card className="p-8 text-center text-gray-400"><Clock className="h-12 w-12 mx-auto mb-3" /><p>Keine Einträge in diesem Monat</p></Card>
+        <Card className="p-8 text-center text-gray-400"><Clock className="h-12 w-12 mx-auto mb-3" /><p>{t("zeit.keineEintraege")}</p></Card>
       ) : (
         <div className="space-y-3">
           {sortedDates.map((date) => {
@@ -486,7 +489,7 @@ export default function ZeiterfassungPage() {
                     <div key={e.id} className="flex items-center justify-between text-sm text-gray-600">
                       <span>
                         {e.startTime} – {e.endTime}
-                        {e.breakMin > 0 && <span className="text-gray-400 ml-1">({e.breakMin}min Pause)</span>}
+                        {e.breakMin > 0 && <span className="text-gray-400 ml-1">({e.breakMin}min {t("zeit.pause")})</span>}
                       </span>
                       {e.project && <span className="text-xs text-blue-600 truncate max-w-[200px]">{e.project.name}</span>}
                     </div>
@@ -505,10 +508,10 @@ export default function ZeiterfassungPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <User className="h-5 w-5 text-blue-600" />
-                Mitarbeiter-Zeiterfassung
+                {`${t("common.mitarbeiter")}-${t("zeit.title")}`}
               </h2>
               <NativeSelect value={viewUserId} onChange={(e) => setViewUserId(e.target.value)} className="w-auto min-w-[220px]">
-                <option value="">Mitarbeiter wählen...</option>
+                <option value="">{t("azubi.mitarbeiterWaehlen")}</option>
                 {employees.filter((e) => e.isActive).map((e) => (
                   <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
                 ))}
@@ -521,15 +524,15 @@ export default function ZeiterfassungPage() {
                   <Card className="p-4">
                     <p className="text-xs font-medium text-gray-400">Gearbeitete Stunden</p>
                     <p className="text-2xl font-bold text-gray-900">{formatHours(viewTotalHours)}</p>
-                    <p className="text-xs text-gray-500">von {formatHours(targetHours)} Soll</p>
+                    <p className="text-xs text-gray-500">{`${formatHours(targetHours)} ${t("zeit.vonSoll")}`}</p>
                   </Card>
                   <Card className="p-4">
-                    <p className="text-xs font-medium text-gray-400">Arbeitstage</p>
+                    <p className="text-xs font-medium text-gray-400">{t("zeit.werktage")}</p>
                     <p className="text-2xl font-bold text-gray-900">{viewSortedDates.length}</p>
-                    <p className="text-xs text-gray-500">von {workdaysInMonth} Werktagen</p>
+                    <p className="text-xs text-gray-500">{`${t("common.von")} ${workdaysInMonth} ${t("zeit.werktage")}`}</p>
                   </Card>
                   <Card className="p-4">
-                    <p className="text-xs font-medium text-gray-400">Überstunden</p>
+                    <p className="text-xs font-medium text-gray-400">{t("zeit.ueberstunden")}</p>
                     <div className="flex items-center gap-2">
                       {viewOvertime > 0.5 ? <TrendingUp className="h-5 w-5 text-green-600" /> : viewOvertime < -0.5 ? <TrendingDown className="h-5 w-5 text-red-600" /> : <Minus className="h-5 w-5 text-gray-400" />}
                       <p className={`text-2xl font-bold ${viewOvertime > 0.5 ? "text-green-600" : viewOvertime < -0.5 ? "text-red-600" : "text-gray-900"}`}>
@@ -559,7 +562,7 @@ export default function ZeiterfassungPage() {
                               <div key={e.id} className="flex items-center justify-between text-sm text-gray-600 group">
                                 <span>
                                   {e.startTime} – {e.endTime || "läuft"}
-                                  {e.breakMin > 0 && <span className="text-gray-400 ml-1">({e.breakMin}min Pause)</span>}
+                                  {e.breakMin > 0 && <span className="text-gray-400 ml-1">({e.breakMin}min {t("zeit.pause")})</span>}
                                   {e.notes && <span className="text-gray-400 ml-1">· {e.notes}</span>}
                                 </span>
                                 <div className="flex items-center gap-1.5">
@@ -568,7 +571,10 @@ export default function ZeiterfassungPage() {
                                     onClick={() => { setEditEntry(e); setEditForm({ startTime: e.startTime, endTime: e.endTime || "", breakMin: String(e.breakMin), projectId: e.project?.id || "", notes: e.notes || "" }); }}>
                                     <Pencil className="h-3 w-3 text-gray-400" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => deleteEntry(e.id)}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => {
+                                    if (!confirm(t("zeit.eintragLoeschen"))) return;
+                                    void deleteEntry(e.id);
+                                  }}>
                                     <Trash2 className="h-3 w-3 text-red-400" />
                                   </Button>
                                 </div>
@@ -589,12 +595,12 @@ export default function ZeiterfassungPage() {
       {/* ── Dialog: Admin Einchecken ──────────────── */}
       <Dialog open={adminCheckInOpen} onOpenChange={setAdminCheckInOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Mitarbeiter einchecken</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{adminCheckInLabel}</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <label className="text-sm font-medium text-gray-700">Mitarbeiter</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.mitarbeiter")}</label>
               <NativeSelect value={adminCheckInUser} onChange={(e) => setAdminCheckInUser(e.target.value)} className="mt-1">
-                <option value="">Mitarbeiter wählen...</option>
+                <option value="">{t("azubi.mitarbeiterWaehlen")}</option>
                 {employees.filter((e) => e.isActive && !checkedInIds.has(e.id)).map((e) => (
                   <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
                 ))}
@@ -605,16 +611,16 @@ export default function ZeiterfassungPage() {
               <Input type="time" value={adminCheckInTime} onChange={(e) => setAdminCheckInTime(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Projekt (optional)</label>
+              <label className="text-sm font-medium text-gray-700">{`${t("common.projekt")} (${t("common.optional")})`}</label>
               <NativeSelect value={adminCheckInProject} onChange={(e) => setAdminCheckInProject(e.target.value)} className="mt-1">
                 <option value="">Ohne Projekt</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>)}
               </NativeSelect>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAdminCheckInOpen(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setAdminCheckInOpen(false)}>{t("common.abbrechen")}</Button>
               <Button onClick={adminCheckIn} disabled={!adminCheckInUser} className="gap-1.5 bg-green-600 hover:bg-green-700">
-                <LogIn className="h-4 w-4" />Einchecken
+                <LogIn className="h-4 w-4" />{t("zeit.einstempeln")}
               </Button>
             </div>
           </div>
@@ -627,35 +633,35 @@ export default function ZeiterfassungPage() {
           <DialogHeader><DialogTitle>Zeiteintrag nachtragen</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <label className="text-sm font-medium text-gray-700">Mitarbeiter</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.mitarbeiter")}</label>
               <NativeSelect value={addForm.userId} onChange={(e) => setAddForm({ ...addForm, userId: e.target.value })} className="mt-1">
-                <option value="">Mitarbeiter wählen...</option>
+                <option value="">{t("azubi.mitarbeiterWaehlen")}</option>
                 {employees.filter((e) => e.isActive).map((e) => (
                   <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
                 ))}
               </NativeSelect>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Datum</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.datum")}</label>
               <Input type="date" value={addForm.date} onChange={(e) => setAddForm({ ...addForm, date: e.target.value })} className="mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Von</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.von")}</label>
                 <Input type="time" value={addForm.startTime} onChange={(e) => setAddForm({ ...addForm, startTime: e.target.value })} className="mt-1" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Bis</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.bis")}</label>
                 <Input type="time" value={addForm.endTime} onChange={(e) => setAddForm({ ...addForm, endTime: e.target.value })} className="mt-1" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Pause (min)</label>
+                <label className="text-sm font-medium text-gray-700">{`${t("zeit.pause")} (min)`}</label>
                 <Input type="number" value={addForm.breakMin} onChange={(e) => setAddForm({ ...addForm, breakMin: e.target.value })} className="mt-1" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Projekt</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.projekt")}</label>
                 <NativeSelect value={addForm.projectId} onChange={(e) => setAddForm({ ...addForm, projectId: e.target.value })} className="mt-1">
                   <option value="">Ohne Projekt</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>)}
@@ -663,12 +669,12 @@ export default function ZeiterfassungPage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Notizen</label>
-              <Input value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} className="mt-1" placeholder="Optional" />
+              <label className="text-sm font-medium text-gray-700">{t("common.notizen")}</label>
+              <Input value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} className="mt-1" placeholder={t("common.optional")} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAddEntryOpen(false)}>Abbrechen</Button>
-              <Button onClick={handleAddEntry} disabled={!addForm.userId || !addForm.date || !addForm.startTime}>Eintrag speichern</Button>
+              <Button variant="outline" onClick={() => setAddEntryOpen(false)}>{t("common.abbrechen")}</Button>
+              <Button onClick={handleAddEntry} disabled={!addForm.userId || !addForm.date || !addForm.startTime}>{t("common.speichern")}</Button>
             </div>
           </div>
         </DialogContent>
@@ -681,21 +687,21 @@ export default function ZeiterfassungPage() {
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Von</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.von")}</label>
                 <Input type="time" value={editForm.startTime} disabled className="mt-1 bg-gray-50" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Bis</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.bis")}</label>
                 <Input type="time" value={editForm.endTime} onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })} className="mt-1" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Pause (min)</label>
+                <label className="text-sm font-medium text-gray-700">{`${t("zeit.pause")} (min)`}</label>
                 <Input type="number" value={editForm.breakMin} onChange={(e) => setEditForm({ ...editForm, breakMin: e.target.value })} className="mt-1" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Projekt</label>
+                <label className="text-sm font-medium text-gray-700">{t("common.projekt")}</label>
                 <NativeSelect value={editForm.projectId} onChange={(e) => setEditForm({ ...editForm, projectId: e.target.value })} className="mt-1">
                   <option value="">Ohne Projekt</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>)}
@@ -703,12 +709,12 @@ export default function ZeiterfassungPage() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Notizen</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.notizen")}</label>
               <Input value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} className="mt-1" />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditEntry(null)}>Abbrechen</Button>
-              <Button onClick={saveEditEntry}>Speichern</Button>
+              <Button variant="outline" onClick={() => setEditEntry(null)}>{t("common.abbrechen")}</Button>
+              <Button onClick={saveEditEntry}>{t("common.speichern")}</Button>
             </div>
           </div>
         </DialogContent>
