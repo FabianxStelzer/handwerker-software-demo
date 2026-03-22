@@ -43,7 +43,7 @@ export default function MitarbeiterPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
   const currentRole = (session?.user as { role?: string })?.role;
-  const isAdmin = currentRole === "ADMIN" || currentRole === "BAULEITER";
+  const isAdmin = currentRole === "ADMIN";
 
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);

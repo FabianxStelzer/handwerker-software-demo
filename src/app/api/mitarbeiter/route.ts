@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
-export async function GET(req: NextRequest) {
-  const role = req.nextUrl.searchParams.get("role");
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+
+  const role = (session.user as { role?: string }).role;
 
   const users = await prisma.user.findMany({
     orderBy: { lastName: "asc" },
@@ -28,6 +32,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+
+  const role = (session.user as { role?: string }).role;
+  if (role !== "ADMIN") {
+    return NextResponse.json({ error: "Nur Administratoren dürfen Mitarbeiter anlegen" }, { status: 403 });
+  }
+
   const body = await req.json();
   const hash = await bcrypt.hash(body.password || "changeme123", 12);
 
