@@ -18,6 +18,9 @@ import {
   getPlaceholdersForType, getDefaultTemplate, getSampleData,
   replaceTemplatePlaceholders, printDocument,
 } from "@/lib/document-templates";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import { languageNames, type Language } from "@/lib/i18n/translations";
+import { Globe } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -391,6 +394,9 @@ export default function EinstellungenPage() {
           </TabsTrigger>
           <TabsTrigger value="ki-modelle">
             <Bot className="mr-2 h-4 w-4" />KI-Modelle
+          </TabsTrigger>
+          <TabsTrigger value="sprache">
+            <Globe className="mr-2 h-4 w-4" />Sprache
           </TabsTrigger>
           <TabsTrigger value="buchhaltung-settings">
             <Calculator className="mr-2 h-4 w-4" />Buchhaltung
@@ -865,6 +871,11 @@ export default function EinstellungenPage() {
         {/* ── KI-Modelle ──────────────────────────── */}
         <TabsContent value="ki-modelle">
           <KiModelleTab />
+        </TabsContent>
+
+        {/* ── Sprache ───────────────────────────── */}
+        <TabsContent value="sprache">
+          <LanguageSettingsTab userId={userId || ""} />
         </TabsContent>
 
         {/* ── Buchhaltung ──────────────────────────── */}
@@ -2717,5 +2728,77 @@ function BuchExportSection() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/* ─── Sprache-Einstellungen ──────────────────────────────────── */
+
+function LanguageSettingsTab({ userId }: { userId: string }) {
+  const { language, setLanguage, t } = useTranslation();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleLanguageChange = async (newLang: Language) => {
+    setLanguage(newLang);
+    setSaving(true);
+    try {
+      await fetch(`/api/mitarbeiter/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: newLang }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch { /* */ }
+    setSaving(false);
+  };
+
+  const allLanguages = Object.entries(languageNames) as [Language, string][];
+  const flags: Record<Language, string> = {
+    de: "🇩🇪", en: "🇬🇧", cs: "🇨🇿", tr: "🇹🇷", pl: "🇵🇱",
+    ru: "🇷🇺", uk: "🇺🇦", ro: "🇷🇴", hr: "🇭🇷", ar: "🇸🇦",
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="max-w-2xl">
+        <div className="flex items-center gap-3 mb-2">
+          <Globe className="h-5 w-5 text-[#9eb552]" />
+          <h3 className="text-lg font-semibold text-gray-900">{t("settings.spracheAendern")}</h3>
+          {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />Gespeichert</span>}
+        </div>
+        <p className="text-sm text-gray-500 mb-6">{t("settings.spracheBeschreibung")}</p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {allLanguages.map(([code, name]) => (
+            <button
+              key={code}
+              onClick={() => handleLanguageChange(code)}
+              disabled={saving}
+              className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                language === code
+                  ? "border-[#9eb552] bg-[#9eb552]/10 shadow-sm"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <span className="text-2xl">{flags[code]}</span>
+              <div>
+                <p className={`text-sm font-medium ${language === code ? "text-[#354360]" : "text-gray-900"}`}>{name}</p>
+                {language === code && <p className="text-[10px] text-[#9eb552] font-medium">Aktiv</p>}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800 font-medium mb-1">Automatische Inhaltsübersetzung</p>
+          <p className="text-xs text-blue-600">
+            Wenn ein Mitarbeiter einen Text in einer anderen Sprache eingibt (z.B. Englisch oder Tschechisch),
+            wird dieser Text für Sie automatisch in Ihre eingestellte Sprache übersetzt.
+            Die KI-gestützte Übersetzung nutzt das konfigurierte KI-Modell aus den Einstellungen.
+          </p>
+        </div>
+      </div>
+    </Card>
   );
 }

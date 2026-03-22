@@ -11,49 +11,45 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
-type NavChild = { name: string; href: string; icon: React.ElementType };
-type NavItem = { name: string; href: string; icon: React.ElementType; children?: NavChild[]; expandKey?: string };
+type NavChild = { name: string; href: string; icon: React.ElementType; tKey?: TranslationKey };
+type NavItem = { name: string; href: string; icon: React.ElementType; children?: NavChild[]; expandKey?: string; tKey?: TranslationKey };
 
 const buchhaltungSubItems: NavChild[] = [
-  { name: "Dashboard", href: "/buchhaltung", icon: LayoutDashboard },
-  { name: "Belege", href: "/buchhaltung/belege", icon: FileStack },
-  { name: "Kontakte", href: "/buchhaltung/kontakte", icon: Users },
-  { name: "Buchhaltung", href: "/buchhaltung/uebersicht", icon: Calculator },
-  { name: "Lohn", href: "/buchhaltung/lohn", icon: Banknote },
+  { name: "Dashboard", href: "/buchhaltung", icon: LayoutDashboard, tKey: "nav.dashboard" },
+  { name: "Belege", href: "/buchhaltung/belege", icon: FileStack, tKey: "nav.belege" },
+  { name: "Kontakte", href: "/buchhaltung/kontakte", icon: Users, tKey: "nav.kontakte" },
+  { name: "Buchhaltung", href: "/buchhaltung/uebersicht", icon: Calculator, tKey: "nav.buchhaltung" },
+  { name: "Lohn", href: "/buchhaltung/lohn", icon: Banknote, tKey: "nav.lohn" },
 ];
 
 const mitarbeiterSubItems: NavChild[] = [
-  { name: "Übersicht", href: "/mitarbeiter", icon: Users },
-  { name: "Zeiterfassung", href: "/mitarbeiter/zeiterfassung", icon: Clock },
-  { name: "Urlaubsplanung", href: "/mitarbeiter/urlaubsplanung", icon: CalendarDays },
-  { name: "Schulungen", href: "/mitarbeiter/schulungen", icon: GraduationCap },
-  { name: "Ausfälle", href: "/mitarbeiter/ausfaelle", icon: HeartPulse },
-  { name: "Azubi", href: "/mitarbeiter/azubi", icon: BookOpen },
+  { name: "Übersicht", href: "/mitarbeiter", icon: Users, tKey: "nav.uebersicht" },
+  { name: "Zeiterfassung", href: "/mitarbeiter/zeiterfassung", icon: Clock, tKey: "nav.zeiterfassung" },
+  { name: "Urlaubsplanung", href: "/mitarbeiter/urlaubsplanung", icon: CalendarDays, tKey: "nav.urlaubsplanung" },
+  { name: "Schulungen", href: "/mitarbeiter/schulungen", icon: GraduationCap, tKey: "nav.schulungen" },
+  { name: "Ausfälle", href: "/mitarbeiter/ausfaelle", icon: HeartPulse, tKey: "nav.ausfaelle" },
+  { name: "Azubi", href: "/mitarbeiter/azubi", icon: BookOpen, tKey: "nav.azubi" },
 ];
 
 const navigation: NavItem[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Alltagsverwaltung", href: "/alltagsverwaltung", icon: MapPin },
-  { name: "Meine Aufgaben", href: "/meine-aufgaben", icon: ClipboardList },
-  { name: "Kunden", href: "/kunden", icon: Users },
-  { name: "Projekte", href: "/projekte", icon: FolderKanban },
-  { name: "Katalog", href: "/katalog", icon: Package },
-  { name: "Aufmaß", href: "/aufmass", icon: Ruler },
-  { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung" },
-  { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog, children: mitarbeiterSubItems, expandKey: "mitarbeiter" },
-  { name: "Fahrzeuge", href: "/fahrzeuge", icon: Car },
-  { name: "Werkzeuge", href: "/werkzeuge", icon: Drill },
-  { name: "KI-Assistent", href: "/ki-assistent", icon: Bot },
-  { name: "Branchenspezifisch", href: "/branchenspezifisch", icon: Wrench },
-  { name: "Einstellungen", href: "/einstellungen", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, tKey: "nav.dashboard" },
+  { name: "Alltagsverwaltung", href: "/alltagsverwaltung", icon: MapPin, tKey: "nav.alltagsverwaltung" },
+  { name: "Meine Aufgaben", href: "/meine-aufgaben", icon: ClipboardList, tKey: "nav.meineAufgaben" },
+  { name: "Kunden", href: "/kunden", icon: Users, tKey: "nav.kunden" },
+  { name: "Projekte", href: "/projekte", icon: FolderKanban, tKey: "nav.projekte" },
+  { name: "Katalog", href: "/katalog", icon: Package, tKey: "nav.katalog" },
+  { name: "Aufmaß", href: "/aufmass", icon: Ruler, tKey: "nav.aufmass" },
+  { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung", tKey: "nav.buchhaltung" },
+  { name: "Mitarbeiter", href: "/mitarbeiter", icon: UserCog, children: mitarbeiterSubItems, expandKey: "mitarbeiter", tKey: "nav.mitarbeiter" },
+  { name: "Fahrzeuge", href: "/fahrzeuge", icon: Car, tKey: "nav.fahrzeuge" },
+  { name: "Werkzeuge", href: "/werkzeuge", icon: Drill, tKey: "nav.werkzeuge" },
+  { name: "KI-Assistent", href: "/ki-assistent", icon: Bot, tKey: "nav.kiAssistent" },
+  { name: "Branchenspezifisch", href: "/branchenspezifisch", icon: Wrench, tKey: "nav.branchenspezifisch" },
+  { name: "Einstellungen", href: "/einstellungen", icon: Settings, tKey: "nav.einstellungen" },
 ];
-
-const roleLabels: Record<string, string> = {
-  ADMIN: "Administrator",
-  BAULEITER: "Bauleiter",
-  MITARBEITER: "Mitarbeiter",
-};
 
 function isGroupOpen(pathname: string, item: NavItem, fromBuchhaltung = false): boolean {
   if (item.expandKey === "buchhaltung") return pathname.startsWith("/buchhaltung") || (fromBuchhaltung && pathname.startsWith("/kunden/"));
@@ -70,8 +66,15 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useTranslation();
 
   const fromBuchhaltung = searchParams.get("from") === "buchhaltung";
+
+  const roleLabels: Record<string, string> = {
+    ADMIN: t("role.ADMIN"),
+    BAULEITER: t("role.BAULEITER"),
+    MITARBEITER: t("role.MITARBEITER"),
+  };
 
   const isActive = (href: string, exact?: boolean) => {
     if (href === "/") return pathname === "/";
@@ -101,14 +104,14 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
             href="/benachrichtigungen"
             onClick={() => setMobileOpen(false)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Benachrichtigungen"
+            title={t("nav.benachrichtigungen")}
           >
             <Bell className="h-4 w-4" />
           </Link>
           <button
             onClick={onSignOut}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/10 transition-colors"
-            title="Abmelden"
+            title={t("nav.abmelden")}
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -125,7 +128,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
         </div>
         <div>
           <h1 className="text-base font-bold text-white">Handwerker</h1>
-          <p className="text-xs text-gray-400">Betriebssoftware</p>
+          <p className="text-xs text-gray-400">{t("nav.betriebssoftware")}</p>
         </div>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -147,7 +150,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
                   onMouseLeave={(e) => { if (!parentExact) e.currentTarget.style.backgroundColor = open ? "rgba(255,255,255,0.06)" : ""; }}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
-                  {item.name}
+                  {item.tKey ? t(item.tKey) : item.name}
                   {open ? <ChevronDown className="h-4 w-4 ml-auto" /> : <ChevronRight className="h-4 w-4 ml-auto" />}
                 </Link>
                 {open && (
@@ -171,7 +174,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
                         onMouseLeave={(e) => { if (!childActive) e.currentTarget.style.backgroundColor = ""; }}
                       >
                         <child.icon className="h-4 w-4 shrink-0" />
-                        {child.name}
+                        {child.tKey ? t(child.tKey) : child.name}
                       </Link>
                       );
                     })}

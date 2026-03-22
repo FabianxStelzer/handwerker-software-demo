@@ -47,6 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: `${user.firstName} ${user.lastName}`,
             role: user.role,
+            language: user.language || "de",
           };
         } catch (err) {
           console.error("[Auth] authorize error:", err);
@@ -65,6 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = (user as { role: string }).role;
         token.id = user.id;
+        token.language = (user as { language?: string }).language || "de";
       }
       return token;
     },
@@ -72,6 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         (session.user as { role: string }).role = token.role as string;
+        (session.user as unknown as { language: string }).language = (token.language as string) || "de";
       }
       return session;
     },

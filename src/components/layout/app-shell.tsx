@@ -8,6 +8,8 @@ import { VoiceAssistantSafe } from "@/components/VoiceAssistantSafe";
 import { OfflineBanner } from "@/offline";
 import { LicenseReminder } from "./license-reminder";
 import { useEffect, useState } from "react";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import type { Language } from "@/lib/i18n/translations";
 
 const LOADING_TIMEOUT_MS = 2000;
 
@@ -83,20 +85,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const user = session?.user;
   const safeUser = user ? { name: user.name ?? "", email: (user as { email?: string }).email ?? "", role: (user as { role?: string }).role ?? "MITARBEITER" } : null;
+  const userLang = ((user as Record<string, unknown>)?.language as Language) || "de";
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f3f0" }}>
-      <Sidebar
-        user={safeUser}
-        onSignOut={() => signOut({ callbackUrl: "/login" })}
-      />
-      <div className="lg:pl-64">
-        <Header />
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+    <LanguageProvider initialLanguage={userLang}>
+      <div className="min-h-screen" style={{ backgroundColor: "#f1f3f0" }}>
+        <Sidebar
+          user={safeUser}
+          onSignOut={() => signOut({ callbackUrl: "/login" })}
+        />
+        <div className="lg:pl-64">
+          <Header />
+          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        </div>
+        <VoiceAssistantSafe />
+        <OfflineBanner />
+        <LicenseReminder />
       </div>
-      <VoiceAssistantSafe />
-      <OfflineBanner />
-      <LicenseReminder />
-    </div>
+    </LanguageProvider>
   );
 }
