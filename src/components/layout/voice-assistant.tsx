@@ -1,62 +1,275 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Check, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Mic,
+  MicOff,
+  X,
+  Volume2,
+  VolumeX,
+  Check,
+  Loader2,
+  Bot,
+  User,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface VoiceAction {
-  intent: string;
-  description: string;
-  params: Record<string, string>;
-  confirmed: boolean;
+interface VoiceMessage {
+  role: "user" | "assistant";
+  content: string;
+  action?: {
+    endpoint: string;
+    method: string;
+    body: Record<string, unknown> | null;
+  } | null;
+  type?: "message" | "confirm" | "action";
+  data?: unknown;
+  pending?: boolean;
 }
 
-const INTENT_PATTERNS: Array<{ pattern: RegExp; intent: string; extract: (m: RegExpMatchArray) => Record<string, string> }> = [
-  {
-    pattern: /kunde.*anlegen.*(?:name|namens?)?\s+(.+)/i,
-    intent: "KUNDE_ANLEGEN",
-    extract: (m) => ({ name: m[1].trim() }),
-  },
-  {
-    pattern: /status.*(?:von|für)?\s+(.+?)\s+(?:auf|zu|ändern)\s+(.+)/i,
-    intent: "STATUS_AENDERN",
-    extract: (m) => ({ target: m[1].trim(), status: m[2].trim() }),
-  },
-  {
-    pattern: /notiz.*(?:für|zu|bei)?\s+(.+?)(?:\s*[:]\s*|\s+)(.+)/i,
-    intent: "NOTIZ_HINZUFUEGEN",
-    extract: (m) => ({ target: m[1].trim(), content: m[2].trim() }),
-  },
-  {
-    pattern: /(?:bautagebuch|tagesbericht).*(?:eintrag|eintragen)?\s*(?:für)?\s*(.+?)(?:\s*[:]\s*|\s+)(.+)/i,
-    intent: "BAUTAGEBUCH_EINTRAG",
-    extract: (m) => ({ project: m[1].trim(), content: m[2].trim() }),
-  },
-];
+const LANG_MAP: Record<string, string> = {
+  de: "de-DE",
+  en: "en-US",
+  tr: "tr-TR",
+  pl: "pl-PL",
+  ru: "ru-RU",
+  cs: "cs-CZ",
+  uk: "uk-UA",
+  ro: "ro-RO",
+  hr: "hr-HR",
+  ar: "ar-SA",
+};
+
+function getSpeechLang(lang: string): string {
+  return LANG_MAP[lang] || "de-DE";
+}
 
 export function VoiceAssistant() {
+  const { data: session } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakEnabled, setSpeakEnabled] = useState(true);
   const [transcript, setTranscript] = useState("");
-  const [action, setAction] = useState<VoiceAction | null>(null);
+  const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<VoiceMessage | null>(null);
+
+  const recognitionRef = useRef<ReturnType<typeof Object> | null>(null);
+  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const userLang = ((session?.user as Record<string, unknown>)?.language as string) || "de";
+  const userName = session?.user?.name || "Benutzer";
+  const userRole = ((session?.user as Record<string, unknown>)?.role as string) || "MITARBEITER";
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const speak = useCallback(
+    (text: string) => {
+      if (!speakEnabled || typeof window === "undefined") return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = getSpeechLang(userLang);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const langPrefix = getSpeechLang(userLang).split("-")[0];
+      const preferred = voices.find((v) => v.lang.startsWith(langPrefix) && v.localService);
+      if (preferred) utterance.voice = preferred;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      synthRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    },
+    [speakEnabled, userLang]
+  );
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  const sendToAi = useCallback(
+    async (userText: string, conversationMessages: VoiceMessage[]) => {
+      setProcessing(true);
+
+      const apiMessages = conversationMessages
+        .filter((m) => !m.pending)
+        .map((m) => ({ role: m.role, content: m.content }));
+      apiMessages.push({ role: "user", content: userText });
+
+      try {
+        const res = await fetch("/api/ki/voice-action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: apiMessages,
+            userInfo: {
+              name: userName,
+              role: userRole,
+              language: userLang,
+              currentPath: pathname,
+            },
+          }),
+        });
+
+        const data = await res.json();
+
+        const assistantMsg: VoiceMessage = {
+          role: "assistant",
+          content: data.text || data.content || "Ich konnte das nicht verarbeiten.",
+          type: data.type || "message",
+          action: data.action || null,
+          data: data.data || null,
+        };
+
+        setMessages((prev) => [...prev, assistantMsg]);
+        speak(assistantMsg.content);
+
+        if (data.type === "confirm" && data.action) {
+          setPendingConfirm(assistantMsg);
+        }
+
+        if (data.type === "action" && data.action) {
+          await executeAction(data.action);
+        }
+      } catch {
+        const errMsg: VoiceMessage = {
+          role: "assistant",
+          content: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+          type: "message",
+        };
+        setMessages((prev) => [...prev, errMsg]);
+        speak(errMsg.content);
+      }
+
+      setProcessing(false);
+    },
+    [userName, userRole, userLang, pathname, speak]
+  );
+
+  const executeAction = useCallback(
+    async (action: { endpoint: string; method: string; body: Record<string, unknown> | null }) => {
+      if (action.endpoint === "NAVIGATE") {
+        const path = (action.body as Record<string, string>)?.path;
+        if (path) {
+          router.push(path);
+          const navMsg: VoiceMessage = {
+            role: "assistant",
+            content: `Navigiere zu ${path}...`,
+            type: "message",
+          };
+          setMessages((prev) => [...prev, navMsg]);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/ki/voice-action", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(action),
+        });
+        const result = await res.json();
+
+        if (result.navigate) {
+          router.push(result.navigate);
+          return;
+        }
+
+        if (result.success && result.data) {
+          const dataStr = JSON.stringify(result.data).slice(0, 2000);
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", content: `[Ergebnis der Abfrage: ${dataStr}]` },
+          ]);
+
+          await sendToAi(`Die API hat folgendes zurückgegeben: ${dataStr}. Bitte fasse das für mich zusammen.`, [
+            ...messages,
+          ]);
+        }
+      } catch {
+        speak("Die Aktion konnte nicht ausgeführt werden.");
+      }
+    },
+    [router, speak, messages, sendToAi]
+  );
+
+  const confirmAction = useCallback(async () => {
+    if (!pendingConfirm?.action) return;
+    setPendingConfirm(null);
+
+    const confirmMsg: VoiceMessage = {
+      role: "user",
+      content: "Ja, bitte ausführen.",
+    };
+    setMessages((prev) => [...prev, confirmMsg]);
+    setProcessing(true);
+
+    await executeAction(pendingConfirm.action);
+
+    const doneMsg: VoiceMessage = {
+      role: "assistant",
+      content: "Erledigt!",
+      type: "message",
+    };
+    setMessages((prev) => [...prev, doneMsg]);
+    speak("Erledigt!");
+    setProcessing(false);
+  }, [pendingConfirm, executeAction, speak]);
+
+  const cancelAction = useCallback(() => {
+    setPendingConfirm(null);
+    const cancelMsg: VoiceMessage = {
+      role: "assistant",
+      content: "Okay, abgebrochen.",
+      type: "message",
+    };
+    setMessages((prev) => [...prev, cancelMsg]);
+    speak("Okay, abgebrochen.");
+  }, [speak]);
 
   const startListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setResult("Spracherkennung wird von diesem Browser nicht unterstützt.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) {
+      const errMsg: VoiceMessage = {
+        role: "assistant",
+        content: "Spracherkennung wird von diesem Browser nicht unterstützt. Bitte verwende Chrome.",
+        type: "message",
+      };
+      setMessages((prev) => [...prev, errMsg]);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "de-DE";
+    const recognition = new SR();
+    recognition.lang = getSpeechLang(userLang);
     recognition.continuous = false;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       let text = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -64,8 +277,17 @@ export function VoiceAssistant() {
       }
       setTranscript(text);
 
-      if (event.results[0].isFinal) {
-        parseIntent(text);
+      if (event.results[0]?.isFinal) {
+        const finalText = text.trim();
+        if (finalText) {
+          const userMsg: VoiceMessage = { role: "user", content: finalText };
+          setMessages((prev) => {
+            const updated = [...prev, userMsg];
+            sendToAi(finalText, updated);
+            return updated;
+          });
+        }
+        setTranscript("");
       }
     };
 
@@ -76,146 +298,238 @@ export function VoiceAssistant() {
     recognition.start();
     setIsListening(true);
     setTranscript("");
-    setAction(null);
-    setResult(null);
+  }, [userLang, sendToAi]);
+
+  const stopListening = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (recognitionRef.current as any)?.stop();
+    setIsListening(false);
   }, []);
 
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  };
-
-  function parseIntent(text: string) {
-    for (const { pattern, intent, extract } of INTENT_PATTERNS) {
-      const match = text.match(pattern);
-      if (match) {
-        const params = extract(match);
-        const descriptions: Record<string, string> = {
-          KUNDE_ANLEGEN: `Neuen Kunden anlegen: "${params.name}"`,
-          STATUS_AENDERN: `Status von "${params.target}" auf "${params.status}" ändern`,
-          NOTIZ_HINZUFUEGEN: `Notiz zu "${params.target}" hinzufügen`,
-          BAUTAGEBUCH_EINTRAG: `Bautagebuch-Eintrag für "${params.project}"`,
-        };
-        setAction({
-          intent,
-          description: descriptions[intent] || intent,
-          params,
-          confirmed: false,
-        });
-        return;
-      }
-    }
-    setResult(`Befehl nicht erkannt: "${text}". Versuchen Sie z.B. "Kunde anlegen Name" oder "Bautagebuch Eintrag für Projekt: Beschreibung".`);
-  }
-
-  async function confirmAction() {
-    if (!action) return;
-    setProcessing(true);
-
-    try {
-      switch (action.intent) {
-        case "KUNDE_ANLEGEN": {
-          const parts = action.params.name.split(" ");
-          const firstName = parts[0] || "";
-          const lastName = parts.slice(1).join(" ") || firstName;
-          await fetch("/api/kunden", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ firstName, lastName }),
-          });
-          setResult(`Kunde "${action.params.name}" wurde angelegt.`);
-          break;
-        }
-        default:
-          setResult(`Aktion "${action.intent}" wird ausgeführt...`);
-      }
-    } catch {
-      setResult("Fehler bei der Ausführung.");
-    }
-
-    setProcessing(false);
-    setAction(null);
-  }
+  const resetConversation = useCallback(() => {
+    setMessages([]);
+    setPendingConfirm(null);
+    setTranscript("");
+    stopSpeaking();
+  }, [stopSpeaking]);
 
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105"
+        style={{ background: "linear-gradient(135deg, #212f46 0%, #354360 100%)" }}
         title="Sprachassistent"
       >
-        <Mic className="h-6 w-6" />
+        <Mic className="h-6 w-6 text-white" />
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-80">
-      <Card className="shadow-2xl">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900">Sprachassistent</h4>
-            <Button variant="ghost" size="icon" onClick={() => { setIsOpen(false); stopListening(); }} className="h-8 w-8">
-              <X className="h-4 w-4" />
+    <div className={cn("fixed bottom-6 right-6 z-50 transition-all", isExpanded ? "w-96" : "w-80")}>
+      <Card className="shadow-2xl border-0 overflow-hidden">
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ background: "linear-gradient(135deg, #212f46 0%, #354360 100%)" }}
+        >
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-white" />
+            <h4 className="font-semibold text-white text-sm">Sprachassistent</h4>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSpeakEnabled(!speakEnabled)}
+              className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10"
+              title={speakEnabled ? "Sprachausgabe aus" : "Sprachausgabe an"}
+            >
+              {speakEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10"
+            >
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={resetConversation}
+              className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10"
+              title="Neues Gespräch"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setIsOpen(false);
+                stopListening();
+                stopSpeaking();
+              }}
+              className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10"
+            >
+              <X className="h-3.5 w-3.5" />
             </Button>
           </div>
+        </div>
 
-          <div className="min-h-[100px] flex flex-col items-center justify-center gap-3">
+        <CardContent className="p-0">
+          <div
+            ref={scrollContainerRef}
+            className={cn("overflow-y-auto px-4 py-3 space-y-3", isExpanded ? "max-h-[60vh]" : "max-h-[50vh]", "min-h-[160px]")}
+          >
+            {messages.length === 0 && !isListening && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-full mb-3"
+                  style={{ backgroundColor: "#9eb55220" }}
+                >
+                  <Mic className="h-6 w-6" style={{ color: "#9eb552" }} />
+                </div>
+                <p className="text-sm font-medium text-gray-700">Hallo{userName ? `, ${userName.split(" ")[0]}` : ""}!</p>
+                <p className="text-xs text-gray-500 mt-1 max-w-[220px]">
+                  Drücke den Mikrofon-Button und sprich mit mir. Ich kann Kunden anlegen, Projekte verwalten, Daten abrufen und vieles mehr.
+                </p>
+              </div>
+            )}
+
+            {messages.map((msg, i) => (
+              <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "text-white rounded-br-md"
+                      : "bg-gray-100 text-gray-900 rounded-bl-md"
+                  )}
+                  style={msg.role === "user" ? { backgroundColor: "#354360" } : undefined}
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    {msg.role === "assistant" ? (
+                      <Bot className="h-3 w-3 shrink-0" style={{ color: "#9eb552" }} />
+                    ) : (
+                      <User className="h-3 w-3 shrink-0 opacity-70" />
+                    )}
+                    <span className="text-[10px] font-medium opacity-60">
+                      {msg.role === "assistant" ? "Assistent" : "Du"}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
             {isListening && (
-              <>
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-25" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-red-500">
-                    <Mic className="h-8 w-8 text-white" />
+              <div className="flex justify-end">
+                <div className="rounded-2xl rounded-br-md px-3.5 py-2.5 text-white" style={{ backgroundColor: "#354360" }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" />
+                      <div className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                      <div className="h-1.5 w-1.5 bg-red-400 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                    </div>
+                    <span className="text-xs opacity-80">{transcript || "Ich höre zu..."}</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">Ich höre zu...</p>
-                {transcript && <p className="text-sm text-gray-700 italic text-center">&quot;{transcript}&quot;</p>}
-              </>
+              </div>
             )}
 
-            {!isListening && !action && !result && (
-              <p className="text-sm text-gray-500 text-center">
-                Drücken Sie den Knopf und sprechen Sie einen Befehl, z.B. &quot;Kunde anlegen Max Müller&quot;
-              </p>
-            )}
-
-            {action && !action.confirmed && (
-              <div className="w-full space-y-3">
-                <p className="text-sm font-medium text-gray-900">{action.description}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={confirmAction} disabled={processing} className="flex-1">
-                    {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Bestätigen
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setAction(null)} className="flex-1">
-                    Abbrechen
-                  </Button>
+            {processing && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-2xl rounded-bl-md px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "#9eb552" }} />
+                    <span className="text-xs text-gray-500">Denke nach...</span>
+                  </div>
                 </div>
               </div>
             )}
 
-            {result && (
-              <div className="w-full">
-                <p className="text-sm text-gray-700">{result}</p>
-                <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => setResult(null)}>
-                  OK
-                </Button>
-              </div>
-            )}
+            <div ref={messagesEndRef} />
           </div>
 
-          <div className="mt-3 flex justify-center">
-            <Button
-              onClick={isListening ? stopListening : startListening}
-              className={cn(
-                "rounded-full h-12 w-12",
-                isListening ? "bg-red-500 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700"
+          {pendingConfirm && (
+            <div className="px-4 py-3 border-t bg-amber-50/80">
+              <p className="text-xs font-medium text-amber-800 mb-2">Aktion bestätigen?</p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={confirmAction}
+                  disabled={processing}
+                  className="flex-1 text-white text-xs h-8"
+                  style={{ backgroundColor: "#9eb552" }}
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  Ja, ausführen
+                </Button>
+                <Button size="sm" variant="outline" onClick={cancelAction} className="flex-1 text-xs h-8">
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="px-4 py-3 border-t bg-white">
+            <div className="flex items-center justify-center gap-3">
+              {isSpeaking && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={stopSpeaking}
+                  className="h-10 w-10 rounded-full border-red-200 text-red-500 hover:bg-red-50"
+                  title="Vorlesen stoppen"
+                >
+                  <VolumeX className="h-4 w-4" />
+                </Button>
               )}
-              size="icon"
-            >
-              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-            </Button>
+
+              <button
+                onClick={isListening ? stopListening : startListening}
+                disabled={processing}
+                className={cn(
+                  "relative flex h-14 w-14 items-center justify-center rounded-full transition-all",
+                  isListening
+                    ? "bg-red-500 hover:bg-red-600 scale-110"
+                    : "hover:scale-105"
+                )}
+                style={!isListening ? { backgroundColor: "#9eb552" } : undefined}
+              >
+                {isListening && (
+                  <div className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-20" />
+                )}
+                {isListening ? (
+                  <MicOff className="h-6 w-6 text-white relative z-10" />
+                ) : (
+                  <Mic className="h-6 w-6 text-white relative z-10" />
+                )}
+              </button>
+
+              {messages.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={resetConversation}
+                  className="h-10 w-10 rounded-full"
+                  title="Neues Gespräch"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <p className="text-[10px] text-center text-gray-400 mt-2">
+              {isListening
+                ? "Sprich jetzt..."
+                : processing
+                  ? "Verarbeite..."
+                  : "Tippe auf das Mikrofon zum Sprechen"}
+            </p>
           </div>
         </CardContent>
       </Card>
