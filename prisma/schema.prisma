@@ -98,6 +98,7 @@ model User {
   salary         Float?
   vacationDays   Int       @default(30)
   language       String    @default("de")
+  permissions    String?
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

@@ -58,6 +58,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.salary !== undefined) data.salary = parseFloat(String(body.salary));
   if (body.vacationDays !== undefined) data.vacationDays = parseInt(String(body.vacationDays));
   if (body.language !== undefined) data.language = body.language;
+  if (body.permissions !== undefined) data.permissions = body.permissions;
+  if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl;
   const pw = body.password;
   if (typeof pw === "string" && pw.length >= 6) {
     data.passwordHash = await bcrypt.hash(pw, 12);

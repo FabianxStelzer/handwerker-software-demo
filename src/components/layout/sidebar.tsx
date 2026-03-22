@@ -92,11 +92,15 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
   const userSection = user && (
     <div className="border-t border-white/10 px-3 py-3">
       <div className="flex items-center gap-3 px-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: "#9eb552" }}>
-          {initials}
-        </div>
+        <Link href="/profil" onClick={() => setMobileOpen(false)} className="shrink-0" title="Mein Profil">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white hover:ring-2 hover:ring-[#9eb552] transition-all" style={{ backgroundColor: "#9eb552" }}>
+            {initials}
+          </div>
+        </Link>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{user.name}</p>
+          <Link href="/profil" onClick={() => setMobileOpen(false)} className="hover:underline">
+            <p className="text-sm font-medium text-white truncate">{user.name}</p>
+          </Link>
           <p className="text-xs text-gray-400 truncate">{roleLabels[user.role] || user.role}</p>
         </div>
         <div className="flex items-center gap-1">

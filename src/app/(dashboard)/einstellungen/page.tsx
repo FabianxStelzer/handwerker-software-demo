@@ -18,9 +18,6 @@ import {
   getPlaceholdersForType, getDefaultTemplate, getSampleData,
   replaceTemplatePlaceholders, printDocument,
 } from "@/lib/document-templates";
-import { useTranslation } from "@/lib/i18n/LanguageContext";
-import { languageNames, type Language } from "@/lib/i18n/translations";
-import { Globe } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -366,123 +363,48 @@ export default function EinstellungenPage() {
         <p className="text-sm text-gray-500">Profil, Firma und Systemeinstellungen verwalten</p>
       </div>
 
-      <Tabs defaultValue="profil">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="profil">
-            <User className="mr-2 h-4 w-4" />Profil
-          </TabsTrigger>
-          <TabsTrigger value="sicherheit">
-            <Lock className="mr-2 h-4 w-4" />Sicherheit
-          </TabsTrigger>
-          <TabsTrigger value="firma">
-            <Building2 className="mr-2 h-4 w-4" />Firma
-          </TabsTrigger>
-          <TabsTrigger value="logo">
-            <Image className="mr-2 h-4 w-4" />Logo & Branding
-          </TabsTrigger>
-          <TabsTrigger value="arbeitszeit">
-            <Clock className="mr-2 h-4 w-4" />Arbeitszeit
-          </TabsTrigger>
-          <TabsTrigger value="regieberichte">
-            <FileText className="mr-2 h-4 w-4" />Regieberichte
-          </TabsTrigger>
-          <TabsTrigger value="vorlagen">
-            <FileCode className="mr-2 h-4 w-4" />Dokumentvorlagen
-          </TabsTrigger>
-          <TabsTrigger value="banking">
-            <Landmark className="mr-2 h-4 w-4" />Banking
-          </TabsTrigger>
-          <TabsTrigger value="ki-modelle">
-            <Bot className="mr-2 h-4 w-4" />KI-Modelle
-          </TabsTrigger>
-          <TabsTrigger value="sprache">
-            <Globe className="mr-2 h-4 w-4" />Sprache
-          </TabsTrigger>
-          <TabsTrigger value="buchhaltung-settings">
-            <Calculator className="mr-2 h-4 w-4" />Buchhaltung
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ── Profil ──────────────────────────────────── */}
-        <TabsContent value="profil">
-          <Card className="p-6">
-            <form onSubmit={handleSaveProfile} className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xl font-bold">
-                  {profile.firstName[0]}{profile.lastName[0]}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{profile.firstName} {profile.lastName}</h3>
-                  <p className="text-sm text-gray-500">{roleLabels[profile.role] || profile.role}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-2xl">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Vorname</label>
-                  <Input value={profile.firstName} onChange={(e) => setProfile({ ...profile, firstName: e.target.value })} className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Nachname</label>
-                  <Input value={profile.lastName} onChange={(e) => setProfile({ ...profile, lastName: e.target.value })} className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">E-Mail</label>
-                  <Input value={profile.email} disabled className="mt-1 bg-gray-50" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Telefon</label>
-                  <Input value={profile.phone || ""} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Position</label>
-                  <Input value={profile.position || ""} onChange={(e) => setProfile({ ...profile, position: e.target.value })} className="mt-1" />
-                </div>
-                <div className="sm:col-span-2">
-                  <p className="text-sm font-medium text-gray-700 mb-1">Privatadresse</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <Input value={profile.street || ""} onChange={(e) => setProfile({ ...profile, street: e.target.value })} placeholder="Straße" className="mt-1" />
-                    <Input value={profile.zip || ""} onChange={(e) => setProfile({ ...profile, zip: e.target.value })} placeholder="PLZ" className="mt-1" />
-                    <Input value={profile.city || ""} onChange={(e) => setProfile({ ...profile, city: e.target.value })} placeholder="Stadt" className="mt-1" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Rolle</label>
-                  <Input value={roleLabels[profile.role] || profile.role} disabled className="mt-1 bg-gray-50" />
-                </div>
-              </div>
-
-              {profileSaveError && <p className="text-sm text-red-600">{profileSaveError}</p>}
-              <SaveButton isSaving={saving} isSaved={saved} />
-            </form>
-          </Card>
-        </TabsContent>
-
-        {/* ── Sicherheit ──────────────────────────────── */}
-        <TabsContent value="sicherheit">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Passwort ändern</h3>
-            <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Aktuelles Passwort</label>
-                <Input type="password" value={passwordForm.current} onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })} className="mt-1" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Neues Passwort</label>
-                <Input type="password" value={passwordForm.neu} onChange={(e) => setPasswordForm({ ...passwordForm, neu: e.target.value })} className="mt-1" required minLength={6} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Neues Passwort bestätigen</label>
-                <Input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })} className="mt-1" required />
-              </div>
-              {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-              <div className="flex items-center gap-3">
-                <Button type="submit"><Lock className="mr-2 h-4 w-4" />Passwort ändern</Button>
-                {passwordSaved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />Geändert</span>}
-              </div>
-            </form>
-          </Card>
-        </TabsContent>
+      <Tabs defaultValue="firma">
+        <div className="space-y-2">
+          {/* Zeile 1: Firma & Betrieb */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Firma</span>
+            <TabsList>
+              <TabsTrigger value="firma">
+                <Building2 className="mr-2 h-4 w-4" />Firma
+              </TabsTrigger>
+              <TabsTrigger value="logo">
+                <Image className="mr-2 h-4 w-4" />Logo & Branding
+              </TabsTrigger>
+              <TabsTrigger value="arbeitszeit">
+                <Clock className="mr-2 h-4 w-4" />Arbeitszeit
+              </TabsTrigger>
+              <TabsTrigger value="vorlagen">
+                <FileCode className="mr-2 h-4 w-4" />Dokumentvorlagen
+              </TabsTrigger>
+              <TabsTrigger value="regieberichte">
+                <FileText className="mr-2 h-4 w-4" />Regieberichte
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          {/* Zeile 2: System & Integrationen */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">System</span>
+            <TabsList>
+              <TabsTrigger value="banking">
+                <Landmark className="mr-2 h-4 w-4" />Banking
+              </TabsTrigger>
+              <TabsTrigger value="ki-modelle">
+                <Bot className="mr-2 h-4 w-4" />KI-Modelle
+              </TabsTrigger>
+              <TabsTrigger value="berechtigungen">
+                <Shield className="mr-2 h-4 w-4" />Berechtigungen
+              </TabsTrigger>
+              <TabsTrigger value="buchhaltung-settings">
+                <Calculator className="mr-2 h-4 w-4" />Buchhaltung
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
 
         {/* ── Firma ───────────────────────────────────── */}
         <TabsContent value="firma">
@@ -873,9 +795,9 @@ export default function EinstellungenPage() {
           <KiModelleTab />
         </TabsContent>
 
-        {/* ── Sprache ───────────────────────────── */}
-        <TabsContent value="sprache">
-          <LanguageSettingsTab userId={userId || ""} />
+        {/* ── Berechtigungen ─────────────────────── */}
+        <TabsContent value="berechtigungen">
+          <PermissionsTab />
         </TabsContent>
 
         {/* ── Buchhaltung ──────────────────────────── */}
@@ -2731,72 +2653,164 @@ function BuchExportSection() {
   );
 }
 
-/* ─── Sprache-Einstellungen ──────────────────────────────────── */
+/* ─── Berechtigungen ──────────────────────────────────────────── */
 
-function LanguageSettingsTab({ userId }: { userId: string }) {
-  const { language, setLanguage, t } = useTranslation();
+const ALL_PAGES = [
+  { key: "dashboard", label: "Dashboard", path: "/" },
+  { key: "alltagsverwaltung", label: "Alltagsverwaltung", path: "/alltagsverwaltung" },
+  { key: "meineAufgaben", label: "Meine Aufgaben", path: "/meine-aufgaben" },
+  { key: "kunden", label: "Kunden", path: "/kunden" },
+  { key: "projekte", label: "Projekte", path: "/projekte" },
+  { key: "katalog", label: "Katalog", path: "/katalog" },
+  { key: "aufmass", label: "Aufmaß", path: "/aufmass" },
+  { key: "buchhaltung", label: "Buchhaltung", path: "/buchhaltung" },
+  { key: "mitarbeiter", label: "Mitarbeiter", path: "/mitarbeiter" },
+  { key: "fahrzeuge", label: "Fahrzeuge", path: "/fahrzeuge" },
+  { key: "werkzeuge", label: "Werkzeuge", path: "/werkzeuge" },
+  { key: "kiAssistent", label: "KI-Assistent", path: "/ki-assistent" },
+  { key: "einstellungen", label: "Einstellungen", path: "/einstellungen" },
+  { key: "zeiterfassung", label: "Zeiterfassung", path: "/mitarbeiter/zeiterfassung" },
+  { key: "urlaubsplanung", label: "Urlaubsplanung", path: "/mitarbeiter/urlaubsplanung" },
+];
+
+type Permission = "none" | "read" | "write";
+type UserPerms = Record<string, Permission>;
+
+interface PermUser { id: string; firstName: string; lastName: string; role: string; permissions: string | null }
+
+function PermissionsTab() {
+  const [users, setUsers] = useState<PermUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [perms, setPerms] = useState<UserPerms>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleLanguageChange = async (newLang: Language) => {
-    setLanguage(newLang);
+  useEffect(() => {
+    fetch("/api/permissions").then(r => r.ok ? r.json() : []).then(d => { setUsers(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const selectUser = (uid: string) => {
+    setSelectedUser(uid);
+    setSaved(false);
+    const u = users.find(u => u.id === uid);
+    if (u?.permissions) {
+      try { setPerms(JSON.parse(u.permissions)); } catch { setPerms({}); }
+    } else {
+      setPerms({});
+    }
+  };
+
+  const getPerm = (key: string): Permission => perms[key] || "write";
+  const setPerm = (key: string, val: Permission) => setPerms(p => ({ ...p, [key]: val }));
+
+  const handleSave = async () => {
+    if (!selectedUser) return;
     setSaving(true);
     try {
-      await fetch(`/api/mitarbeiter/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: newLang }),
+      const res = await fetch("/api/permissions", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUser, permissions: perms }),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (res.ok) {
+        const updated = await res.json();
+        setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
     } catch { /* */ }
     setSaving(false);
   };
 
-  const allLanguages = Object.entries(languageNames) as [Language, string][];
-  const flags: Record<Language, string> = {
-    de: "🇩🇪", en: "🇬🇧", cs: "🇨🇿", tr: "🇹🇷", pl: "🇵🇱",
-    ru: "🇷🇺", uk: "🇺🇦", ro: "🇷🇴", hr: "🇭🇷", ar: "🇸🇦",
+  const setAll = (val: Permission) => {
+    const p: UserPerms = {};
+    ALL_PAGES.forEach(pg => { p[pg.key] = val; });
+    setPerms(p);
   };
+
+  const roleLabels: Record<string, string> = { ADMIN: "Administrator", BAULEITER: "Bauleiter", MITARBEITER: "Mitarbeiter" };
+
+  if (loading) return <Card className="p-6"><div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#9eb552]" /></div></Card>;
+
+  const selectedUserData = users.find(u => u.id === selectedUser);
 
   return (
     <Card className="p-6">
-      <div className="max-w-2xl">
-        <div className="flex items-center gap-3 mb-2">
-          <Globe className="h-5 w-5 text-[#9eb552]" />
-          <h3 className="text-lg font-semibold text-gray-900">{t("settings.spracheAendern")}</h3>
-          {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />Gespeichert</span>}
-        </div>
-        <p className="text-sm text-gray-500 mb-6">{t("settings.spracheBeschreibung")}</p>
+      <div className="flex items-center gap-3 mb-1">
+        <Shield className="h-5 w-5 text-[#9eb552]" />
+        <h3 className="text-lg font-semibold text-gray-900">Berechtigungen verwalten</h3>
+      </div>
+      <p className="text-sm text-gray-500 mb-6">Legen Sie fest, auf welche Seiten jeder Mitarbeiter zugreifen kann und ob er nur lesen oder auch schreiben darf.</p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {allLanguages.map(([code, name]) => (
-            <button
-              key={code}
-              onClick={() => handleLanguageChange(code)}
-              disabled={saving}
-              className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
-                language === code
-                  ? "border-[#9eb552] bg-[#9eb552]/10 shadow-sm"
-                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <span className="text-2xl">{flags[code]}</span>
-              <div>
-                <p className={`text-sm font-medium ${language === code ? "text-[#354360]" : "text-gray-900"}`}>{name}</p>
-                {language === code && <p className="text-[10px] text-[#9eb552] font-medium">Aktiv</p>}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* User-Liste */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Mitarbeiter</p>
+          {users.map(u => (
+            <button key={u.id} onClick={() => selectUser(u.id)}
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selectedUser === u.id ? "bg-[#9eb552]/15 border border-[#9eb552]/30" : "hover:bg-gray-50 border border-transparent"}`}>
+              <div className="w-8 h-8 rounded-full bg-[#354360] flex items-center justify-center text-white text-xs font-bold">{u.firstName[0]}{u.lastName[0]}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{u.firstName} {u.lastName}</p>
+                <p className="text-[10px] text-gray-400">{roleLabels[u.role] || u.role}</p>
               </div>
+              {u.permissions && <div className="w-2 h-2 rounded-full bg-[#9eb552]" title="Berechtigungen gesetzt" />}
             </button>
           ))}
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-1">Automatische Inhaltsübersetzung</p>
-          <p className="text-xs text-blue-600">
-            Wenn ein Mitarbeiter einen Text in einer anderen Sprache eingibt (z.B. Englisch oder Tschechisch),
-            wird dieser Text für Sie automatisch in Ihre eingestellte Sprache übersetzt.
-            Die KI-gestützte Übersetzung nutzt das konfigurierte KI-Modell aus den Einstellungen.
-          </p>
+        {/* Permissions-Matrix */}
+        <div className="lg:col-span-2">
+          {!selectedUser ? (
+            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">Wählen Sie einen Mitarbeiter aus</div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-gray-900">{selectedUserData?.firstName} {selectedUserData?.lastName}</h4>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setAll("write")}>Alle: Schreiben</Button>
+                  <Button size="sm" variant="outline" onClick={() => setAll("read")}>Alle: Lesen</Button>
+                  <Button size="sm" variant="outline" onClick={() => setAll("none")}>Alle: Kein Zugriff</Button>
+                </div>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left py-2 px-3 font-medium text-gray-600">Seite</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Kein Zugriff</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Lesen</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 w-24">Schreiben</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ALL_PAGES.map(pg => {
+                      const val = getPerm(pg.key);
+                      return (
+                        <tr key={pg.key} className="border-b last:border-0 hover:bg-gray-50/50">
+                          <td className="py-2 px-3 text-gray-900">{pg.label}</td>
+                          {(["none", "read", "write"] as Permission[]).map(pv => (
+                            <td key={pv} className="text-center py-2 px-3">
+                              <input type="radio" name={`perm-${pg.key}`} checked={val === pv} onChange={() => setPerm(pg.key, pv)}
+                                className="h-4 w-4 accent-[#9eb552] cursor-pointer" />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center gap-3 mt-4">
+                <Button onClick={handleSave} disabled={saving}>
+                  <Save className="h-4 w-4 mr-2" />{saving ? "Speichert..." : "Berechtigungen speichern"}
+                </Button>
+                {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />Gespeichert</span>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Card>
