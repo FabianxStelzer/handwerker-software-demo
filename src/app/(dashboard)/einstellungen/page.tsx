@@ -2695,6 +2695,11 @@ function PermissionsTab() {
   const [perms, setPerms] = useState<UserPerms>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/permissions").then(r => r.ok ? r.json() : []).then(d => { setUsers(d); setLoading(false); }).catch(() => setLoading(false));
@@ -2703,12 +2708,48 @@ function PermissionsTab() {
   const selectUser = (uid: string) => {
     setSelectedUser(uid);
     setSaved(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPwMsg(null);
+    setShowPassword(false);
     const u = users.find(u => u.id === uid);
     if (u?.permissions) {
       try { setPerms(JSON.parse(u.permissions)); } catch { setPerms({}); }
     } else {
       setPerms({});
     }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!selectedUser) return;
+    setPwMsg(null);
+    if (newPassword.length < 6) {
+      setPwMsg({ type: "error", text: t("settings.passwortZuKurz") });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwMsg({ type: "error", text: t("settings.passwortNichtIdentisch") });
+      return;
+    }
+    setPwSaving(true);
+    try {
+      const res = await fetch(`/api/mitarbeiter/${selectedUser}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      if (res.ok) {
+        setPwMsg({ type: "success", text: t("settings.passwortGeaendert") });
+        setNewPassword("");
+        setConfirmPassword("");
+        setShowPassword(false);
+      } else {
+        setPwMsg({ type: "error", text: t("settings.passwortFehler") });
+      }
+    } catch {
+      setPwMsg({ type: "error", text: t("settings.passwortFehler") });
+    }
+    setPwSaving(false);
   };
 
   const getPerm = (key: string): Permission => perms[key] || "write";
@@ -2818,6 +2859,55 @@ function PermissionsTab() {
                   <Save className="h-4 w-4 mr-2" />{saving ? `${t("common.speichern")}...` : t("settings.berechtigungenSpeichern")}
                 </Button>
                 {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="h-4 w-4" />{t("common.gespeichert")}</span>}
+              </div>
+
+              {/* Passwort ändern */}
+              <div className="mt-8 pt-6 border-t">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lock className="h-4 w-4 text-[#9eb552]" />
+                  <h4 className="font-semibold text-gray-900">{t("settings.passwortAendern")}</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.neuesPasswort")}</label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={e => { setNewPassword(e.target.value); setPwMsg(null); }}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.passwortWiederholen")}</label>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={e => { setConfirmPassword(e.target.value); setPwMsg(null); }}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <Button onClick={handlePasswordChange} disabled={pwSaving || !newPassword} size="sm">
+                    <Lock className="h-4 w-4 mr-2" />
+                    {pwSaving ? `${t("settings.passwortAendern")}...` : t("settings.passwortAendern")}
+                  </Button>
+                  {pwMsg && (
+                    <span className={`flex items-center gap-1 text-sm ${pwMsg.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                      {pwMsg.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
+                      {pwMsg.text}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}
