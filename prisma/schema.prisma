@@ -123,6 +123,7 @@ model User {
   absences             Absence[]
   azubiProfile         AzubiProfile?
   azubiReports         AzubiReport[]
+  appointments         Appointment[]       @relation("TerminZugewiesen")
 
   @@map("users")
 }
@@ -250,6 +251,7 @@ model Project {
   einbauPlaene   EinbauPlan[]
   staffAssignments ProjectStaffAssignment[]
   phases           ProjectPhase[]
+  appointments     Appointment[]
 
   @@map("projects")
 }
@@ -1594,4 +1596,107 @@ model AzubiReport {
 
   @@unique([userId, weekNumber, year])
   @@map("azubi_reports")
+}
+
+// ─── Termine / Appointments ──────────────────────
+
+enum AppointmentStatus {
+  GEPLANT
+  BESTAETIGT
+  IN_BEARBEITUNG
+  ABGESCHLOSSEN
+  ABGESAGT
+}
+
+enum AppointmentType {
+  BERATUNG
+  BESICHTIGUNG
+  REPARATUR
+  WARTUNG
+  INSTALLATION
+  NOTDIENST
+  ABNAHME
+  SONSTIGES
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  title           String
+  description     String?
+  type            AppointmentType   @default(BERATUNG)
+  status          AppointmentStatus @default(GEPLANT)
+  startTime       DateTime
+  endTime         DateTime
+  allDay          Boolean           @default(false)
+  location        String?
+  street          String?
+  zip             String?
+  city            String?
+  notes           String?
+
+  customerId      String?
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+
+  assignedToId    String?
+  assignedTo      User?             @relation("TerminZugewiesen", fields: [assignedToId], references: [id])
+
+  projectId       String?
+  project         Project?          @relation(fields: [projectId], references: [id])
+
+  bookingRequestId String?
+
+  reminder        Boolean           @default(true)
+  reminderMinutes Int               @default(60)
+  color           String?
+
+  createdById     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("appointments")
+}
+
+model BookingLink {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  description     String?
+  isActive        Boolean  @default(true)
+  types           String?
+  availableDays   String?  @default("{\"mon\":true,\"tue\":true,\"wed\":true,\"thu\":true,\"fri\":true,\"sat\":false,\"sun\":false}")
+  startHour       Int      @default(8)
+  endHour         Int      @default(17)
+  slotDuration    Int      @default(60)
+  bufferTime      Int      @default(15)
+  maxDaysAhead    Int      @default(30)
+  assignedToId    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  requests        AppointmentRequest[]
+
+  @@map("booking_links")
+}
+
+model AppointmentRequest {
+  id              String            @id @default(cuid())
+  bookingLinkId   String
+  bookingLink     BookingLink       @relation(fields: [bookingLinkId], references: [id])
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  message         String?
+  type            AppointmentType   @default(BERATUNG)
+  preferredDate   DateTime
+  preferredTime   String?
+  alternativeDate DateTime?
+  status          String            @default("NEU")
+  appointmentId   String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("appointment_requests")
 }

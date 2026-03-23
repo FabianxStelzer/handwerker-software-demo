@@ -38,6 +38,7 @@ const navigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, tKey: "nav.dashboard" },
   { name: "Alltagsverwaltung", href: "/alltagsverwaltung", icon: MapPin, tKey: "nav.alltagsverwaltung" },
   { name: "Meine Aufgaben", href: "/meine-aufgaben", icon: ClipboardList, tKey: "nav.meineAufgaben" },
+  { name: "Termine", href: "/termine", icon: CalendarDays, tKey: "nav.termine" },
   { name: "Kunden", href: "/kunden", icon: Users, tKey: "nav.kunden" },
   { name: "Projekte", href: "/projekte", icon: FolderKanban, tKey: "nav.projekte" },
   { name: "Katalog", href: "/katalog", icon: Package, tKey: "nav.katalog" },
