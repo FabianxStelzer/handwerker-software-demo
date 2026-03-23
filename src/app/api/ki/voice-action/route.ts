@@ -52,6 +52,21 @@ NAVIGATION: action: { "endpoint": "NAVIGATE", "method": "GET", "body": { "path":
 
 DATENABFRAGEN: GET-Anfragen direkt ausführen, Ergebnisse zusammenfassen
 
+REGIEBERICHTE: 
+  GET /api/projekte/[projectId]/regieberichte → Alle Regieberichte eines Projekts
+  POST /api/projekte/[projectId]/regieberichte → Neuen Regiebericht erstellen
+    body: {
+      datum: "2026-03-09" (optional, default: heute),
+      durchgefuehrteArbeiten: "Beschreibung der Arbeiten",
+      mitarbeiter: [{ userId: "...", name: "Max Müller", stunden: 8 }],
+      materialien: [{ name: "Kupferrohr", einheit: "m", menge: 10, einzelpreis: 5.50 }]
+    }
+    WICHTIG: projectId steht in der URL! Frage den Benutzer welches Projekt, wenn unklar.
+    WICHTIG: Hole ERST Mitarbeiterliste (GET /api/mitarbeiter) für die userIds.
+    WICHTIG: Hole ERST Projektliste (GET /api/projekte) für die projectId.
+  PUT /api/projekte/[projectId]/regieberichte → Regiebericht abschließen/unterschreiben
+    body: { berichtId: "...", action: "abschliessen" } oder { berichtId: "...", action: "unterschreiben", unterschriftUrl: "..." }
+
 AUFGABEN/MEINE AUFGABEN:
   GET /api/aufgaben → Alle Aufgaben
   POST /api/aufgaben → Neue Aufgabe erstellen
