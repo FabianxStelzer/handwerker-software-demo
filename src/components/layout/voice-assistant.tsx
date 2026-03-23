@@ -70,6 +70,8 @@ export function VoiceAssistant() {
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const accumulatedTextRef = useRef("");
 
   const userLang = ((session?.user as Record<string, unknown>)?.language as string) || "de";
   const userName = session?.user?.name || "Benutzer";
@@ -79,20 +81,49 @@ export function VoiceAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.speechSynthesis.getVoices();
+    const handleVoices = () => window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", handleVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", handleVoices);
+  }, []);
+
   const speak = useCallback(
     (text: string) => {
-      if (!speakEnabled || typeof window === "undefined") return;
+      if (!speakEnabled || typeof window === "undefined" || !text) return;
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = getSpeechLang(userLang);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.15;
+      utterance.volume = 1.0;
 
+      const langTag = getSpeechLang(userLang);
+      const langPrefix = langTag.split("-")[0];
       const voices = window.speechSynthesis.getVoices();
-      const langPrefix = getSpeechLang(userLang).split("-")[0];
-      const preferred = voices.find((v) => v.lang.startsWith(langPrefix) && v.localService);
-      if (preferred) utterance.voice = preferred;
+
+      const langVoices = voices.filter(
+        (v) => v.lang.startsWith(langPrefix) || v.lang.startsWith(langTag)
+      );
+
+      const femaleKeywords = ["female", "frau", "woman", "anna", "helena", "petra", "marlene", "vicki", "karin", "sara", "ewa", "zuzana", "milena", "alva", "fiona", "samantha", "karen", "moira", "tessa", "amelie"];
+      const findFemale = (list: SpeechSynthesisVoice[]) =>
+        list.find((v) => femaleKeywords.some((k) => v.name.toLowerCase().includes(k)));
+
+      const remoteVoices = langVoices.filter((v) => !v.localService);
+      const localVoices = langVoices.filter((v) => v.localService);
+
+      const selected =
+        findFemale(remoteVoices) ||
+        findFemale(localVoices) ||
+        findFemale(voices.filter((v) => v.lang.startsWith(langPrefix))) ||
+        remoteVoices[0] ||
+        localVoices[0] ||
+        null;
+
+      if (selected) utterance.voice = selected;
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
@@ -135,16 +166,19 @@ export function VoiceAssistant() {
 
         const data = await res.json();
 
+        const displayText = data.text || data.content || "Ich konnte das nicht verarbeiten.";
+        const spokenText = data.spoken || displayText;
+
         const assistantMsg: VoiceMessage = {
           role: "assistant",
-          content: data.text || data.content || "Ich konnte das nicht verarbeiten.",
+          content: displayText,
           type: data.type || "message",
           action: data.action || null,
           data: data.data || null,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
-        speak(assistantMsg.content);
+        speak(spokenText);
 
         if (data.type === "confirm" && data.action) {
           setPendingConfirm(assistantMsg);
@@ -249,6 +283,28 @@ export function VoiceAssistant() {
     speak("Okay, abgebrochen.");
   }, [speak]);
 
+  const finishRecording = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    const finalText = accumulatedTextRef.current.trim();
+    accumulatedTextRef.current = "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (recognitionRef.current as any)?.stop();
+    setIsListening(false);
+    setTranscript("");
+
+    if (finalText) {
+      const userMsg: VoiceMessage = { role: "user", content: finalText };
+      setMessages((prev) => {
+        const updated = [...prev, userMsg];
+        sendToAi(finalText, updated);
+        return updated;
+      });
+    }
+  }, [sendToAi]);
+
   const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
@@ -263,48 +319,75 @@ export function VoiceAssistant() {
       return;
     }
 
+    stopSpeaking();
+    accumulatedTextRef.current = "";
+
     const recognition = new SR();
     recognition.lang = getSpeechLang(userLang);
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
-      let text = "";
+      let finalParts = "";
+      let interimParts = "";
       for (let i = 0; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
-      }
-      setTranscript(text);
-
-      if (event.results[0]?.isFinal) {
-        const finalText = text.trim();
-        if (finalText) {
-          const userMsg: VoiceMessage = { role: "user", content: finalText };
-          setMessages((prev) => {
-            const updated = [...prev, userMsg];
-            sendToAi(finalText, updated);
-            return updated;
-          });
+        const r = event.results[i];
+        if (r.isFinal) {
+          finalParts += r[0].transcript;
+        } else {
+          interimParts += r[0].transcript;
         }
-        setTranscript("");
+      }
+
+      accumulatedTextRef.current = finalParts;
+      setTranscript((finalParts + interimParts).trim());
+
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => {
+        if (accumulatedTextRef.current.trim()) {
+          finishRecording();
+        }
+      }, 2500);
+    };
+
+    recognition.onend = () => {
+      if (accumulatedTextRef.current.trim()) {
+        finishRecording();
+      } else {
+        setIsListening(false);
       }
     };
 
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = (e: { error?: string }) => {
+      if (e.error === "no-speech") return;
+      if (accumulatedTextRef.current.trim()) {
+        finishRecording();
+      } else {
+        setIsListening(false);
+      }
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
     setTranscript("");
-  }, [userLang, sendToAi]);
+  }, [userLang, stopSpeaking, finishRecording]);
 
   const stopListening = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (recognitionRef.current as any)?.stop();
-    setIsListening(false);
-  }, []);
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (accumulatedTextRef.current.trim()) {
+      finishRecording();
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (recognitionRef.current as any)?.stop();
+      setIsListening(false);
+    }
+  }, [finishRecording]);
 
   const resetConversation = useCallback(() => {
     setMessages([]);
