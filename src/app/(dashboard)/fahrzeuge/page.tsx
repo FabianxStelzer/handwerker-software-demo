@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import {
   Car, Plus, Trash2, UserPlus, UserMinus, MapPin, Shield, Upload,
   CheckCircle2, AlertTriangle, Clock, Eye, ChevronLeft, Camera,
+  BookOpen, Route, Fuel, PenLine, Calendar, ArrowLeft, Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,18 @@ interface LicenseUpload {
   user?: { id: string; firstName: string; lastName: string };
 }
 
+interface TripEntry {
+  id: string;
+  date: string;
+  startKm: number;
+  endKm: number;
+  distance: number;
+  purpose: string;
+  driver: string;
+  destination: string;
+  isBusinessTrip: boolean;
+}
+
 export default function FahrzeugePage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
@@ -59,9 +72,14 @@ export default function FahrzeugePage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [detailView, setDetailView] = useState<Vehicle | null>(null);
   const [viewLicense, setViewLicense] = useState<LicenseUpload | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [tripEntries, setTripEntries] = useState<TripEntry[]>([]);
+  const [tripForm, setTripForm] = useState({ date: new Date().toISOString().slice(0, 10), startKm: "", endKm: "", purpose: "", destination: "", isBusinessTrip: true });
+  const [showTripForm, setShowTripForm] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     licensePlate: "", brand: "", model: "", year: "", color: "",
@@ -139,6 +157,52 @@ export default function FahrzeugePage() {
     load();
   }
 
+  function openDetail(v: Vehicle) {
+    setDetailView(v);
+    setEditForm({
+      licensePlate: v.licensePlate, brand: v.brand, model: v.model,
+      year: v.year?.toString() || "", color: v.color || "",
+      vin: v.vin || "", nextInspection: v.nextInspection?.slice(0, 10) || "",
+      nextTuv: v.nextTuv?.slice(0, 10) || "", mileage: v.mileage?.toString() || "",
+      notes: v.notes || "", gpsDeviceId: v.gpsDeviceId || "",
+    });
+    loadTrips(v.id);
+  }
+
+  async function loadTrips(vehicleId: string) {
+    try {
+      const res = await fetch(`/api/fahrzeuge/${vehicleId}/fahrtenbuch`);
+      if (res.ok) setTripEntries(await res.json());
+      else setTripEntries([]);
+    } catch { setTripEntries([]); }
+  }
+
+  async function handleSaveTrip() {
+    if (!detailView) return;
+    const startKm = parseFloat(tripForm.startKm);
+    const endKm = parseFloat(tripForm.endKm);
+    await fetch(`/api/fahrzeuge/${detailView.id}/fahrtenbuch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...tripForm, startKm, endKm, distance: endKm - startKm }),
+    });
+    setShowTripForm(false);
+    setTripForm({ date: new Date().toISOString().slice(0, 10), startKm: "", endKm: "", purpose: "", destination: "", isBusinessTrip: true });
+    loadTrips(detailView.id);
+  }
+
+  async function handleSaveVehicle() {
+    if (!detailView) return;
+    await fetch("/api/fahrzeuge", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: detailView.id, ...editForm }),
+    });
+    await load();
+    const updated = vehicles.find(v => v.id === detailView.id);
+    if (updated) setDetailView(updated);
+  }
+
   if (loading) {
     return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" /></div>;
   }
@@ -156,6 +220,260 @@ export default function FahrzeugePage() {
     if (daysLeft < 0) return { status: "expired", upload: latest };
     if (daysLeft < 30) return { status: "expiring", upload: latest };
     return { status: "ok", upload: latest };
+  }
+
+  /* ── Fahrzeug-Detailansicht ──────────────── */
+  if (detailView) {
+    const dv = detailView;
+    const totalKm = tripEntries.reduce((s, t) => s + t.distance, 0);
+    const businessTrips = tripEntries.filter(t => t.isBusinessTrip);
+    const businessKm = businessTrips.reduce((s, t) => s + t.distance, 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setDetailView(null)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{dv.brand} {dv.model}</h1>
+            <p className="text-sm text-gray-500">{dv.licensePlate}{dv.year ? ` · ${dv.year}` : ""}{dv.color ? ` · ${dv.color}` : ""}</p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="uebersicht">
+          <TabsList>
+            <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+            <TabsTrigger value="fahrtenbuch" className="gap-1.5"><BookOpen className="h-4 w-4" />Digitales Fahrtenbuch</TabsTrigger>
+            <TabsTrigger value="zuweisungen" className="gap-1.5"><UserPlus className="h-4 w-4" />Zuweisungen</TabsTrigger>
+            {isAdmin && <TabsTrigger value="bearbeiten" className="gap-1.5"><PenLine className="h-4 w-4" />Bearbeiten</TabsTrigger>}
+          </TabsList>
+
+          {/* Übersicht */}
+          <TabsContent value="uebersicht">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-gray-900">Fahrzeugdaten</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><p className="text-xs text-gray-500">Kennzeichen</p><p className="font-medium">{dv.licensePlate}</p></div>
+                    <div><p className="text-xs text-gray-500">Marke / Modell</p><p className="font-medium">{dv.brand} {dv.model}</p></div>
+                    {dv.year && <div><p className="text-xs text-gray-500">Baujahr</p><p className="font-medium">{dv.year}</p></div>}
+                    {dv.color && <div><p className="text-xs text-gray-500">Farbe</p><p className="font-medium">{dv.color}</p></div>}
+                    {dv.vin && <div className="col-span-2"><p className="text-xs text-gray-500">FIN/VIN</p><p className="font-medium font-mono text-xs">{dv.vin}</p></div>}
+                    {dv.mileage && <div><p className="text-xs text-gray-500">Kilometerstand</p><p className="font-medium">{dv.mileage.toLocaleString()} km</p></div>}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-gray-900">Termine & Status</h3>
+                  <div className="space-y-2 text-sm">
+                    {dv.nextTuv && (
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">TÜV</span>
+                        <span className="font-medium">{new Date(dv.nextTuv).toLocaleDateString("de-DE")}</span>
+                      </div>
+                    )}
+                    {dv.nextInspection && (
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Inspektion</span>
+                        <span className="font-medium">{new Date(dv.nextInspection).toLocaleDateString("de-DE")}</span>
+                      </div>
+                    )}
+                    {dv.gpsDeviceId && (
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">GPS</span>
+                        <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" />Aktiv</Badge>
+                      </div>
+                    )}
+                  </div>
+                  {dv.notes && <div className="pt-2 border-t"><p className="text-xs text-gray-500 mb-1">Notizen</p><p className="text-sm text-gray-700">{dv.notes}</p></div>}
+                </CardContent>
+              </Card>
+              <Card className="md:col-span-2">
+                <CardContent className="p-5">
+                  <h3 className="font-semibold text-gray-900 mb-3">Fahrtenbuch-Zusammenfassung</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <Route className="h-5 w-5 mx-auto text-blue-500 mb-1" />
+                      <p className="text-lg font-bold text-gray-900">{totalKm.toLocaleString()} km</p>
+                      <p className="text-xs text-gray-500">Gesamtstrecke</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <Car className="h-5 w-5 mx-auto text-green-500 mb-1" />
+                      <p className="text-lg font-bold text-gray-900">{businessKm.toLocaleString()} km</p>
+                      <p className="text-xs text-gray-500">Dienstfahrten</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <BookOpen className="h-5 w-5 mx-auto text-purple-500 mb-1" />
+                      <p className="text-lg font-bold text-gray-900">{tripEntries.length}</p>
+                      <p className="text-xs text-gray-500">Einträge</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Digitales Fahrtenbuch */}
+          <TabsContent value="fahrtenbuch">
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2"><BookOpen className="h-4 w-4 text-[#9eb552]" />Digitales Fahrtenbuch</h3>
+                  <Button size="sm" onClick={() => setShowTripForm(!showTripForm)}>
+                    <Plus className="h-4 w-4 mr-1" />Neue Fahrt
+                  </Button>
+                </div>
+
+                {showTripForm && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Datum</label>
+                        <Input type="date" value={tripForm.date} onChange={e => setTripForm(f => ({ ...f, date: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Start-km</label>
+                        <Input type="number" value={tripForm.startKm} onChange={e => setTripForm(f => ({ ...f, startKm: e.target.value }))} placeholder="z.B. 45230" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Ende-km</label>
+                        <Input type="number" value={tripForm.endKm} onChange={e => setTripForm(f => ({ ...f, endKm: e.target.value }))} placeholder="z.B. 45280" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Ziel</label>
+                        <Input value={tripForm.destination} onChange={e => setTripForm(f => ({ ...f, destination: e.target.value }))} placeholder="Baustelle Musterstr." />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Zweck</label>
+                        <Input value={tripForm.purpose} onChange={e => setTripForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Materialtransport, Kundenbesuch..." />
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={tripForm.isBusinessTrip} onChange={e => setTripForm(f => ({ ...f, isBusinessTrip: e.target.checked }))} className="h-4 w-4 accent-[#9eb552]" />
+                          Dienstfahrt
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveTrip} disabled={!tripForm.startKm || !tripForm.endKm}>
+                        <Save className="h-4 w-4 mr-1" />Speichern
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowTripForm(false)}>Abbrechen</Button>
+                    </div>
+                  </div>
+                )}
+
+                {tripEntries.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">Noch keine Fahrten eingetragen</p>
+                    <p className="text-xs text-gray-400 mt-1">Klicke auf "Neue Fahrt" um einen Eintrag hinzuzufügen</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-xs text-gray-500">
+                          <th className="px-3 py-2">Datum</th>
+                          <th className="px-3 py-2">Start-km</th>
+                          <th className="px-3 py-2">Ende-km</th>
+                          <th className="px-3 py-2">Strecke</th>
+                          <th className="px-3 py-2">Ziel</th>
+                          <th className="px-3 py-2">Zweck</th>
+                          <th className="px-3 py-2">Fahrer</th>
+                          <th className="px-3 py-2">Art</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tripEntries.map(trip => (
+                          <tr key={trip.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                            <td className="px-3 py-2">{new Date(trip.date).toLocaleDateString("de-DE")}</td>
+                            <td className="px-3 py-2">{trip.startKm.toLocaleString()}</td>
+                            <td className="px-3 py-2">{trip.endKm.toLocaleString()}</td>
+                            <td className="px-3 py-2 font-medium">{trip.distance} km</td>
+                            <td className="px-3 py-2">{trip.destination || "–"}</td>
+                            <td className="px-3 py-2">{trip.purpose || "–"}</td>
+                            <td className="px-3 py-2">{trip.driver || "–"}</td>
+                            <td className="px-3 py-2">
+                              <Badge className={trip.isBusinessTrip ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>
+                                {trip.isBusinessTrip ? "Dienst" : "Privat"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Zuweisungen */}
+          <TabsContent value="zuweisungen">
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="font-semibold text-gray-900 mb-3">Zugewiesene Mitarbeiter</h3>
+                {dv.assignments.length === 0 && <p className="text-sm text-gray-400">{t("fahrzeuge.keineZuweisung")}</p>}
+                <div className="space-y-2">
+                  {dv.assignments.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#354360] flex items-center justify-center text-white text-xs font-bold">{a.user.firstName[0]}{a.user.lastName[0]}</div>
+                        <span className="text-sm font-medium">{a.user.firstName} {a.user.lastName}</span>
+                      </div>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleUnassign(a.id)}>
+                          <UserMinus className="h-4 w-4 text-red-400" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {isAdmin && (
+                  <NativeSelect className="mt-3" onChange={e => { if (e.target.value) { handleAssign(dv.id, e.target.value); e.target.value = ""; } }}>
+                    <option value="">{t("fahrzeuge.mitarbeiterZuweisen")}</option>
+                    {allUsers.filter((u: any) => !dv.assignments.some(a => a.userId === u.id)).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                    ))}
+                  </NativeSelect>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bearbeiten */}
+          {isAdmin && (
+            <TabsContent value="bearbeiten">
+              <Card>
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-gray-900">Fahrzeug bearbeiten</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs font-medium text-gray-600">Kennzeichen</label><Input value={editForm.licensePlate || ""} onChange={e => setEditForm(f => ({ ...f, licensePlate: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Marke</label><Input value={editForm.brand || ""} onChange={e => setEditForm(f => ({ ...f, brand: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Modell</label><Input value={editForm.model || ""} onChange={e => setEditForm(f => ({ ...f, model: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Baujahr</label><Input type="number" value={editForm.year || ""} onChange={e => setEditForm(f => ({ ...f, year: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Farbe</label><Input value={editForm.color || ""} onChange={e => setEditForm(f => ({ ...f, color: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Kilometerstand</label><Input type="number" value={editForm.mileage || ""} onChange={e => setEditForm(f => ({ ...f, mileage: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">TÜV</label><Input type="date" value={editForm.nextTuv || ""} onChange={e => setEditForm(f => ({ ...f, nextTuv: e.target.value }))} /></div>
+                    <div><label className="text-xs font-medium text-gray-600">Inspektion</label><Input type="date" value={editForm.nextInspection || ""} onChange={e => setEditForm(f => ({ ...f, nextInspection: e.target.value }))} /></div>
+                  </div>
+                  <div><label className="text-xs font-medium text-gray-600">FIN/VIN</label><Input value={editForm.vin || ""} onChange={e => setEditForm(f => ({ ...f, vin: e.target.value }))} /></div>
+                  <div><label className="text-xs font-medium text-gray-600">GPS-Geräte-ID</label><Input value={editForm.gpsDeviceId || ""} onChange={e => setEditForm(f => ({ ...f, gpsDeviceId: e.target.value }))} /></div>
+                  <div><label className="text-xs font-medium text-gray-600">Notizen</label><Textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+                  <Button onClick={handleSaveVehicle}><Save className="h-4 w-4 mr-2" />{t("common.speichern")}</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
+    );
   }
 
   return (
@@ -246,7 +564,7 @@ export default function FahrzeugePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {vehicles.map((v) => (
-                <Card key={v.id}>
+                <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openDetail(v)}>
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -259,7 +577,7 @@ export default function FahrzeugePage() {
                         </div>
                       </div>
                       {isAdmin && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(v.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleDelete(v.id); }}>
                           <Trash2 className="h-3.5 w-3.5 text-red-500" />
                         </Button>
                       )}

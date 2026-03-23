@@ -138,9 +138,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "approve-material") {
+    const updateData: Record<string, unknown> = { approvedAt: new Date() };
+    if (body.pricePerUnit !== undefined) updateData.pricePerUnit = body.pricePerUnit;
+    if (body.quantity !== undefined) updateData.quantityPlanned = body.quantity;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+
     await prisma.projectMaterial.update({
       where: { id: body.materialId },
-      data: { approvedAt: new Date() },
+      data: updateData,
     });
     return NextResponse.json({ success: true });
   }

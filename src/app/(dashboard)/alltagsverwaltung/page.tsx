@@ -118,6 +118,8 @@ export default function AlltagsverwaltungPage() {
   const [assignDialog, setAssignDialog] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState({ userId: "", vehicleId: "", role: "", startDate: "", endDate: "", notes: "" });
   const [saving, setSaving] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<string | null>(null);
+  const [materialEdit, setMaterialEdit] = useState<Record<string, string>>({});
 
   const { t } = useTranslation();
 
@@ -467,37 +469,85 @@ export default function AlltagsverwaltungPage() {
               <p className="text-sm text-gray-400 mt-1">{t("alltag.alleBearbeitet")}</p>
             </CardContent></Card>
           ) : (
-            data.pendingMaterials.map(m => (
-              <Card key={m.id} className="border-0 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className="bg-orange-100 text-orange-700">{t("common.ausstehend")}</Badge>
-                        <span className="text-xs text-gray-400">{m.project.projectNumber}</span>
+            data.pendingMaterials.map(m => {
+              const isEditing = editingMaterial === m.id;
+              return (
+                <Card key={m.id} className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className="bg-orange-100 text-orange-700">{t("common.ausstehend")}</Badge>
+                          <span className="text-xs text-gray-400">{m.project.projectNumber}</span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900">{m.name}</h3>
+                        {m.description && <p className="text-sm text-gray-500 mt-1">{m.description}</p>}
+                        <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+                          <span>Projekt: {m.project.name}</span>
+                          <span>{t("alltag.menge")} {m.quantityPlanned} {unitLabels[m.unit] || m.unit}</span>
+                          {m.pricePerUnit > 0 && <span>{t("alltag.preisLabel")} {m.pricePerUnit.toFixed(2)} €/{unitLabels[m.unit] || m.unit}</span>}
+                          {m.requestedBy && <span>{t("alltag.angeforderVon")} {m.requestedBy.firstName} {m.requestedBy.lastName}</span>}
+                          {m.requestedAt && <span>{new Date(m.requestedAt).toLocaleDateString("de-DE")}</span>}
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-gray-900">{m.name}</h3>
-                      {m.description && <p className="text-sm text-gray-500 mt-1">{m.description}</p>}
-                      <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
-                        <span>Projekt: {m.project.name}</span>
-                        <span>{t("alltag.menge")} {m.quantityPlanned} {unitLabels[m.unit] || m.unit}</span>
-                        {m.pricePerUnit > 0 && <span>{t("alltag.preisLabel")} {m.pricePerUnit.toFixed(2)} €/{unitLabels[m.unit] || m.unit}</span>}
-                        {m.requestedBy && <span>{t("alltag.angeforderVon")} {m.requestedBy.firstName} {m.requestedBy.lastName}</span>}
-                        {m.requestedAt && <span>{new Date(m.requestedAt).toLocaleDateString("de-DE")}</span>}
+                      <div className="flex items-center gap-2 ml-4">
+                        {!isEditing && (
+                          <Button onClick={() => { setEditingMaterial(m.id); setMaterialEdit({ pricePerUnit: m.pricePerUnit.toString(), quantity: m.quantityPlanned.toString(), supplier: "", deliveryDate: "", notes: m.description || "" }); }} variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-1" />Bearbeiten
+                          </Button>
+                        )}
+                        <Button onClick={async () => {
+                          if (isEditing && (materialEdit.pricePerUnit || materialEdit.supplier || materialEdit.deliveryDate)) {
+                            await doAction({ action: "approve-material", materialId: m.id, pricePerUnit: parseFloat(materialEdit.pricePerUnit) || undefined, quantity: parseFloat(materialEdit.quantity) || undefined, notes: materialEdit.notes || undefined });
+                          } else {
+                            await doAction({ action: "approve-material", materialId: m.id });
+                          }
+                          setEditingMaterial(null);
+                        }} disabled={saving} size="sm" className="bg-green-600 hover:bg-green-700">
+                          <Check className="h-4 w-4 mr-1" />{t("common.freigeben")}
+                        </Button>
+                        <Button onClick={() => { doAction({ action: "reject-material", materialId: m.id }); setEditingMaterial(null); }} disabled={saving} variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
+                          <X className="h-4 w-4 mr-1" />{t("common.ablehnen")}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button onClick={() => doAction({ action: "approve-material", materialId: m.id })} disabled={saving} size="sm" className="bg-green-600 hover:bg-green-700">
-                        <Check className="h-4 w-4 mr-1" />{t("common.freigeben")}
-                      </Button>
-                      <Button onClick={() => doAction({ action: "reject-material", materialId: m.id })} disabled={saving} variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
-                        <X className="h-4 w-4 mr-1" />{t("common.ablehnen")}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+
+                    {isEditing && (
+                      <div className="mt-4 pt-4 border-t bg-gray-50 rounded-lg p-4 space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-700">Material bearbeiten</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs font-medium text-gray-600">Preis pro Einheit (€)</label>
+                            <Input type="number" step="0.01" value={materialEdit.pricePerUnit || ""} onChange={e => setMaterialEdit(f => ({ ...f, pricePerUnit: e.target.value }))} placeholder="0.00" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600">Menge</label>
+                            <Input type="number" value={materialEdit.quantity || ""} onChange={e => setMaterialEdit(f => ({ ...f, quantity: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600">Lieferant</label>
+                            <Input value={materialEdit.supplier || ""} onChange={e => setMaterialEdit(f => ({ ...f, supplier: e.target.value }))} placeholder="z.B. Würth, Hilti..." />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-600">Liefertermin</label>
+                            <Input type="date" value={materialEdit.deliveryDate || ""} onChange={e => setMaterialEdit(f => ({ ...f, deliveryDate: e.target.value }))} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Anmerkungen</label>
+                          <Textarea value={materialEdit.notes || ""} onChange={e => setMaterialEdit(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Hinweise zu Preis, Verfügbarkeit, Alternativen..." />
+                        </div>
+                        {materialEdit.pricePerUnit && materialEdit.quantity && (
+                          <div className="text-sm font-medium text-gray-700 bg-white rounded p-2">
+                            Gesamtkosten: <span className="text-[#9eb552] font-bold">{(parseFloat(materialEdit.pricePerUnit) * parseFloat(materialEdit.quantity)).toFixed(2)} €</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       )}

@@ -926,8 +926,26 @@ model Vehicle {
   updatedAt     DateTime @updatedAt
 
   assignments VehicleAssignment[]
+  tripEntries VehicleTripEntry[]
 
   @@map("vehicles")
+}
+
+model VehicleTripEntry {
+  id             String   @id @default(cuid())
+  vehicleId      String
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date           DateTime
+  startKm        Float
+  endKm          Float
+  distance       Float
+  purpose        String?
+  destination    String?
+  driver         String?
+  isBusinessTrip Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@map("vehicle_trip_entries")
 }
 
 model VehicleAssignment {
