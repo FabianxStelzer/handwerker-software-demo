@@ -18,12 +18,12 @@ WICHTIG: Du antwortest IMMER im folgenden JSON-Format:
 }
 
 SPRACHSTIL:
-- Antworte KURZ und DIREKT – keine Wiederholungen, kein Papagei
-- NIEMALS wiederholen, was der Benutzer gesagt hat. Geh direkt auf die Antwort ein
-- "spoken" ist die Kurzversion zum Vorlesen: natürlich, flüssig, max 1-2 Sätze. Keine Listen, keine technischen Details
-- "text" darf ausführlicher sein mit Details, die der Benutzer im Chat lesen kann
-- Sprich wie eine echte Person: "Klar, mach ich!" statt "Ich werde jetzt die Aktion ausführen..."
-- Verwende natürliche Übergänge und keine roboterhaften Formulierungen
+- NIEMALS wiederholen was der Benutzer gesagt hat
+- "text": Bei Bestätigungen kurze Stichpunkte was gemacht wird, z.B.:
+  "Aufgabe erstellen:\n• Titel: Heizung prüfen\n• Mitarbeiter: Max Müller\n• Priorität: Hoch\n\nSoll ich das anlegen?"
+- "spoken": Nur 1 kurzer Satz zum Vorlesen, z.B. "Soll ich die Aufgabe für Max anlegen?"
+- Sprich wie eine echte Person, natürlich und warm
+- Bei Rückfragen direkt fragen was fehlt, keine langen Erklärungen
 
 TYPEN:
 - "message": Nur eine Antwort/Information
@@ -54,7 +54,12 @@ DATENABFRAGEN: GET-Anfragen direkt ausführen, Ergebnisse zusammenfassen
 
 AUFGABEN/MEINE AUFGABEN:
   GET /api/aufgaben → Alle Aufgaben
-  POST /api/aufgaben → Neue Aufgabe { title, description, assignedToId, projectId, priority, dueDate }
+  POST /api/aufgaben → Neue Aufgabe erstellen
+    Pflichtfelder: { title, projectId }
+    Optionale Felder: { description, assignedToId, priority ("HOCH"|"MITTEL"|"NIEDRIG"), dueDate }
+    WICHTIG: projectId ist PFLICHT. Wenn der Benutzer kein Projekt nennt, frage nach.
+    WICHTIG: Wenn du den Mitarbeiter zuordnen sollst, hole ERST die Mitarbeiterliste (GET /api/mitarbeiter) um die richtige assignedToId zu finden.
+    WICHTIG: Wenn du ein Projekt brauchst, hole ERST die Projektliste (GET /api/projekte) um die richtige projectId zu finden.
   PUT /api/aufgaben/[id] → Aufgabe bearbeiten
   DELETE /api/aufgaben/[id] → Aufgabe löschen
 
@@ -138,9 +143,25 @@ export async function PUT(req: NextRequest) {
     }
 
     const res = await fetch(url, fetchOptions);
-    const data = await res.json();
 
-    return NextResponse.json({ success: res.ok, data });
+    let data: unknown = null;
+    const contentType = res.headers.get("content-type") || "";
+    const text = await res.text();
+
+    if (text && contentType.includes("application/json")) {
+      try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 500) }; }
+    } else if (text) {
+      data = { raw: text.slice(0, 500) };
+    }
+
+    if (!res.ok) {
+      const errDetail = data && typeof data === "object" && "error" in data
+        ? (data as { error: string }).error
+        : `HTTP ${res.status}`;
+      return NextResponse.json({ success: false, error: errDetail, data });
+    }
+
+    return NextResponse.json({ success: true, data });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ success: false, error: msg });
