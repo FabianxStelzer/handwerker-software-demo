@@ -558,11 +558,11 @@ export default function TerminePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input className="pl-9" placeholder={t("common.suchen")} value={searchQ} onChange={e => setSearchQ(e.target.value)} />
             </div>
-            <NativeSelect value={filterStatus} onValueChange={setFilterStatus}>
+            <NativeSelect value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="all">{t("termine.alle")} {t("termine.status")}</option>
               {STATUSES.map(s => <option key={s.value} value={s.value}>{t(s.tKey)}</option>)}
             </NativeSelect>
-            <NativeSelect value={filterType} onValueChange={setFilterType}>
+            <NativeSelect value={filterType} onChange={e => setFilterType(e.target.value)}>
               <option value="all">{t("termine.alle")} {t("termine.typ")}</option>
               {TYPES.map(ty => <option key={ty.value} value={ty.value}>{t(ty.tKey)}</option>)}
             </NativeSelect>
@@ -755,7 +755,7 @@ export default function TerminePage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium">{t("termine.mitarbeiter")}</label>
-                    <NativeSelect value={linkForm.assignedToId} onValueChange={v => setLinkForm({ ...linkForm, assignedToId: v })}>
+                    <NativeSelect value={linkForm.assignedToId} onChange={e => setLinkForm({ ...linkForm, assignedToId: e.target.value })}>
                       <option value="">—</option>
                       {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
                     </NativeSelect>
@@ -787,13 +787,13 @@ export default function TerminePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">{t("termine.typ")}</label>
-                  <NativeSelect value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
+                  <NativeSelect value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
                     {TYPES.map(ty => <option key={ty.value} value={ty.value}>{t(ty.tKey)}</option>)}
                   </NativeSelect>
                 </div>
                 <div>
                   <label className="text-sm font-medium">{t("termine.status")}</label>
-                  <NativeSelect value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+                  <NativeSelect value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                     {STATUSES.map(s => <option key={s.value} value={s.value}>{t(s.tKey)}</option>)}
                   </NativeSelect>
                 </div>
@@ -851,21 +851,21 @@ export default function TerminePage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium">{t("termine.kunde")}</label>
-                  <NativeSelect value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
+                  <NativeSelect value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}>
                     <option value="">— {t("termine.kundeAuswaehlen")} —</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName} {c.company ? `(${c.company})` : ""}</option>)}
                   </NativeSelect>
                 </div>
                 <div>
                   <label className="text-sm font-medium">{t("termine.mitarbeiter")}</label>
-                  <NativeSelect value={form.assignedToId} onValueChange={v => setForm({ ...form, assignedToId: v })}>
+                  <NativeSelect value={form.assignedToId} onChange={e => setForm({ ...form, assignedToId: e.target.value })}>
                     <option value="">—</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
                   </NativeSelect>
                 </div>
                 <div>
                   <label className="text-sm font-medium">{t("termine.projekt")}</label>
-                  <NativeSelect value={form.projectId} onValueChange={v => setForm({ ...form, projectId: v })}>
+                  <NativeSelect value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}>
                     <option value="">—</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.projectNumber ? `${p.projectNumber} – ` : ""}{p.name}</option>)}
                   </NativeSelect>
