@@ -15,11 +15,11 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 function getTypeLabels(t: (key: TranslationKey) => string): Record<string, string> {
   return {
     KRANKHEIT: t("ausfaelle.krankheit"),
-    UNFALL_ARBEIT: "Arbeitsunfall",
-    UNFALL_PRIVAT: "Privatunfall",
-    KIND_KRANK: "Kind krank",
-    ARZTBESUCH: "Arztbesuch",
-    REHA: "Reha",
+    UNFALL_ARBEIT: t("ausfaelle.arbeitsunfall"),
+    UNFALL_PRIVAT: t("ausfaelle.privatunfall"),
+    KIND_KRANK: t("ausfaelle.kindKrank"),
+    ARZTBESUCH: t("ausfaelle.arztbesuch"),
+    REHA: t("ausfaelle.reha"),
     QUARANTAENE: t("ausfaelle.quarantaene"),
     SONSTIGES: t("ausfaelle.sonstiges"),
   };

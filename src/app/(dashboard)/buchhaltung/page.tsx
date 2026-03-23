@@ -176,7 +176,7 @@ export default function BuchhaltungDashboardPage() {
                   <div className="border-b pb-3">
                     <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.finanzen")}</p>
                     <Link href="/buchhaltung/belege" className="text-xs text-blue-600 hover:underline">
-                      {a.bankTxUnassigned} Kontoumsätze jetzt zuordnen
+                      {a.bankTxUnassigned} {t("buch.kontoumsaetzeZuordnen")}
                     </Link>
                   </div>
                 )}
@@ -190,7 +190,7 @@ export default function BuchhaltungDashboardPage() {
                   <p className="text-xs text-gray-600">{a.offeneRechnungen || 0} {t("buch.offenePosten")}</p>
                   {a.ueberfaelligeRechnungen > 0 && (
                     <Link href="/rechnungen" className="text-xs text-red-600 hover:underline">
-                      {a.ueberfaelligeRechnungen} überfällige Rechnungen
+                      {a.ueberfaelligeRechnungen} {t("buch.ueberfaelligeRechnungen")}
                     </Link>
                   )}
                 </div>
@@ -209,10 +209,10 @@ export default function BuchhaltungDashboardPage() {
                     <p className="text-xs font-semibold text-gray-500">{t("buch.angebote")}</p>
                     <p className="text-sm font-bold text-gray-900">{formatCurrency(a.offeneAngeboteSumme || 0)}</p>
                   </div>
-                  <p className="text-xs text-gray-600">{a.offeneAngebote || 0} offene Angebote</p>
+                  <p className="text-xs text-gray-600">{a.offeneAngebote || 0} {t("buch.offeneAngeboteText")}</p>
                   {a.ueberfaelligeAngebote > 0 && (
                     <Link href="/buchhaltung/belege" className="text-xs text-red-600 hover:underline">
-                      {a.ueberfaelligeAngebote} überfällige Angebote
+                      {a.ueberfaelligeAngebote} {t("buch.ueberfaelligeAngebote")}
                     </Link>
                   )}
                 </div>
@@ -221,7 +221,7 @@ export default function BuchhaltungDashboardPage() {
                 <div>
                   <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.belege")}</p>
                   <Link href="/buchhaltung/belege" className="text-xs text-gray-600 hover:underline">
-                    {(a.offeneRechnungen || 0) + (a.offeneEingangsrechnungen || 0)} Belege zu prüfen
+                    {(a.offeneRechnungen || 0) + (a.offeneEingangsrechnungen || 0)} {t("buch.belegeZuPruefen")}
                   </Link>
                 </div>
 
@@ -229,7 +229,7 @@ export default function BuchhaltungDashboardPage() {
                 <div>
                   <p className="text-xs font-semibold text-gray-500 mb-1">{t("buch.buchungen")}</p>
                   <Link href="/buchhaltung/uebersicht" className="text-xs text-blue-600 hover:underline">
-                    Ausgaben erfassen und verwalten
+                    {t("buch.ausgabenErfassen")}
                   </Link>
                 </div>
               </div>
@@ -248,7 +248,7 @@ export default function BuchhaltungDashboardPage() {
                     onClick={handleSync}
                     disabled={syncing}
                     className="text-gray-400 hover:text-gray-600"
-                    title="Konten synchronisieren"
+                    title={t("buch.kontenSynchronisieren")}
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
                   </button>
@@ -287,7 +287,7 @@ export default function BuchhaltungDashboardPage() {
               ) : (
                 <div className="text-center py-4 mb-4">
                   <Landmark className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400">Noch keine Bankkonten verbunden</p>
+                  <p className="text-xs text-gray-400">{t("buch.keineBankkonten")}</p>
                 </div>
               )}
 
@@ -298,20 +298,20 @@ export default function BuchhaltungDashboardPage() {
               {/* USt-Voranmeldung */}
               <div className="border-t pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-bold text-gray-900">Umsatzsteuer-Voranmeldung</h3>
+                  <h3 className="text-xs font-bold text-gray-900">{t("buch.umsatzsteuer")}</h3>
                   <button onClick={load} className="text-gray-400 hover:text-gray-600"><RefreshCw className="h-3 w-3" /></button>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                  <span>Nächste Meldung</span>
+                  <span>{t("buch.naechsteMeldung")}</span>
                   <span>{ust.naechsteMeldung || "–"}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
-                  <span>Überschuss</span>
+                  <span>{t("buch.ueberschuss")}</span>
                   <span className={ust.ueberschuss >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                     {formatCurrency(ust.ueberschuss || 0)}
                   </span>
                 </div>
-                <p className="text-[10px] text-gray-400">Für Jahresmelder sieht das Finanzamt keine Umsatzsteuer-Voranmeldung vor.</p>
+                <p className="text-[10px] text-gray-400">{t("buch.jahresmelderHinweis")}</p>
               </div>
             </CardContent>
           </Card>
@@ -340,7 +340,7 @@ export default function BuchhaltungDashboardPage() {
                   <p className="text-lg font-bold text-gray-900">{formatCurrency(ausgabenTotal)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-500 mb-1">Differenz</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("buch.differenz")}</p>
                   <p className={`text-lg font-bold ${differenz >= 0 ? "text-green-600" : "text-red-600"}`}>
                     {formatCurrency(differenz)}
                   </p>
@@ -364,8 +364,8 @@ export default function BuchhaltungDashboardPage() {
                   onChange={(e) => setValueMode(e.target.value as "brutto" | "netto")}
                   className="text-xs h-8 w-auto"
                 >
-                  <option value="brutto">Nach Belegdatum (Bruttowerte)</option>
-                  <option value="netto">Nach Belegdatum (Nettowerte)</option>
+                  <option value="brutto">{t("buch.nachBelegdatumBrutto")}</option>
+                  <option value="netto">{t("buch.nachBelegdatumNetto")}</option>
                 </NativeSelect>
                 <NativeSelect
                   value={year}
@@ -373,7 +373,7 @@ export default function BuchhaltungDashboardPage() {
                   className="text-xs h-8 w-auto"
                 >
                   {[year - 2, year - 1, year, year + 1].map((y) => (
-                    <option key={y} value={y}>{y === new Date().getFullYear() ? "Aktuelles Jahr" : y}</option>
+                    <option key={y} value={y}>{y === new Date().getFullYear() ? t("buch.aktuellesJahr") : y}</option>
                   ))}
                 </NativeSelect>
               </div>
@@ -388,9 +388,9 @@ export default function BuchhaltungDashboardPage() {
           <DialogHeader>
             <DialogTitle>{t("buch.bankVerbinden")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500">Wähle deine Bank aus der Liste. Du wirst zur Authentifizierung weitergeleitet.</p>
+          <p className="text-sm text-gray-500">{t("buch.bankWaehlen")}</p>
           <Input
-            placeholder="Bank suchen..."
+            placeholder={t("buch.bankSuchen")}
             value={institutionSearch}
             onChange={(e) => setInstitutionSearch(e.target.value)}
             className="mt-2"

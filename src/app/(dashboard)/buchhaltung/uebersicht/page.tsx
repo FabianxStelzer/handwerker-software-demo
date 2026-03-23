@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 type KundenInvoice = {
   id: string;
@@ -42,6 +43,7 @@ type LieferantenGruppe = {
 };
 
 export default function OffenePostenPage() {
+  const { t } = useTranslation();
   const [typ, setTyp] = useState<"kunden" | "lieferanten">("kunden");
   const [kundenData, setKundenData] = useState<{ gruppen: KundenGruppe[]; total: number } | null>(null);
   const [lieferantenData, setLieferantenData] = useState<{ gruppen: LieferantenGruppe[]; total: number } | null>(null);
@@ -112,7 +114,7 @@ export default function OffenePostenPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Offene Posten</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{t("buch.offenePostenTitle")}</h1>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -121,21 +123,21 @@ export default function OffenePostenPage() {
           onChange={(e) => { setTyp(e.target.value as any); setSearch(""); setExpanded({}); }}
           className="w-56"
         >
-          <option value="kunden">Offene Kundenrechnungen</option>
-          <option value="lieferanten">Offene Lieferantenrechnungen</option>
+          <option value="kunden">{t("buch.offeneKundenrechnungen")}</option>
+          <option value="lieferanten">{t("buch.offeneLieferantenrechnungen")}</option>
         </NativeSelect>
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={typ === "kunden" ? "Kunde suchen..." : "Lieferant suchen..."}
+            placeholder={typ === "kunden" ? t("buch.kundeSuchen") : t("buch.lieferantSuchen")}
             className="pl-9"
           />
         </div>
         <div className="ml-auto">
           <Button onClick={handlePrint} className="bg-[#9eb552] hover:bg-[#8da348] text-white">
-            <Printer className="h-4 w-4 mr-1.5" />Drucken
+            <Printer className="h-4 w-4 mr-1.5" />{t("common.drucken")}
           </Button>
         </div>
       </div>
@@ -153,10 +155,10 @@ export default function OffenePostenPage() {
                 className="flex items-center gap-1 hover:text-gray-700"
                 onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
               >
-                {typ === "kunden" ? "Kunde" : "Lieferant"}
+                {typ === "kunden" ? t("buch.kundeLabel") : t("buch.lieferantLabel")}
                 <span className="text-xs">{sortDir === "asc" ? "↑" : "↓"}</span>
               </button>
-              <span className="ml-auto">Offen gesamt</span>
+              <span className="ml-auto">{t("buch.offenGesamt")}</span>
             </div>
           </div>
 
@@ -164,7 +166,7 @@ export default function OffenePostenPage() {
           {typ === "kunden" ? (
             <div className="space-y-1">
               {kundenFiltered.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-12">Keine offenen Kundenrechnungen.</p>
+                <p className="text-sm text-gray-400 text-center py-12">{t("buch.keineOffenenKunden")}</p>
               )}
               {kundenFiltered.map((g) => {
                 const isOpen = expanded[g.customer.id];
@@ -192,13 +194,13 @@ export default function OffenePostenPage() {
                         <table className="w-full">
                           <thead>
                             <tr className="text-xs text-gray-400 border-b">
-                              <th className="text-left py-1.5 pr-4 font-medium">Belegnummer</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Erstellt am</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Gesamtbetrag</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Fällig am</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Bereits erfolgte Zahlungen</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Zahldatum</th>
-                              <th className="text-right py-1.5 font-medium">Offen</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.belegnummer")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("common.erstelltAm")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.gesamtbetrag")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.faelligAm")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.bereitsErfolgt")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.zahldatum")}</th>
+                              <th className="text-right py-1.5 font-medium">{t("common.offen")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -224,7 +226,7 @@ export default function OffenePostenPage() {
           ) : (
             <div className="space-y-1">
               {lieferantenFiltered.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-12">Keine offenen Lieferantenrechnungen.</p>
+                <p className="text-sm text-gray-400 text-center py-12">{t("buch.keineOffenenLieferanten")}</p>
               )}
               {lieferantenFiltered.map((g) => {
                 const isOpen = expanded[g.vendor.id];
@@ -250,12 +252,12 @@ export default function OffenePostenPage() {
                         <table className="w-full">
                           <thead>
                             <tr className="text-xs text-gray-400 border-b">
-                              <th className="text-left py-1.5 pr-4 font-medium">Rechnungs-Nr.</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Datum</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Gesamtbetrag</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Fällig am</th>
-                              <th className="text-left py-1.5 pr-4 font-medium">Zahldatum</th>
-                              <th className="text-right py-1.5 font-medium">Offen</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.rechnungsNr")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("common.datum")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.gesamtbetrag")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.faelligAm")}</th>
+                              <th className="text-left py-1.5 pr-4 font-medium">{t("buch.zahldatum")}</th>
+                              <th className="text-right py-1.5 font-medium">{t("common.offen")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -283,16 +285,16 @@ export default function OffenePostenPage() {
           <div className="border-t pt-6 mt-8">
             <div className="flex flex-col items-end gap-2 text-sm">
               <div className="flex items-center gap-4">
-                <span className="text-[#9eb552] font-medium">von Kunden insgesamt zu erhalten</span>
+                <span className="text-[#9eb552] font-medium">{t("buch.vonKundenZuErhalten")}</span>
                 <span className="font-bold text-lg text-gray-900 w-32 text-right">{formatCurrency(totalKunden)}</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-gray-500">an Lieferanten insgesamt zu zahlen</span>
+                <span className="text-gray-500">{t("buch.anLieferantenZuZahlen")}</span>
                 <span className="font-medium text-gray-700 w-32 text-right">{formatCurrency(totalLieferanten)}</span>
               </div>
               <div className="border-t pt-2 mt-1 flex items-center gap-4">
                 <span className={`font-semibold ${nochZuErhalten >= 0 ? "text-[#9eb552]" : "text-red-600"}`}>
-                  {nochZuErhalten >= 0 ? "noch insgesamt zu erhalten" : "noch insgesamt zu zahlen"}
+                  {nochZuErhalten >= 0 ? t("buch.nochZuErhalten") : t("buch.nochZuZahlen")}
                 </span>
                 <span className={`font-bold text-lg w-32 text-right ${nochZuErhalten >= 0 ? "text-[#9eb552]" : "text-red-600"}`}>
                   {formatCurrency(Math.abs(nochZuErhalten))}

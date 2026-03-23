@@ -1,17 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Banknote, FileText, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const MONTHS = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember",
-];
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 export default function LohnPage() {
   const [payslips, setPayslips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+
+  const MONTHS = useMemo(
+    () => [
+      t("monat.januar"), t("monat.februar"), t("monat.maerz"),
+      t("monat.april"), t("monat.mai"), t("monat.juni"),
+      t("monat.juli"), t("monat.august"), t("monat.september"),
+      t("monat.oktober"), t("monat.november"), t("monat.dezember"),
+    ],
+    [t]
+  );
 
   useEffect(() => {
     fetch("/api/buchhaltung/lohn")
@@ -32,13 +39,13 @@ export default function LohnPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Lohn</h1>
-        <p className="text-sm text-gray-500 mt-1">Gehaltsabrechnungen verwalten</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("lohn.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("lohn.subtitle")}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Gehaltsabrechnungen</CardTitle>
+          <CardTitle>{t("lohn.gehaltsabrechnungen")}</CardTitle>
         </CardHeader>
         <CardContent>
           {payslips.length === 0 ? (
@@ -48,9 +55,9 @@ export default function LohnPage() {
                   <Banknote className="h-8 w-8" />
                 </div>
               </div>
-              <p className="text-sm text-gray-500">Noch keine Gehaltsabrechnungen hinterlegt</p>
+              <p className="text-sm text-gray-500">{t("lohn.keineAbrechnungen")}</p>
               <p className="text-xs text-gray-400 mt-1">
-                Gehaltsabrechnungen können bei den Mitarbeitern unter Mitarbeiter → [Name] → Dokumente hochgeladen werden.
+                {t("lohn.hinweis")}
               </p>
             </div>
           ) : (
@@ -58,10 +65,10 @@ export default function LohnPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-sm font-medium text-gray-500">
-                    <th className="px-4 py-3">Mitarbeiter</th>
-                    <th className="px-4 py-3">Monat</th>
-                    <th className="px-4 py-3">Jahr</th>
-                    <th className="px-4 py-3">Datei</th>
+                    <th className="px-4 py-3">{t("common.mitarbeiter")}</th>
+                    <th className="px-4 py-3">{t("lohn.monat")}</th>
+                    <th className="px-4 py-3">{t("lohn.jahr")}</th>
+                    <th className="px-4 py-3">{t("lohn.datei")}</th>
                   </tr>
                 </thead>
                 <tbody>

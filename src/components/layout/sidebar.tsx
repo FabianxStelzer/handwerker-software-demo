@@ -92,7 +92,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
   const userSection = user && (
     <div className="border-t border-white/10 px-3 py-3">
       <div className="flex items-center gap-3 px-2">
-        <Link href="/profil" onClick={() => setMobileOpen(false)} className="shrink-0" title="Mein Profil">
+        <Link href="/profil" onClick={() => setMobileOpen(false)} className="shrink-0" title={t("profil.title")}>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white hover:ring-2 hover:ring-[#9eb552] transition-all" style={{ backgroundColor: "#9eb552" }}>
             {initials}
           </div>
@@ -201,7 +201,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
               onMouseLeave={(e) => { if (!isActive(item.href)) e.currentTarget.style.backgroundColor = ""; }}
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              {item.name}
+              {item.tKey ? t(item.tKey) : item.name}
             </Link>
           );
         })}

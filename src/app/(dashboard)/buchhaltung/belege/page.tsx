@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 /* ── Unified Beleg type ─────────────────────────────── */
 interface Beleg {
@@ -35,7 +36,7 @@ interface Beleg {
   raw: any;
 }
 
-function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[], deliveryNotes: any[], expenses: any[]): Beleg[] {
+function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[], deliveryNotes: any[], expenses: any[], t: (key: string) => string): Beleg[] {
   const belege: Beleg[] = [];
 
   for (const inv of invoices) {
@@ -45,14 +46,18 @@ function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[]
     belege.push({
       id: inv.id,
       typ: "rechnung",
-      typLabel: "Rechnung",
+      typLabel: t("buch.rechnungLabel"),
       nummer: inv.invoiceNumber || "",
       kontakt: inv.customerName || "",
       datum: inv.createdAt,
       faellig: inv.dueDate,
       betrag: inv.grossTotal || 0,
       status: inv.status,
-      statusLabel: isOverdue ? `seit ${daysSince(inv.dueDate)} Tagen überfällig` : isPaid ? "bezahlt" : isDraft ? "Entwurf" : `zu erhalten ${formatCurrency(inv.grossTotal)}`,
+      statusLabel: isOverdue
+        ? t("buch.seitTagenUeberfaellig").replace("{n}", String(daysSince(inv.dueDate)))
+        : isPaid ? t("buch.bezahlt").toLowerCase()
+        : isDraft ? t("buch.entwurf")
+        : `${t("buch.zuErhalten")} ${formatCurrency(inv.grossTotal)}`,
       statusColor: isOverdue ? "text-red-600" : isPaid ? "text-green-600" : isDraft ? "text-gray-500" : "text-green-600",
       raw: inv,
     });
@@ -62,14 +67,14 @@ function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[]
     belege.push({
       id: q.id,
       typ: "angebot",
-      typLabel: "Angebot",
+      typLabel: t("buch.angebotLabel"),
       nummer: q.quotationNumber || "",
       kontakt: q.customerName || "",
       datum: q.createdAt,
       faellig: q.validUntil,
       betrag: q.grossTotal || 0,
       status: q.status,
-      statusLabel: q.status === "ANGENOMMEN" ? "angenommen" : q.status === "ABGELEHNT" ? "abgelehnt" : q.status === "VERSENDET" ? "offen" : "Entwurf",
+      statusLabel: q.status === "ANGENOMMEN" ? t("buch.angenommenStatus") : q.status === "ABGELEHNT" ? t("buch.abgelehntStatus") : q.status === "VERSENDET" ? t("buch.offenStatus") : t("buch.entwurf"),
       statusColor: q.status === "ANGENOMMEN" ? "text-green-600" : q.status === "ABGELEHNT" ? "text-red-600" : "text-gray-500",
       raw: q,
     });
@@ -81,14 +86,14 @@ function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[]
     belege.push({
       id: ein.id,
       typ: "eingang",
-      typLabel: "Ausgabe",
+      typLabel: t("buch.ausgabeLabel"),
       nummer: ein.referenceNo || "",
-      kontakt: ein.vendor?.name || "Unbekannt",
+      kontakt: ein.vendor?.name || t("buch.unbekannt"),
       datum: ein.date,
       faellig: ein.dueDate,
       betrag: ein.grossAmount || 0,
       status: ein.status,
-      statusLabel: isPaid ? "bezahlt" : isOverdue ? "überfällig" : "zu prüfen",
+      statusLabel: isPaid ? t("buch.bezahlt").toLowerCase() : isOverdue ? t("buch.ueberfaellig").toLowerCase() : t("buch.zuPruefenLabel").toLowerCase(),
       statusColor: isPaid ? "text-green-600" : isOverdue ? "text-red-600" : "text-amber-600",
       raw: ein,
     });
@@ -98,13 +103,13 @@ function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[]
     belege.push({
       id: d.id,
       typ: "lieferschein",
-      typLabel: "Lieferschein",
+      typLabel: t("buch.lieferschein"),
       nummer: d.noteNumber || "",
       kontakt: d.customerName || "",
       datum: d.date,
       betrag: 0,
       status: "ERSTELLT",
-      statusLabel: "erstellt",
+      statusLabel: t("buch.erstelltStatus"),
       statusColor: "text-gray-500",
       raw: d,
     });
@@ -114,13 +119,13 @@ function buildBelege(invoices: any[], quotations: any[], incomingInvoices: any[]
     belege.push({
       id: ex.id,
       typ: "ausgabe",
-      typLabel: "Ausgabe",
+      typLabel: t("buch.ausgabeLabel"),
       nummer: ex.id.slice(0, 8).toUpperCase(),
-      kontakt: ex.vendor || ex.category || "Sonstige",
+      kontakt: ex.vendor || ex.category || t("buch.sonstige"),
       datum: ex.date,
       betrag: ex.grossAmount || 0,
       status: "GEBUCHT",
-      statusLabel: "wird abgebucht",
+      statusLabel: t("buch.wirdAbgebucht"),
       statusColor: "text-gray-500",
       raw: ex,
     });
@@ -145,28 +150,18 @@ function filterBelege(belege: Beleg[], filterKey: FilterKey): Beleg[] {
     case "ueberfaellig": return belege.filter((b) => b.status === "UEBERFAELLIG" || (b.faellig && new Date(b.faellig) < new Date() && b.status !== "BEZAHLT" && b.status !== "ANGENOMMEN" && b.status !== "ERLEDIGT"));
     case "offen": return belege.filter((b) => b.status === "VERSENDET" || b.status === "OFFEN");
     case "entwurf": return belege.filter((b) => b.status === "ENTWURF");
-    case "pruefen": return belege.filter((b) => b.statusLabel.includes("prüfen") || b.status === "OFFEN");
+    case "pruefen": return belege.filter((b) => (b.typ === "eingang" && b.status !== "BEZAHLT" && b.status !== "UEBERFAELLIG") || b.status === "OFFEN");
     case "storniert": return belege.filter((b) => b.status === "STORNIERT");
     case "archiviert": return belege.filter((b) => b.status === "ARCHIVIERT");
     default: return belege;
   }
 }
 
-const FILTERS: { key: FilterKey; label: string; icon: React.ElementType }[] = [
-  { key: "alle", label: "Alle Belege", icon: FileText },
-  { key: "ausgang", label: "Ausgangsbelege", icon: ArrowUpFromLine },
-  { key: "eingang", label: "Eingangsbelege", icon: ArrowDownToLine },
-  { key: "ueberfaellig", label: "Überfällige", icon: AlertTriangle },
-  { key: "offen", label: "Offene", icon: Clock },
-  { key: "entwurf", label: "Entwürfe", icon: Pencil },
-  { key: "pruefen", label: "Zu prüfen", icon: Eye },
-  { key: "storniert", label: "Storniert", icon: Ban },
-  { key: "archiviert", label: "Archiviert", icon: Archive },
-];
-
 /* ── Page Component ─────────────────────────────────── */
 export default function BelegePage() {
   const router = useRouter();
+  const { t } = useTranslation();
+
   const [invoices, setInvoices] = useState<any[]>([]);
   const [quotations, setQuotations] = useState<any[]>([]);
   const [incomingInvoices, setIncomingInvoices] = useState<any[]>([]);
@@ -196,6 +191,18 @@ export default function BelegePage() {
   const [rechnungDialogOpen, setRechnungDialogOpen] = useState(false);
   const [lieferscheinDialogOpen, setLieferscheinDialogOpen] = useState(false);
   const [createError, setCreateError] = useState("");
+
+  const filters = useMemo(() => [
+    { key: "alle" as FilterKey, label: t("buch.alleBelege"), icon: FileText },
+    { key: "ausgang" as FilterKey, label: t("buch.ausgangsbelege"), icon: ArrowUpFromLine },
+    { key: "eingang" as FilterKey, label: t("buch.eingangsbelege"), icon: ArrowDownToLine },
+    { key: "ueberfaellig" as FilterKey, label: t("buch.ueberfaellige"), icon: AlertTriangle },
+    { key: "offen" as FilterKey, label: t("buch.offene"), icon: Clock },
+    { key: "entwurf" as FilterKey, label: t("buch.entwuerfe"), icon: Pencil },
+    { key: "pruefen" as FilterKey, label: t("buch.zuPruefenLabel"), icon: Eye },
+    { key: "storniert" as FilterKey, label: t("buch.storniert"), icon: Ban },
+    { key: "archiviert" as FilterKey, label: t("buch.archiviert"), icon: Archive },
+  ], [t]);
 
   function load() {
     Promise.all([
@@ -248,7 +255,7 @@ export default function BelegePage() {
     setUploadedDocs((prev) => prev.filter((d) => d.id !== id));
   }
 
-  const allBelege = useMemo(() => buildBelege(invoices, quotations, incomingInvoices, deliveryNotes, expenses), [invoices, quotations, incomingInvoices, deliveryNotes, expenses]);
+  const allBelege = useMemo(() => buildBelege(invoices, quotations, incomingInvoices, deliveryNotes, expenses, t as (key: string) => string), [invoices, quotations, incomingInvoices, deliveryNotes, expenses, t]);
 
   const filteredBelege = useMemo(() => {
     let list = filterBelege(allBelege, activeFilter);
@@ -269,9 +276,9 @@ export default function BelegePage() {
 
   const filterCounts = useMemo(() => {
     const counts: Record<FilterKey, number> = {} as any;
-    for (const f of FILTERS) counts[f.key] = filterBelege(allBelege, f.key).length;
+    for (const f of filters) counts[f.key] = filterBelege(allBelege, f.key).length;
     return counts;
-  }, [allBelege]);
+  }, [allBelege, filters]);
 
   const ordersWithoutInvoice = orders.filter((o) => !o.invoice);
 
@@ -345,9 +352,9 @@ export default function BelegePage() {
   function getBelegDescription(b: Beleg) {
     const parts: string[] = [b.typLabel];
     if (b.nummer) parts.push(`- ${b.nummer}`);
-    parts.push(`vom ${formatDate(b.datum)}`);
+    parts.push(`${t("buch.vom")} ${formatDate(b.datum)}`);
     if (b.faellig) {
-      const fLabel = b.typ === "angebot" ? "gültig bis" : "fällig zum";
+      const fLabel = b.typ === "angebot" ? t("buch.gueltigBisLabel") : t("buch.faelligZum");
       parts.push(`- ${fLabel} ${formatDate(b.faellig)}`);
     }
     return parts.join(" ");
@@ -361,13 +368,13 @@ export default function BelegePage() {
         <div className="p-3">
           <Button className="w-full gap-1.5 bg-[#9eb552] hover:bg-[#8da448] text-white" onClick={() => setNeuBelegOpen(true)}>
             <Plus className="h-4 w-4" />
-            Neuer Beleg
+            {t("buch.neuerBeleg")}
           </Button>
         </div>
 
         {/* Filter Navigation */}
         <nav className="flex-1 px-2 pb-4">
-          {FILTERS.map((f) => {
+          {filters.map((f) => {
             const count = filterCounts[f.key];
             const Icon = f.icon;
             const isActive = activeFilter === f.key;
@@ -403,13 +410,13 @@ export default function BelegePage() {
         <div className="px-5 pt-4 pb-3 border-b bg-white">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold text-gray-900">
-              {FILTERS.find((f) => f.key === activeFilter)?.label || "Alle Belege"}
+              {filters.find((f) => f.key === activeFilter)?.label || t("buch.alleBelege")}
             </h1>
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>Sortieren nach</span>
+              <span>{t("buch.sortierenNach")}</span>
               <NativeSelect value={sortBy} onChange={(e) => setSortBy(e.target.value as "datum" | "betrag")} className="h-7 text-xs w-auto">
-                <option value="datum">Letzte Veränderung</option>
-                <option value="betrag">Betrag</option>
+                <option value="datum">{t("buch.letzteVeraenderung")}</option>
+                <option value="betrag">{t("common.betrag")}</option>
               </NativeSelect>
             </div>
           </div>
@@ -420,7 +427,7 @@ export default function BelegePage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Suchen nach Name, Belegnummer oder Betrag"
+              placeholder={t("buch.belegeSuchen")}
               className="pl-9 h-9 text-sm"
             />
             {search && (
@@ -452,8 +459,8 @@ export default function BelegePage() {
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </div>
             <p className="text-xs text-green-800">
-              <strong>Bilddokumente hinzufügen</strong> (hier ablegen oder <span className="underline font-semibold text-green-700">auswählen</span>)
-              <span className="block text-green-600/70 text-[10px]">PDF, JPEG, PNG oder XML – max. 5MB pro Datei</span>
+              <strong>{t("buch.bilddokumente")}</strong> ({t("buch.hierAbholen")} <span className="underline font-semibold text-green-700">{t("buch.auswaehlen")}</span>)
+              <span className="block text-green-600/70 text-[10px]">{t("buch.uploadHinweis")}</span>
             </p>
           </div>
 
@@ -475,7 +482,7 @@ export default function BelegePage() {
                 );
               })}
               {uploadedDocs.length > 8 && (
-                <span className="text-xs text-gray-400 self-center">+{uploadedDocs.length - 8} weitere</span>
+                <span className="text-xs text-gray-400 self-center">+{uploadedDocs.length - 8} {t("buch.weitere")}</span>
               )}
             </div>
           )}
@@ -486,7 +493,7 @@ export default function BelegePage() {
           {filteredBelege.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <FileText className="h-10 w-10 mb-2" />
-              <p className="text-sm">Keine Belege gefunden</p>
+              <p className="text-sm">{t("buch.keineBelegeGefunden")}</p>
             </div>
           ) : (
             <div>
@@ -529,7 +536,7 @@ export default function BelegePage() {
           <div className="bg-gray-100 h-44 flex items-center justify-center border-b">
             <div className="text-center">
               <FileText className="h-10 w-10 text-gray-300 mx-auto mb-1" />
-              <p className="text-[10px] text-gray-400">Belegvorschau</p>
+              <p className="text-[10px] text-gray-400">{t("buch.belegvorschau")}</p>
             </div>
           </div>
 
@@ -537,79 +544,79 @@ export default function BelegePage() {
           <div className="flex items-center justify-center gap-1 py-2 border-b">
             {getBelegLink(selectedBeleg) && (
               <Link href={getBelegLink(selectedBeleg)!}>
-                <button className="p-2 rounded hover:bg-gray-100" title="Bearbeiten"><Pencil className="h-4 w-4 text-gray-500" /></button>
+                <button className="p-2 rounded hover:bg-gray-100" title={t("common.bearbeiten")}><Pencil className="h-4 w-4 text-gray-500" /></button>
               </Link>
             )}
-            <button className="p-2 rounded hover:bg-gray-100" title="E-Mail senden"><Mail className="h-4 w-4 text-gray-500" /></button>
-            <button className="p-2 rounded hover:bg-gray-100" title="Drucken"><Printer className="h-4 w-4 text-gray-500" /></button>
-            <button className="p-2 rounded hover:bg-gray-100" title="Weitere Optionen"><MoreHorizontal className="h-4 w-4 text-gray-500" /></button>
+            <button className="p-2 rounded hover:bg-gray-100" title={t("buch.emailSenden")}><Mail className="h-4 w-4 text-gray-500" /></button>
+            <button className="p-2 rounded hover:bg-gray-100" title={t("buch.drucken")}><Printer className="h-4 w-4 text-gray-500" /></button>
+            <button className="p-2 rounded hover:bg-gray-100" title={t("buch.weitereOptionen")}><MoreHorizontal className="h-4 w-4 text-gray-500" /></button>
           </div>
 
           {/* Dates */}
           <div className="px-4 py-3 border-b text-xs text-gray-500 space-y-0.5">
-            <p>erstellt am {formatDate(selectedBeleg.datum)}</p>
+            <p>{t("common.erstelltAm")} {formatDate(selectedBeleg.datum)}</p>
           </div>
 
           {/* Details */}
           <div className="px-4 py-3 border-b">
             <h3 className="text-xs font-bold text-gray-900 mb-3">{selectedBeleg.typLabel}</h3>
             <div className="space-y-2">
-              <DetailRow label="Belegnummer" value={selectedBeleg.nummer} />
-              <DetailRow label="Belegdatum" value={formatDate(selectedBeleg.datum)} />
-              <DetailRow label="Kontakt" value={selectedBeleg.kontakt} isLink />
+              <DetailRow label={t("buch.belegnummer")} value={selectedBeleg.nummer} />
+              <DetailRow label={t("buch.belegdatum")} value={formatDate(selectedBeleg.datum)} />
+              <DetailRow label={t("buch.kontaktLabel")} value={selectedBeleg.kontakt} isLink />
               {selectedBeleg.faellig && (
                 <DetailRow
-                  label={selectedBeleg.typ === "angebot" ? "Gültig bis" : "Fällig am"}
+                  label={selectedBeleg.typ === "angebot" ? t("buch.gueltigBis") : t("buch.faelligAm")}
                   value={formatDate(selectedBeleg.faellig)}
                 />
               )}
-              <DetailRow label="Betrag" value={formatCurrency(selectedBeleg.betrag)} bold />
+              <DetailRow label={t("common.betrag")} value={formatCurrency(selectedBeleg.betrag)} bold />
             </div>
           </div>
 
           {/* Status */}
           <div className="px-4 py-3 border-b">
-            <h3 className="text-xs font-bold text-gray-900 mb-2">Status</h3>
+            <h3 className="text-xs font-bold text-gray-900 mb-2">{t("common.status")}</h3>
             <span className={`text-sm font-medium ${selectedBeleg.statusColor}`}>{selectedBeleg.statusLabel}</span>
           </div>
 
           {/* Beleglink */}
           <div className="px-4 py-3 border-b">
-            <h3 className="text-xs font-bold text-gray-900 mb-2">Beleglink</h3>
+            <h3 className="text-xs font-bold text-gray-900 mb-2">{t("buch.beleglink")}</h3>
             {getBelegLink(selectedBeleg) ? (
               <div className="flex items-center gap-2">
                 <Link href={getBelegLink(selectedBeleg)!} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                  <ExternalLink className="h-3 w-3" />Link öffnen
+                  <ExternalLink className="h-3 w-3" />{t("buch.linkOeffnen")}
                 </Link>
                 <button
                   className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
                   onClick={() => navigator.clipboard.writeText(window.location.origin + getBelegLink(selectedBeleg)!)}
                 >
-                  <Copy className="h-3 w-3" />Kopieren
+                  <Copy className="h-3 w-3" />{t("common.kopieren")}
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-gray-400">Kein Link verfügbar</p>
+              <p className="text-xs text-gray-400">{t("buch.keinLinkVerfuegbar")}</p>
             )}
           </div>
 
           {/* Tags */}
           <div className="px-4 py-3 border-b">
-            <h3 className="text-xs font-bold text-gray-900 mb-2">Tags</h3>
-            <Input placeholder="Tag suchen oder erfassen" className="h-7 text-xs" />
+            <h3 className="text-xs font-bold text-gray-900 mb-2">{t("buch.tags")}</h3>
+            <Input placeholder={t("buch.tagSuchenOderErfassen")} className="h-7 text-xs" />
           </div>
 
           {/* Kommentare */}
           <div className="px-4 py-3">
-            <h3 className="text-xs font-bold text-gray-900 mb-2">Kommentare</h3>
-            <Textarea placeholder="Kommentar eingeben" className="text-xs" rows={2} />
+            <h3 className="text-xs font-bold text-gray-900 mb-2">{t("buch.kommentareLabel")}</h3>
+            <Textarea placeholder={t("buch.kommentarEingeben")} className="text-xs" rows={2} />
           </div>
         </div>
       ) : (
         <div className="w-80 shrink-0 border-l bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <Receipt className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-xs text-gray-400">Beleg auswählen,<br />um Details zu sehen</p>
+            <p className="text-xs text-gray-400">{t("buch.belegAuswaehlen")}</p>
           </div>
         </div>
       )}
@@ -618,23 +625,23 @@ export default function BelegePage() {
       {/* Neuer Beleg Auswahl */}
       <Dialog open={neuBelegOpen} onOpenChange={setNeuBelegOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Neuen Beleg erfassen</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("buch.neuerBeleg")}</DialogTitle></DialogHeader>
           <div className="space-y-2 mt-2">
             <button onClick={() => { setNeuBelegOpen(false); setRechnungDialogOpen(true); }} className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors text-left">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600"><ArrowUpFromLine className="h-4 w-4" /></div>
-              <div><p className="text-sm font-medium text-gray-900">Rechnung</p><p className="text-xs text-gray-500">Aus bestehendem Auftrag</p></div>
+              <div><p className="text-sm font-medium text-gray-900">{t("buch.rechnungLabel")}</p><p className="text-xs text-gray-500">{t("buch.ausBestehendAuftrag")}</p></div>
             </button>
             <button onClick={() => { setNeuBelegOpen(false); setAngebotDialogOpen(true); }} className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors text-left">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-600"><FileCheck className="h-4 w-4" /></div>
-              <div><p className="text-sm font-medium text-gray-900">Angebot</p><p className="text-xs text-gray-500">Neues Angebot erstellen</p></div>
+              <div><p className="text-sm font-medium text-gray-900">{t("buch.angebotLabel")}</p><p className="text-xs text-gray-500">{t("buch.neuesAngebotErstellen")}</p></div>
             </button>
             <button onClick={() => { setNeuBelegOpen(false); setEingangDialogOpen(true); }} className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors text-left">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600"><ArrowDownToLine className="h-4 w-4" /></div>
-              <div><p className="text-sm font-medium text-gray-900">Eingangsrechnung</p><p className="text-xs text-gray-500">Rechnung von Lieferant</p></div>
+              <div><p className="text-sm font-medium text-gray-900">{t("buch.eingangsrechnung")}</p><p className="text-xs text-gray-500">{t("buch.rechnungVonLieferant")}</p></div>
             </button>
             <button onClick={() => { setNeuBelegOpen(false); setLieferscheinDialogOpen(true); }} className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors text-left">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 text-purple-600"><Package className="h-4 w-4" /></div>
-              <div><p className="text-sm font-medium text-gray-900">Lieferschein</p><p className="text-xs text-gray-500">Neuen Lieferschein anlegen</p></div>
+              <div><p className="text-sm font-medium text-gray-900">{t("buch.lieferschein")}</p><p className="text-xs text-gray-500">{t("buch.neuenLieferscheinAnlegen")}</p></div>
             </button>
           </div>
         </DialogContent>
@@ -643,27 +650,27 @@ export default function BelegePage() {
       {/* Eingangsrechnung */}
       <Dialog open={eingangDialogOpen} onOpenChange={setEingangDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Neue Eingangsrechnung</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("buch.neueEingangsrechnung")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateEingang} className="space-y-4">
             {createError && <p className="text-sm text-red-600">{createError}</p>}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lieferant *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.lieferantLabel")} *</label>
               <NativeSelect name="vendorId" required>
-                <option value="">Lieferant wählen...</option>
+                <option value="">{t("buch.lieferantWaehlen")}</option>
                 {vendors.map((v: any) => (<option key={v.id} value={v.id}>{v.name}</option>))}
               </NativeSelect>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rechnungsnummer *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.rechnungsnummer")} *</label>
               <Input name="referenceNo" required placeholder="z.B. RE-2024-001" />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Datum *</label><Input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Fällig am</label><Input name="dueDate" type="date" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.datum")} *</label><Input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.faelligAm")}</label><Input name="dueDate" type="date" /></div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Bruttobetrag (€) *</label><Input name="grossAmount" type="number" step="0.01" required defaultValue="0" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label><Textarea name="notes" rows={2} /></div>
-            <Button type="submit" className="w-full">Anlegen</Button>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.bruttobetrag")} *</label><Input name="grossAmount" type="number" step="0.01" required defaultValue="0" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label><Textarea name="notes" rows={2} /></div>
+            <Button type="submit" className="w-full">{t("common.anlegen")}</Button>
           </form>
         </DialogContent>
       </Dialog>
@@ -671,23 +678,23 @@ export default function BelegePage() {
       {/* Angebot */}
       <Dialog open={angebotDialogOpen} onOpenChange={setAngebotDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Neues Angebot</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("buch.neuesAngebot")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateAngebot} className="space-y-4">
             {createError && <p className="text-sm text-red-600">{createError}</p>}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kunde *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.kundeLabel")} *</label>
               <NativeSelect name="customerId" required>
-                <option value="">Kunde wählen...</option>
+                <option value="">{t("buch.kundeWaehlen")}</option>
                 {customers.map((c: any) => (<option key={c.id} value={c.id}>{c.type === "GESCHAEFT" && c.company ? c.company : `${c.firstName} ${c.lastName}`}</option>))}
               </NativeSelect>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Projekt (optional)</label>
-              <NativeSelect name="projectId"><option value="">Kein Projekt</option>{projects.map((p: any) => (<option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>))}</NativeSelect>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.projektOptional")}</label>
+              <NativeSelect name="projectId"><option value="">{t("buch.keinProjekt")}</option>{projects.map((p: any) => (<option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>))}</NativeSelect>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Gültig bis (optional)</label><Input name="validUntil" type="date" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label><Textarea name="notes" rows={2} /></div>
-            <Button type="submit" className="w-full">Angebot anlegen</Button>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.gueltigBisOptional")}</label><Input name="validUntil" type="date" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label><Textarea name="notes" rows={2} /></div>
+            <Button type="submit" className="w-full">{t("buch.angebotAnlegen")}</Button>
           </form>
         </DialogContent>
       </Dialog>
@@ -695,21 +702,21 @@ export default function BelegePage() {
       {/* Rechnung */}
       <Dialog open={rechnungDialogOpen} onOpenChange={setRechnungDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Rechnung aus Auftrag erstellen</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("buch.rechnungAusAuftrag")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateRechnung} className="space-y-4">
             {createError && <p className="text-sm text-red-600">{createError}</p>}
             {ordersWithoutInvoice.length === 0 ? (
-              <p className="text-sm text-gray-500">Keine Aufträge ohne Rechnung vorhanden.</p>
+              <p className="text-sm text-gray-500">{t("buch.keineAuftraegeOhneRechnung")}</p>
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Auftrag *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.auftragLabel")} *</label>
                   <NativeSelect name="orderId" required>
-                    <option value="">Auftrag wählen...</option>
+                    <option value="">{t("buch.auftragWaehlen")}</option>
                     {ordersWithoutInvoice.map((o: any) => (<option key={o.id} value={o.id}>{o.orderNumber} – {o.customerName} – {formatCurrency(o.grossTotal)}</option>))}
                   </NativeSelect>
                 </div>
-                <Button type="submit" className="w-full">Rechnung erstellen</Button>
+                <Button type="submit" className="w-full">{t("buch.rechnungErstellen")}</Button>
               </>
             )}
           </form>
@@ -719,20 +726,20 @@ export default function BelegePage() {
       {/* Lieferschein */}
       <Dialog open={lieferscheinDialogOpen} onOpenChange={setLieferscheinDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Neuer Lieferschein</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("buch.neuerLieferschein")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateLieferschein} className="space-y-4">
             {createError && <p className="text-sm text-red-600">{createError}</p>}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kunde *</label>
-              <NativeSelect name="customerId" required><option value="">Kunde wählen...</option>{customers.map((c: any) => (<option key={c.id} value={c.id}>{c.type === "GESCHAEFT" && c.company ? c.company : `${c.firstName} ${c.lastName}`}</option>))}</NativeSelect>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.kundeLabel")} *</label>
+              <NativeSelect name="customerId" required><option value="">{t("buch.kundeWaehlen")}</option>{customers.map((c: any) => (<option key={c.id} value={c.id}>{c.type === "GESCHAEFT" && c.company ? c.company : `${c.firstName} ${c.lastName}`}</option>))}</NativeSelect>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Projekt (optional)</label>
-              <NativeSelect name="projectId"><option value="">Kein Projekt</option>{projects.map((p: any) => (<option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>))}</NativeSelect>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("buch.projektOptional")}</label>
+              <NativeSelect name="projectId"><option value="">{t("buch.keinProjekt")}</option>{projects.map((p: any) => (<option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>))}</NativeSelect>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Datum</label><Input name="date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label><Textarea name="notes" rows={2} /></div>
-            <Button type="submit" className="w-full">Anlegen</Button>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.datum")}</label><Input name="date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.notizen")}</label><Textarea name="notes" rows={2} /></div>
+            <Button type="submit" className="w-full">{t("common.anlegen")}</Button>
           </form>
         </DialogContent>
       </Dialog>

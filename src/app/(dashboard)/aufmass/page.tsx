@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   Plus, Upload, FileText, Trash2, Save, ChevronRight, ChevronDown,
   Bot, FolderKanban, FileSpreadsheet, Ruler, X, Download, PackageOpen, Check,
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ALL_PARSABLE_EXTENSIONS, GAEB_FILE_ACCEPT } from "@/lib/aufmass-parser";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Aufmass {
   id: string;
@@ -29,13 +30,15 @@ interface Aufmass {
   createdAt: string;
 }
 
-const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "success" | "warning" }> = {
-  ENTWURF: { label: "Entwurf", variant: "secondary" },
-  IN_BEARBEITUNG: { label: "In Bearbeitung", variant: "warning" },
-  FERTIG: { label: "Fertig", variant: "success" },
-};
-
 export default function AufmassPage() {
+  const { t } = useTranslation();
+
+  const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "success" | "warning" }> = useMemo(() => ({
+    ENTWURF: { label: t("aufmass.statusEntwurf"), variant: "secondary" },
+    IN_BEARBEITUNG: { label: t("aufmass.statusInBearbeitung"), variant: "warning" },
+    FERTIG: { label: t("aufmass.statusFertig"), variant: "success" },
+  }), [t]);
+
   const [aufmasse, setAufmasse] = useState<Aufmass[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,12 +83,11 @@ export default function AufmassPage() {
     const res = await fetch("/api/aufmass", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titel: newTitel || "Neues Aufmaß", beschreibung: newBeschreibung, kiAnweisung: newKiAnweisung }),
+      body: JSON.stringify({ titel: newTitel || t("aufmass.neuesAufmass"), beschreibung: newBeschreibung, kiAnweisung: newKiAnweisung }),
     });
     if (res.ok) {
       const created = await res.json();
 
-      // Upload pre-selected files
       for (const file of createFiles) {
         const fd = new FormData();
         fd.append("file", file);
@@ -134,7 +136,7 @@ export default function AufmassPage() {
   }
 
   async function deleteAufmass(id: string) {
-    if (!confirm("Aufmaß wirklich löschen?")) return;
+    if (!confirm(t("aufmass.loeschenBestaetigen"))) return;
     await fetch("/api/aufmass", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -205,7 +207,7 @@ export default function AufmassPage() {
         setSelected(data);
         setAufmasse((prev) => prev.map((a) => (a.id === data.id ? data : a)));
       } else {
-        setGenError(data.error || "KI-Generierung fehlgeschlagen");
+        setGenError(data.error || t("aufmass.kiGenerierungFehler"));
       }
     } catch (e: any) {
       setGenError(e.message);
@@ -290,11 +292,11 @@ export default function AufmassPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Aufmaß</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Aufmaße erstellen aus Bauplänen und Materialdateien</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("aufmass.title")}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t("aufmass.subtitle")}</p>
         </div>
         <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />Neues Aufmaß
+          <Plus className="h-4 w-4" />{t("aufmass.neuesAufmass")}
         </Button>
       </div>
 
@@ -306,9 +308,9 @@ export default function AufmassPage() {
               {aufmasse.length === 0 ? (
                 <div className="p-8 text-center">
                   <Ruler className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">Noch keine Aufmaße vorhanden</p>
+                  <p className="text-sm text-gray-500">{t("aufmass.keineVorhanden")}</p>
                   <Button size="sm" className="mt-3 gap-1.5" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-3.5 w-3.5" />Erstellen
+                    <Plus className="h-3.5 w-3.5" />{t("common.erstellen")}
                   </Button>
                 </div>
               ) : (
@@ -332,7 +334,7 @@ export default function AufmassPage() {
                           <Badge variant={sc.variant} className="text-[10px] ml-2">{sc.label}</Badge>
                         </div>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {a.dateien.length} Dateien · {a.positionen.length} Positionen
+                          {a.dateien.length} {t("common.dateien")} · {a.positionen.length} {t("aufmass.positionen")}
                           {a.project && <span> · {a.project.name}</span>}
                         </p>
                         <p className="text-[10px] text-gray-400 mt-0.5">
@@ -353,7 +355,7 @@ export default function AufmassPage() {
             <Card>
               <CardContent className="p-10 text-center">
                 <Ruler className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Wähle ein Aufmaß aus oder erstelle ein neues</p>
+                <p className="text-sm text-gray-500">{t("aufmass.waehleAufmass")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -374,9 +376,9 @@ export default function AufmassPage() {
                         onChange={(e) => updateAufmass(selected.id, { status: e.target.value })}
                         className="text-xs h-8 w-auto"
                       >
-                        <option value="ENTWURF">Entwurf</option>
-                        <option value="IN_BEARBEITUNG">In Bearbeitung</option>
-                        <option value="FERTIG">Fertig</option>
+                        <option value="ENTWURF">{t("aufmass.statusEntwurf")}</option>
+                        <option value="IN_BEARBEITUNG">{t("aufmass.statusInBearbeitung")}</option>
+                        <option value="FERTIG">{t("aufmass.statusFertig")}</option>
                       </NativeSelect>
                       <Button variant="ghost" size="icon" className="text-red-500 h-8 w-8" onClick={() => deleteAufmass(selected.id)}>
                         <Trash2 className="h-4 w-4" />
@@ -384,7 +386,7 @@ export default function AufmassPage() {
                     </div>
                   </div>
                   <Textarea
-                    placeholder="Beschreibung (optional)"
+                    placeholder={t("aufmass.beschreibungPlaceholder")}
                     value={selected.beschreibung || ""}
                     onChange={(e) => setSelected({ ...selected, beschreibung: e.target.value })}
                     onBlur={() => updateAufmass(selected.id, { beschreibung: selected.beschreibung })}
@@ -400,7 +402,7 @@ export default function AufmassPage() {
                       onChange={(e) => assignProject(selected.id, e.target.value || null)}
                       className="text-xs h-8 flex-1"
                     >
-                      <option value="">– Keinem Projekt zugeordnet –</option>
+                      <option value="">{t("aufmass.keinProjektZugeordnet")}</option>
                       {projects.map((p: any) => (
                         <option key={p.id} value={p.id}>{p.projectNumber} – {p.name}</option>
                       ))}
@@ -413,7 +415,7 @@ export default function AufmassPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-gray-900">Dateien</h3>
+                    <h3 className="text-sm font-bold text-gray-900">{t("common.dateien")}</h3>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -423,7 +425,7 @@ export default function AufmassPage() {
                         disabled={uploading}
                       >
                         <Upload className="h-3.5 w-3.5" />
-                        {uploading ? "Wird hochgeladen…" : "Datei hochladen"}
+                        {uploading ? t("aufmass.wirdHochgeladen") : t("aufmass.dateiHochladen")}
                       </Button>
                     </div>
                     <input
@@ -439,7 +441,7 @@ export default function AufmassPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-400 mb-3">
-                    Unterstützte Formate: PDF (Bauplan), GAEB (X31, X83, D11, D83, P83), Excel/CSV (Materialien)
+                    {t("aufmass.unterstützteFormate")}
                   </p>
                   {selected.dateien.length === 0 ? (
                     <div
@@ -447,7 +449,7 @@ export default function AufmassPage() {
                       onClick={() => fileRef.current?.click()}
                     >
                       <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-medium text-gray-600">Dateien hierher ziehen oder klicken</p>
+                      <p className="text-sm font-medium text-gray-600">{t("aufmass.dateienHierher")}</p>
                       <p className="text-xs text-gray-400 mt-1">PDF · GAEB (X31, X83, D11, D83, P83) · Excel · CSV</p>
                     </div>
                   ) : (
@@ -468,19 +470,19 @@ export default function AufmassPage() {
                                 <Button variant="outline" size="sm" className="gap-1 text-xs h-7"
                                   onClick={() => importFilePositions(d.id)} disabled={isImporting}>
                                   {isImporting ? (
-                                    <><div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />Importiere…</>
+                                    <><div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />{t("aufmass.importiere")}</>
                                   ) : (
-                                    <><PackageOpen className="h-3.5 w-3.5" />Inhalte importieren</>
+                                    <><PackageOpen className="h-3.5 w-3.5" />{t("aufmass.inhalteImportieren")}</>
                                   )}
                                 </Button>
                               )}
                               {d.dateiTyp === "pdf" && (
                                 <a href={d.dateiUrl} target="_blank" rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                                  Ansehen
+                                  {t("aufmass.ansehen")}
                                 </a>
                               )}
-                              <a href={d.dateiUrl} download={d.dateiName} className="text-gray-400 hover:text-gray-600" title="Herunterladen">
+                              <a href={d.dateiUrl} download={d.dateiName} className="text-gray-400 hover:text-gray-600" title={t("common.download")}>
                                 <Download className="h-3.5 w-3.5" />
                               </a>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" onClick={() => deleteFile(d.id)}>
@@ -490,7 +492,7 @@ export default function AufmassPage() {
                             {result && (
                               <div className={`mt-1 px-3 py-1.5 rounded text-xs ${result.error ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
                                 {result.error ? result.error : (
-                                  <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" />{result.count} Positionen importiert</span>
+                                  <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" />{result.count} {t("aufmass.positionenImportiert")}</span>
                                 )}
                               </div>
                             )}
@@ -507,20 +509,20 @@ export default function AufmassPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Bot className="h-4 w-4 text-blue-600" />
-                    <h3 className="text-sm font-bold text-gray-900">KI-Assistent</h3>
+                    <h3 className="text-sm font-bold text-gray-900">{t("ki.title")}</h3>
                     {selected.dateien.length > 0 && (
                       <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-                        {selected.dateien.length} {selected.dateien.length === 1 ? "Datei" : "Dateien"} werden analysiert
+                        {selected.dateien.length} {selected.dateien.length === 1 ? t("common.datei") : t("common.dateien")} {t("aufmass.dateienWerdenAnalysiert")}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mb-2">
-                    Die KI liest alle hochgeladenen Dateien (Baupläne, Excel, GAEB) und kann Fragen dazu beantworten. Du kannst auch ein komplettes Aufmaß generieren lassen.
+                    {t("aufmass.kiLiestDateien")}
                   </p>
 
                   {/* Aufmaß generieren */}
                   <div className="p-3 bg-gray-50 rounded-lg border mb-3">
-                    <p className="text-xs font-medium text-gray-700 mb-2">Aufmaß-Anweisung</p>
+                    <p className="text-xs font-medium text-gray-700 mb-2">{t("aufmass.aufmassAnweisung")}</p>
                     <Textarea
                       placeholder="z.B. Erstelle ein Aufmaß für die Heizungsinstallation. Berechne die benötigte Wärmepumpen-Leistung basierend auf der Gebäudefläche..."
                       value={selected.kiAnweisung || ""}
@@ -536,9 +538,9 @@ export default function AufmassPage() {
                       disabled={generating}
                     >
                       {generating ? (
-                        <><Loader2 className="h-3.5 w-3.5 animate-spin" />KI generiert…</>
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" />{t("aufmass.kiGeneriert")}</>
                       ) : (
-                        <><Bot className="h-3.5 w-3.5" />Aufmaß generieren lassen</>
+                        <><Bot className="h-3.5 w-3.5" />{t("aufmass.aufmassGenerieren")}</>
                       )}
                     </Button>
                   </div>
@@ -551,7 +553,7 @@ export default function AufmassPage() {
 
                   {selected.kiErgebnis && (
                     <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-xs font-medium text-blue-800 mb-1">KI-Ergebnis</p>
+                      <p className="text-xs font-medium text-blue-800 mb-1">{t("aufmass.kiErgebnis")}</p>
                       <div className="text-sm text-blue-900 whitespace-pre-wrap">{selected.kiErgebnis}</div>
                     </div>
                   )}
@@ -560,7 +562,7 @@ export default function AufmassPage() {
                   <div className="border-t pt-3">
                     <div className="flex items-center gap-2 mb-2">
                       <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
-                      <p className="text-xs font-medium text-gray-700">Frage zu den Dateien stellen</p>
+                      <p className="text-xs font-medium text-gray-700">{t("aufmass.frageDateien")}</p>
                     </div>
 
                     {kiChat.length > 0 && (
@@ -577,7 +579,7 @@ export default function AufmassPage() {
                           <div className="flex justify-start">
                             <div className="bg-white border rounded-lg px-3 py-2 flex items-center gap-1.5">
                               <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
-                              <span className="text-xs text-gray-500">KI liest Dateien und antwortet…</span>
+                              <span className="text-xs text-gray-500">{t("aufmass.kiAntwortet")}</span>
                             </div>
                           </div>
                         )}
@@ -605,18 +607,18 @@ export default function AufmassPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-gray-900">Positionen</h3>
+                    <h3 className="text-sm font-bold text-gray-900">{t("aufmass.positionen")}</h3>
                     {!editingPositionen ? (
                       <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openEditPositionen}>
-                        Bearbeiten
+                        {t("common.bearbeiten")}
                       </Button>
                     ) : (
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="text-xs" onClick={() => setEditingPositionen(false)}>
-                          Abbrechen
+                          {t("common.abbrechen")}
                         </Button>
                         <Button size="sm" className="gap-1.5 text-xs" onClick={savePositionen} disabled={saving}>
-                          <Save className="h-3.5 w-3.5" />Speichern
+                          <Save className="h-3.5 w-3.5" />{t("common.speichern")}
                         </Button>
                       </div>
                     )}
@@ -625,26 +627,26 @@ export default function AufmassPage() {
                   {editingPositionen ? (
                     <div className="space-y-2">
                       <div className="grid grid-cols-12 gap-2 text-[10px] text-gray-500 font-medium px-1">
-                        <span className="col-span-3">Bezeichnung</span>
-                        <span className="col-span-2">Kategorie</span>
-                        <span className="col-span-1">Raum</span>
-                        <span className="col-span-1">Menge</span>
-                        <span className="col-span-1">Einheit</span>
-                        <span className="col-span-2">Preis</span>
+                        <span className="col-span-3">{t("aufmass.bezeichnung")}</span>
+                        <span className="col-span-2">{t("common.kategorie")}</span>
+                        <span className="col-span-1">{t("aufmass.raum")}</span>
+                        <span className="col-span-1">{t("common.menge")}</span>
+                        <span className="col-span-1">{t("material.einheit")}</span>
+                        <span className="col-span-2">{t("material.preis")}</span>
                       </div>
                       {editPositionen.map((p, i) => (
                         <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                          <Input className="col-span-3 text-xs" placeholder="Bezeichnung" value={p.bezeichnung}
+                          <Input className="col-span-3 text-xs" placeholder={t("aufmass.bezeichnung")} value={p.bezeichnung}
                             onChange={(e) => { const np = [...editPositionen]; np[i].bezeichnung = e.target.value; setEditPositionen(np); }} />
-                          <Input className="col-span-2 text-xs" placeholder="Kategorie" value={p.kategorie || ""}
+                          <Input className="col-span-2 text-xs" placeholder={t("common.kategorie")} value={p.kategorie || ""}
                             onChange={(e) => { const np = [...editPositionen]; np[i].kategorie = e.target.value; setEditPositionen(np); }} />
-                          <Input className="col-span-1 text-xs" placeholder="Raum" value={p.raum || ""}
+                          <Input className="col-span-1 text-xs" placeholder={t("aufmass.raum")} value={p.raum || ""}
                             onChange={(e) => { const np = [...editPositionen]; np[i].raum = e.target.value; setEditPositionen(np); }} />
-                          <Input className="col-span-1 text-xs" type="number" placeholder="Menge" value={p.menge}
+                          <Input className="col-span-1 text-xs" type="number" placeholder={t("common.menge")} value={p.menge}
                             onChange={(e) => { const np = [...editPositionen]; np[i].menge = e.target.value; setEditPositionen(np); }} />
-                          <Input className="col-span-1 text-xs" placeholder="Einheit" value={p.einheit}
+                          <Input className="col-span-1 text-xs" placeholder={t("material.einheit")} value={p.einheit}
                             onChange={(e) => { const np = [...editPositionen]; np[i].einheit = e.target.value; setEditPositionen(np); }} />
-                          <Input className="col-span-2 text-xs" type="number" step="0.01" placeholder="Preis" value={p.einzelpreis}
+                          <Input className="col-span-2 text-xs" type="number" step="0.01" placeholder={t("material.preis")} value={p.einzelpreis}
                             onChange={(e) => { const np = [...editPositionen]; np[i].einzelpreis = e.target.value; setEditPositionen(np); }} />
                           <Button variant="ghost" size="icon" className="col-span-1 h-8 w-8 text-red-400"
                             onClick={() => setEditPositionen(editPositionen.filter((_, idx) => idx !== i))}>
@@ -654,24 +656,24 @@ export default function AufmassPage() {
                       ))}
                       <Button variant="outline" size="sm" className="gap-1.5 text-xs mt-2"
                         onClick={() => setEditPositionen([...editPositionen, { bezeichnung: "", menge: 1, einheit: "Stk", einzelpreis: 0, kategorie: "", raum: "" }])}>
-                        <Plus className="h-3.5 w-3.5" />Position hinzufügen
+                        <Plus className="h-3.5 w-3.5" />{t("aufmass.positionHinzufuegen")}
                       </Button>
                     </div>
                   ) : selected.positionen.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-4">Noch keine Positionen. Bearbeiten klicken oder KI generieren lassen.</p>
+                    <p className="text-xs text-gray-400 text-center py-4">{t("aufmass.keinePositionen")}</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b text-left text-xs text-gray-500">
                             <th className="pb-2 pr-2">#</th>
-                            <th className="pb-2 pr-2">Bezeichnung</th>
-                            <th className="pb-2 pr-2">Kategorie</th>
-                            <th className="pb-2 pr-2">Raum</th>
-                            <th className="pb-2 pr-2 text-right">Menge</th>
-                            <th className="pb-2 pr-2">Einheit</th>
-                            <th className="pb-2 pr-2 text-right">Einzelpreis</th>
-                            <th className="pb-2 text-right">Gesamt</th>
+                            <th className="pb-2 pr-2">{t("aufmass.bezeichnung")}</th>
+                            <th className="pb-2 pr-2">{t("common.kategorie")}</th>
+                            <th className="pb-2 pr-2">{t("aufmass.raum")}</th>
+                            <th className="pb-2 pr-2 text-right">{t("common.menge")}</th>
+                            <th className="pb-2 pr-2">{t("material.einheit")}</th>
+                            <th className="pb-2 pr-2 text-right">{t("aufmass.einzelpreis")}</th>
+                            <th className="pb-2 text-right">{t("common.gesamt")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -690,7 +692,7 @@ export default function AufmassPage() {
                         </tbody>
                         <tfoot>
                           <tr className="border-t font-bold">
-                            <td colSpan={7} className="py-2 text-xs text-right">Gesamt:</td>
+                            <td colSpan={7} className="py-2 text-xs text-right">{t("common.gesamt")}:</td>
                             <td className="py-2 text-xs text-right">
                               {selected.positionen.reduce((s, p) => s + p.menge * p.einzelpreis, 0).toFixed(2)} €
                             </td>
@@ -710,11 +712,11 @@ export default function AufmassPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Neues Aufmaß erstellen</DialogTitle>
+            <DialogTitle>{t("aufmass.neuesErstellen")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <label className="text-sm font-medium text-gray-700">Titel</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.titel")}</label>
               <Input
                 value={newTitel}
                 onChange={(e) => setNewTitel(e.target.value)}
@@ -723,19 +725,19 @@ export default function AufmassPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+              <label className="text-sm font-medium text-gray-700">{t("common.beschreibung")}</label>
               <Textarea
                 value={newBeschreibung}
                 onChange={(e) => setNewBeschreibung(e.target.value)}
-                placeholder="Optional: Was soll das Aufmaß enthalten?"
+                placeholder={t("aufmass.beschreibungPlaceholder")}
                 className="mt-1"
                 rows={2}
               />
             </div>
             {/* Bauplan + Materialdateien */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Bauplan & Materialdateien</label>
-              <p className="text-xs text-gray-400 mt-0.5 mb-2">Lade einen PDF-Bauplan hoch, damit sich das Aufmaß daran orientiert. Zusätzlich X31-, D11- oder Excel-Dateien mit Materialien.</p>
+              <label className="text-sm font-medium text-gray-700">{t("aufmass.bauplanMaterialdateien")}</label>
+              <p className="text-xs text-gray-400 mt-0.5 mb-2">{t("aufmass.bauplanBeschreibung")}</p>
               {createFiles.length > 0 && (
                 <div className="space-y-1.5 mb-2">
                   {createFiles.map((f, i) => (
@@ -755,7 +757,7 @@ export default function AufmassPage() {
                 onClick={() => createFileRef.current?.click()}
               >
                 <Upload className="h-6 w-6 text-gray-400 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-600">Dateien auswählen</p>
+                <p className="text-xs font-medium text-gray-600">{t("aufmass.dateienAuswaehlen")}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">PDF · GAEB (X31, X83, D11, D83, P83) · Excel · CSV</p>
               </div>
               <input
@@ -774,7 +776,7 @@ export default function AufmassPage() {
 
             <div>
               <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                <Bot className="h-4 w-4 text-blue-600" />KI-Anweisung (optional)
+                <Bot className="h-4 w-4 text-blue-600" />{t("aufmass.kiAnweisungOptional")}
               </label>
               <Textarea
                 value={newKiAnweisung}
@@ -785,9 +787,9 @@ export default function AufmassPage() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateFiles([]); }}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateFiles([]); }}>{t("common.abbrechen")}</Button>
               <Button onClick={createAufmass} disabled={saving}>
-                {saving ? "Erstelle…" : "Erstellen"}
+                {saving ? t("common.erstellen") + "…" : t("common.erstellen")}
               </Button>
             </div>
           </div>

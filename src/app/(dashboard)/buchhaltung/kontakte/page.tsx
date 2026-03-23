@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { NativeSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 interface Kontakt {
   id: string;
@@ -31,6 +32,7 @@ type SortKey = "nr" | "name" | "strasse" | "ort" | "kdUmsatz" | "lftUmsatz";
 type SortDir = "asc" | "desc";
 
 export default function KontaktePage() {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -208,9 +210,9 @@ export default function KontaktePage() {
   }
 
   const tabs = [
-    { key: "alle" as const, label: "ALLE" },
-    { key: "kunden" as const, label: "KUNDEN" },
-    { key: "lieferanten" as const, label: "LIEFERANTEN" },
+    { key: "alle" as const, label: t("buch.alleKontakte") },
+    { key: "kunden" as const, label: t("buch.kundenTab") },
+    { key: "lieferanten" as const, label: t("buch.lieferantenTab") },
   ];
 
   return (
@@ -221,24 +223,24 @@ export default function KontaktePage() {
         <div className="flex items-center gap-2">
           <Button className="gap-1.5 bg-[#9eb552] hover:bg-[#8da448] text-white" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
-            Neuen Kontakt anlegen
+            {t("buch.neuerKontakt")}
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-gray-200">
-        {tabs.map((t) => (
+        {tabs.map((tab) => (
           <button
-            key={t.key}
-            onClick={() => { setActiveTab(t.key); setSelected(new Set()); }}
+            key={tab.key}
+            onClick={() => { setActiveTab(tab.key); setSelected(new Set()); }}
             className={`px-5 py-2.5 text-xs font-bold tracking-wide border-b-2 transition-colors ${
-              activeTab === t.key
+              activeTab === tab.key
                 ? "border-[#9eb552] text-[#9eb552]"
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -250,7 +252,7 @@ export default function KontaktePage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Nach Kontakten suchen"
+            placeholder={t("buch.kontakteSuchen")}
             className="pl-9 h-9 text-sm"
           />
           {search && (
@@ -277,22 +279,22 @@ export default function KontaktePage() {
                 </th>
                 <th className="px-3 py-3 text-left">
                   <button onClick={() => toggleSort("nr")} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700">
-                    Nr. <SortIcon col="nr" />
+                    {t("buch.nrLabel")} <SortIcon col="nr" />
                   </button>
                 </th>
                 <th className="px-3 py-3 text-left">
                   <button onClick={() => toggleSort("name")} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700">
-                    Name <SortIcon col="name" />
+                    {t("common.name")} <SortIcon col="name" />
                   </button>
                 </th>
                 <th className="px-3 py-3 text-left">
                   <button onClick={() => toggleSort("strasse")} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700">
-                    Straße <SortIcon col="strasse" />
+                    {t("buch.strasseLabel")} <SortIcon col="strasse" />
                   </button>
                 </th>
                 <th className="px-3 py-3 text-left">
                   <button onClick={() => toggleSort("ort")} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700">
-                    Ort <SortIcon col="ort" />
+                    {t("buch.ortLabel")} <SortIcon col="ort" />
                   </button>
                 </th>
                 <th className="px-3 py-3 text-right">
@@ -302,7 +304,7 @@ export default function KontaktePage() {
                 </th>
                 <th className="px-3 py-3 text-right">
                   <button onClick={() => toggleSort("lftUmsatz")} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 ml-auto">
-                    Lft. Umsatz <SortIcon col="lftUmsatz" />
+                    {t("buch.lftUmsatz")} <SortIcon col="lftUmsatz" />
                   </button>
                 </th>
                 <th className="px-3 py-3 text-left">
@@ -315,7 +317,7 @@ export default function KontaktePage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-gray-400 text-sm">
-                    Keine Kontakte gefunden
+                    {t("buch.keineKontakte")}
                   </td>
                 </tr>
               ) : (
@@ -348,7 +350,7 @@ export default function KontaktePage() {
                       <td className="px-3 py-3 text-sm text-gray-400">
                         {k.typ === "lieferant" && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200">
-                            <Building2 className="h-2.5 w-2.5" />Lieferant
+                            <Building2 className="h-2.5 w-2.5" />{t("buch.lieferantenTab")}
                           </span>
                         )}
                       </td>
@@ -396,7 +398,7 @@ export default function KontaktePage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Neuen Kontakt anlegen</DialogTitle>
+            <DialogTitle>{createType === "kunde" ? t("buch.kundeAnlegen") : t("buch.lieferantAnlegen")}</DialogTitle>
           </DialogHeader>
 
           <div className="flex gap-2 mb-4">
@@ -414,7 +416,7 @@ export default function KontaktePage() {
                 createType === "lieferant" ? "border-[#9eb552] bg-[#9eb552]/10 text-[#9eb552]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <Building2 className="h-4 w-4" /> Lieferant
+              <Building2 className="h-4 w-4" /> {t("buch.lieferantenTab")}
             </button>
           </div>
 
@@ -431,43 +433,43 @@ export default function KontaktePage() {
                   </NativeSelect>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Firma (optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.firma")} (optional)</label>
                   <Input name="company" placeholder="Firmenname" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Vorname *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.vorname")} *</label>
                     <Input name="firstName" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nachname *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("common.nachname")} *</label>
                     <Input name="lastName" required />
                   </div>
                 </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label><Input name="email" type="email" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label><Input name="phone" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.email")}</label><Input name="email" type="email" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.telefon")}</label><Input name="phone" /></div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Straße</label><Input name="street" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label><Input name="zip" /></div>
+                  <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.strasse")}</label><Input name="street" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.plz")}</label><Input name="zip" /></div>
                 </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Ort</label><Input name="city" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.ort")}</label><Input name="city" /></div>
               </>
             ) : (
               <>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><Input name="name" required placeholder="Firmenname" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label><Input name="email" type="email" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label><Input name="phone" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.name")} *</label><Input name="name" required placeholder="Firmenname" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.email")}</label><Input name="email" type="email" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.telefon")}</label><Input name="phone" /></div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Straße</label><Input name="street" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">PLZ</label><Input name="zip" /></div>
+                  <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.strasse")}</label><Input name="street" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.plz")}</label><Input name="zip" /></div>
                 </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Ort</label><Input name="city" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">{t("common.ort")}</label><Input name="city" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Steuernummer</label><Input name="taxId" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">USt-IdNr.</label><Input name="vatId" /></div>
               </>
             )}
 
-            <Button type="submit" className="w-full bg-[#9eb552] hover:bg-[#8da448] text-white">Kontakt anlegen</Button>
+            <Button type="submit" className="w-full bg-[#9eb552] hover:bg-[#8da448] text-white">{t("common.anlegen")}</Button>
           </form>
         </DialogContent>
       </Dialog>

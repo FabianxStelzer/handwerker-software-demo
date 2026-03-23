@@ -426,10 +426,10 @@ export default function KatalogPage() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-2 text-green-700">
                                 <CheckCircle2 className="h-5 w-5" />
-                                <p className="text-sm font-medium">{importResult.imported} von {importResult.total} Artikeln importiert</p>
+                                <p className="text-sm font-medium">{importResult.imported} / {importResult.total} {t("katalog.artikelImportiert")}</p>
                               </div>
                               {importResult.skipped > 0 && (
-                                <p className="text-xs text-amber-600">{importResult.skipped} übersprungen</p>
+                                <p className="text-xs text-amber-600">{importResult.skipped} {t("katalog.uebersprungen")}</p>
                               )}
                               {importResult.errors?.length > 0 && (
                                 <div className="mt-2 text-xs text-red-600 space-y-0.5">
@@ -474,8 +474,8 @@ Dachziegel;Ton, rot;Eindeckung;STUECK;1.20`}
                         </pre>
                       </Card>
                       <div className="text-xs text-gray-500 space-y-1">
-                        <p><strong>Spalten:</strong> name*, beschreibung, kategorie, einheit, preis, gewicht, format, bildurl</p>
-                        <p><strong>Einheiten:</strong> STUECK, METER, QUADRATMETER, KUBIKMETER, KILOGRAMM, LITER, PALETTE, PAUSCHAL, STUNDE</p>
+                        <p><strong>{t("katalog.spalten")}:</strong> name*, beschreibung, kategorie, einheit, preis, gewicht, format, bildurl</p>
+                        <p><strong>{t("katalog.einheiten")}:</strong> STUECK, METER, QUADRATMETER, KUBIKMETER, KILOGRAMM, LITER, PALETTE, PAUSCHAL, STUNDE</p>
                         <p className="text-gray-400">* = {t("common.pflichtfeld")}</p>
                       </div>
                     </div>
