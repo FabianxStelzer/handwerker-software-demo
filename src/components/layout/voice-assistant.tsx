@@ -21,17 +21,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+interface ActionPayload {
+  endpoint: string;
+  method: string;
+  body: Record<string, unknown> | null;
+}
+
 interface VoiceMessage {
   role: "user" | "assistant";
   content: string;
-  action?: {
-    endpoint: string;
-    method: string;
-    body: Record<string, unknown> | null;
-  } | null;
+  action?: ActionPayload | null;
   type?: "message" | "confirm" | "action";
   data?: unknown;
-  pending?: boolean;
 }
 
 const LANG_MAP: Record<string, string> = {
@@ -51,6 +52,8 @@ function getSpeechLang(lang: string): string {
   return LANG_MAP[lang] || "de-DE";
 }
 
+const YES_PATTERNS = /^(ja|yes|ok|okay|mach|klar|sicher|genau|bitte|do it|sure|tak|да|ano|evet|bestätig|ausführ|mach das|jawohl|go ahead|let's go)/i;
+
 export function VoiceAssistant() {
   const { data: session } = useSession();
   const pathname = usePathname();
@@ -64,7 +67,7 @@ export function VoiceAssistant() {
   const [transcript, setTranscript] = useState("");
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [pendingConfirm, setPendingConfirm] = useState<VoiceMessage | null>(null);
+  const [pendingAction, setPendingAction] = useState<ActionPayload | null>(null);
 
   const recognitionRef = useRef<ReturnType<typeof Object> | null>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -72,6 +75,9 @@ export function VoiceAssistant() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedTextRef = useRef("");
+  const messagesRef = useRef<VoiceMessage[]>([]);
+
+  messagesRef.current = messages;
 
   const userLang = ((session?.user as Record<string, unknown>)?.language as string) || "de";
   const userName = session?.user?.name || "Benutzer";
@@ -87,6 +93,10 @@ export function VoiceAssistant() {
     const handleVoices = () => window.speechSynthesis.getVoices();
     window.speechSynthesis.addEventListener("voiceschanged", handleVoices);
     return () => window.speechSynthesis.removeEventListener("voiceschanged", handleVoices);
+  }, []);
+
+  const addMessage = useCallback((msg: VoiceMessage) => {
+    setMessages((prev) => [...prev, msg]);
   }, []);
 
   const speak = useCallback(
@@ -140,13 +150,34 @@ export function VoiceAssistant() {
     setIsSpeaking(false);
   }, []);
 
+  const callApi = useCallback(
+    async (action: ActionPayload): Promise<{ success: boolean; data?: unknown; error?: string }> => {
+      if (action.endpoint === "NAVIGATE") {
+        const path = (action.body as Record<string, string>)?.path;
+        if (path) router.push(path);
+        return { success: true };
+      }
+
+      try {
+        const res = await fetch("/api/ki/voice-action", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(action),
+        });
+        return await res.json();
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Unbekannter Fehler" };
+      }
+    },
+    [router]
+  );
+
   const sendToAi = useCallback(
-    async (userText: string, conversationMessages: VoiceMessage[]) => {
+    async (userText: string) => {
       setProcessing(true);
 
-      const apiMessages = conversationMessages
-        .filter((m) => !m.pending)
-        .map((m) => ({ role: m.role, content: m.content }));
+      const current = messagesRef.current;
+      const apiMessages = current.map((m) => ({ role: m.role, content: m.content }));
       apiMessages.push({ role: "user", content: userText });
 
       try {
@@ -165,7 +196,6 @@ export function VoiceAssistant() {
         });
 
         const data = await res.json();
-
         const displayText = data.text || data.content || "Ich konnte das nicht verarbeiten.";
         const spokenText = data.spoken || displayText;
 
@@ -177,111 +207,102 @@ export function VoiceAssistant() {
           data: data.data || null,
         };
 
-        setMessages((prev) => [...prev, assistantMsg]);
+        addMessage(assistantMsg);
         speak(spokenText);
 
         if (data.type === "confirm" && data.action) {
-          setPendingConfirm(assistantMsg);
-        }
+          setPendingAction(data.action);
+        } else if (data.type === "action" && data.action) {
+          const result = await callApi(data.action);
 
-        if (data.type === "action" && data.action) {
-          await executeAction(data.action);
+          if (data.action.endpoint === "NAVIGATE") {
+            addMessage({ role: "assistant", content: `Navigiere...`, type: "message" });
+          } else if (result.success) {
+            if (result.data && data.action.method === "GET") {
+              const dataStr = JSON.stringify(result.data).slice(0, 2000);
+              addMessage({ role: "user", content: `[Ergebnis: ${dataStr}]` });
+
+              setProcessing(true);
+              const summaryMessages = [
+                ...messagesRef.current.map((m) => ({ role: m.role, content: m.content })),
+                { role: "user" as const, content: `Die API hat folgendes zurückgegeben: ${dataStr}. Fasse das kurz zusammen.` },
+              ];
+              const summaryRes = await fetch("/api/ki/voice-action", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messages: summaryMessages, userInfo: { name: userName, role: userRole, language: userLang, currentPath: pathname } }),
+              });
+              const summaryData = await summaryRes.json();
+              const summaryText = summaryData.text || summaryData.content || "Daten abgerufen.";
+              addMessage({ role: "assistant", content: summaryText, type: "message" });
+              speak(summaryData.spoken || summaryText);
+            } else {
+              addMessage({ role: "assistant", content: "Erledigt!", type: "message" });
+              speak("Erledigt!");
+            }
+          } else {
+            const errText = `Das hat leider nicht geklappt: ${result.error || "Unbekannter Fehler"}`;
+            addMessage({ role: "assistant", content: errText, type: "message" });
+            speak("Das hat leider nicht geklappt.");
+          }
         }
       } catch {
-        const errMsg: VoiceMessage = {
-          role: "assistant",
-          content: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-          type: "message",
-        };
-        setMessages((prev) => [...prev, errMsg]);
-        speak(errMsg.content);
+        addMessage({ role: "assistant", content: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.", type: "message" });
+        speak("Es ist ein Fehler aufgetreten.");
       }
 
       setProcessing(false);
     },
-    [userName, userRole, userLang, pathname, speak]
+    [userName, userRole, userLang, pathname, speak, addMessage, callApi]
   );
 
-  const executeAction = useCallback(
-    async (action: { endpoint: string; method: string; body: Record<string, unknown> | null }) => {
+  const executeConfirmedAction = useCallback(
+    async (action: ActionPayload) => {
+      setPendingAction(null);
+      addMessage({ role: "user", content: "Ja, bitte ausführen." });
+      setProcessing(true);
+
+      const result = await callApi(action);
+
       if (action.endpoint === "NAVIGATE") {
-        const path = (action.body as Record<string, string>)?.path;
-        if (path) {
-          router.push(path);
-          const navMsg: VoiceMessage = {
-            role: "assistant",
-            content: `Navigiere zu ${path}...`,
-            type: "message",
-          };
-          setMessages((prev) => [...prev, navMsg]);
-        }
-        return;
+        addMessage({ role: "assistant", content: "Navigiere...", type: "message" });
+        speak("Navigiere...");
+      } else if (result.success) {
+        addMessage({ role: "assistant", content: "Erledigt!", type: "message" });
+        speak("Erledigt!");
+      } else {
+        const errText = `Das hat leider nicht geklappt: ${result.error || "Unbekannter Fehler"}`;
+        addMessage({ role: "assistant", content: errText, type: "message" });
+        speak("Das hat leider nicht geklappt.");
       }
 
-      try {
-        const res = await fetch("/api/ki/voice-action", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(action),
-        });
-        const result = await res.json();
+      setProcessing(false);
+    },
+    [callApi, addMessage, speak]
+  );
 
-        if (result.navigate) {
-          router.push(result.navigate);
-          return;
-        }
+  const cancelPendingAction = useCallback(() => {
+    setPendingAction(null);
+    addMessage({ role: "assistant", content: "Okay, abgebrochen.", type: "message" });
+    speak("Okay, abgebrochen.");
+  }, [addMessage, speak]);
 
-        if (result.success && result.data) {
-          const dataStr = JSON.stringify(result.data).slice(0, 2000);
-          setMessages((prev) => [
-            ...prev,
-            { role: "user", content: `[Ergebnis der Abfrage: ${dataStr}]` },
-          ]);
+  const handleUserInput = useCallback(
+    (text: string) => {
+      const userMsg: VoiceMessage = { role: "user", content: text };
+      addMessage(userMsg);
 
-          await sendToAi(`Die API hat folgendes zurückgegeben: ${dataStr}. Bitte fasse das für mich zusammen.`, [
-            ...messages,
-          ]);
-        }
-      } catch {
-        speak("Die Aktion konnte nicht ausgeführt werden.");
+      if (pendingAction && YES_PATTERNS.test(text.trim())) {
+        executeConfirmedAction(pendingAction);
+      } else if (pendingAction && /^(nein|no|abbrech|cancel|stopp|nie|stop|hayır|нет|ne)/i.test(text.trim())) {
+        cancelPendingAction();
+      } else {
+        if (pendingAction) setPendingAction(null);
+        sendToAi(text);
       }
     },
-    [router, speak, messages, sendToAi]
+    [pendingAction, addMessage, executeConfirmedAction, cancelPendingAction, sendToAi]
   );
-
-  const confirmAction = useCallback(async () => {
-    if (!pendingConfirm?.action) return;
-    setPendingConfirm(null);
-
-    const confirmMsg: VoiceMessage = {
-      role: "user",
-      content: "Ja, bitte ausführen.",
-    };
-    setMessages((prev) => [...prev, confirmMsg]);
-    setProcessing(true);
-
-    await executeAction(pendingConfirm.action);
-
-    const doneMsg: VoiceMessage = {
-      role: "assistant",
-      content: "Erledigt!",
-      type: "message",
-    };
-    setMessages((prev) => [...prev, doneMsg]);
-    speak("Erledigt!");
-    setProcessing(false);
-  }, [pendingConfirm, executeAction, speak]);
-
-  const cancelAction = useCallback(() => {
-    setPendingConfirm(null);
-    const cancelMsg: VoiceMessage = {
-      role: "assistant",
-      content: "Okay, abgebrochen.",
-      type: "message",
-    };
-    setMessages((prev) => [...prev, cancelMsg]);
-    speak("Okay, abgebrochen.");
-  }, [speak]);
 
   const finishRecording = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -296,26 +317,20 @@ export function VoiceAssistant() {
     setTranscript("");
 
     if (finalText) {
-      const userMsg: VoiceMessage = { role: "user", content: finalText };
-      setMessages((prev) => {
-        const updated = [...prev, userMsg];
-        sendToAi(finalText, updated);
-        return updated;
-      });
+      handleUserInput(finalText);
     }
-  }, [sendToAi]);
+  }, [handleUserInput]);
 
   const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) {
-      const errMsg: VoiceMessage = {
+      addMessage({
         role: "assistant",
         content: "Spracherkennung wird von diesem Browser nicht unterstützt. Bitte verwende Chrome.",
         type: "message",
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      });
       return;
     }
 
@@ -373,7 +388,7 @@ export function VoiceAssistant() {
     recognition.start();
     setIsListening(true);
     setTranscript("");
-  }, [userLang, stopSpeaking, finishRecording]);
+  }, [userLang, stopSpeaking, finishRecording, addMessage]);
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -391,7 +406,7 @@ export function VoiceAssistant() {
 
   const resetConversation = useCallback(() => {
     setMessages([]);
-    setPendingConfirm(null);
+    setPendingAction(null);
     setTranscript("");
     stopSpeaking();
   }, [stopSpeaking]);
@@ -500,7 +515,7 @@ export function VoiceAssistant() {
                       <User className="h-3 w-3 shrink-0 opacity-70" />
                     )}
                     <span className="text-[10px] font-medium opacity-60">
-                      {msg.role === "assistant" ? "Assistent" : "Du"}
+                      {msg.role === "assistant" ? "Assistentin" : "Du"}
                     </span>
                   </div>
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
@@ -537,13 +552,13 @@ export function VoiceAssistant() {
             <div ref={messagesEndRef} />
           </div>
 
-          {pendingConfirm && (
+          {pendingAction && (
             <div className="px-4 py-3 border-t bg-amber-50/80">
               <p className="text-xs font-medium text-amber-800 mb-2">Aktion bestätigen?</p>
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  onClick={confirmAction}
+                  onClick={() => executeConfirmedAction(pendingAction)}
                   disabled={processing}
                   className="flex-1 text-white text-xs h-8"
                   style={{ backgroundColor: "#9eb552" }}
@@ -551,7 +566,7 @@ export function VoiceAssistant() {
                   <Check className="h-3.5 w-3.5 mr-1" />
                   Ja, ausführen
                 </Button>
-                <Button size="sm" variant="outline" onClick={cancelAction} className="flex-1 text-xs h-8">
+                <Button size="sm" variant="outline" onClick={cancelPendingAction} className="flex-1 text-xs h-8">
                   Abbrechen
                 </Button>
               </div>
@@ -611,7 +626,9 @@ export function VoiceAssistant() {
                 ? "Sprich jetzt..."
                 : processing
                   ? "Verarbeite..."
-                  : "Tippe auf das Mikrofon zum Sprechen"}
+                  : pendingAction
+                    ? 'Sage "Ja" oder klicke auf den Button'
+                    : "Tippe auf das Mikrofon zum Sprechen"}
             </p>
           </div>
         </CardContent>

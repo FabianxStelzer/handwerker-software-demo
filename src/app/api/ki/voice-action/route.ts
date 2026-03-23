@@ -52,13 +52,21 @@ NAVIGATION: action: { "endpoint": "NAVIGATE", "method": "GET", "body": { "path":
 
 DATENABFRAGEN: GET-Anfragen direkt ausführen, Ergebnisse zusammenfassen
 
+AUFGABEN/MEINE AUFGABEN:
+  GET /api/aufgaben → Alle Aufgaben
+  POST /api/aufgaben → Neue Aufgabe { title, description, assignedToId, projectId, priority, dueDate }
+  PUT /api/aufgaben/[id] → Aufgabe bearbeiten
+  DELETE /api/aufgaben/[id] → Aufgabe löschen
+
 REGELN:
 - KURZ antworten. Nicht wiederholen was der Benutzer gesagt hat
-- Bei Unklarheiten: kurze Rückfrage stellen
-- Datenänderungen: ERST bestätigen (confirm), dann ausführen (action)
-- GET-Abfragen: direkt ausführen
+- Bei Unklarheiten: kurze Rückfrage stellen (type: "message")
+- Datenänderungen (POST/PUT/DELETE): ERST bestätigen (type: "confirm" mit action-Objekt), DANN wenn Benutzer bestätigt: nochmal mit type: "action" und EXAKT gleichem action-Objekt antworten
+- GET-Abfragen: direkt ausführen (type: "action")
 - Antworte in der Sprache des Benutzers
-- Ergebnisse knapp zusammenfassen`;
+- Ergebnisse knapp zusammenfassen
+- WICHTIG: Bei "confirm" MUSS das action-Objekt vollständig sein mit endpoint, method und body
+- WICHTIG: Wenn der Benutzer etwas anlegen will und du Infos brauchst, frage GEZIELT nach den fehlenden Feldern`;
 
 
 export async function POST(req: NextRequest) {
