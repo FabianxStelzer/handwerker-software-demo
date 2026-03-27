@@ -29,10 +29,17 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         email,
         password,
         redirect: false,
+        callbackUrl: "/",
       });
 
       if (result?.error) {
         setError("Ungültige Anmeldedaten");
+        setLoading(false);
+        return;
+      }
+
+      if (!result?.ok) {
+        setError("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
         setLoading(false);
         return;
       }
