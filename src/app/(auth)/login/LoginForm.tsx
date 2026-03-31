@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loginAction } from "./actions";
@@ -29,10 +28,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
     >
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl mb-4" style={{ backgroundColor: "#9eb552" }}>
-            <Hammer className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Handwerker Software</h1>
+          <img src="/logo-white.png" alt="Handwerk Voran" className="h-14 w-auto mb-4" />
           <p className="text-sm text-gray-300 mt-1">Melden Sie sich an</p>
         </div>
 

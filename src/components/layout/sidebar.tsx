@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, Users, FolderKanban, Package, FileText, FileSignature,
-  UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill, GraduationCap, HeartPulse, BookOpen,
+  UserCog, Clock, Bot, Menu, X, Wrench, Settings, Drill, GraduationCap, HeartPulse, BookOpen,
   Calculator, ChevronDown, ChevronRight, FileStack, Building2, MapPin,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
   Bell, LogOut, User, Car, Ruler, FileCheck2,
@@ -129,14 +129,8 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
 
   const navContent = (
     <>
-      <div className="flex items-center gap-3 px-4 py-6 border-b border-white/10">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: "#9eb552" }}>
-          <Hammer className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h1 className="text-base font-bold text-white">Handwerker</h1>
-          <p className="text-xs text-gray-400">{t("nav.betriebssoftware")}</p>
-        </div>
+      <div className="px-4 py-5 border-b border-white/10">
+        <img src="/logo-white.png" alt="Handwerk Voran" className="h-10 w-auto" />
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
