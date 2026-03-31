@@ -7,10 +7,7 @@ import { loginAction } from "./actions";
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
   const [state, formAction, pending] = useActionState(
-    async (_prev: { error: string } | null, formData: FormData) => {
-      const result = await loginAction(formData);
-      return result ?? null;
-    },
+    loginAction,
     initialError ? { error: mapError(initialError) } : null
   );
 
@@ -28,7 +25,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
     >
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo-white.png" alt="Handwerk Voran" className="h-14 w-auto mb-4" />
+          <img src="/logo-white.png" alt="Handwerk Voran" className="h-14 w-auto mb-4" style={{ mixBlendMode: "screen" }} />
           <p className="text-sm text-gray-300 mt-1">Melden Sie sich an</p>
         </div>
 

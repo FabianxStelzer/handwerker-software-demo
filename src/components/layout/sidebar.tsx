@@ -130,7 +130,7 @@ export function Sidebar({ user, onSignOut }: SidebarProps) {
   const navContent = (
     <>
       <div className="px-4 py-5 border-b border-white/10">
-        <img src="/logo-white.png" alt="Handwerk Voran" className="h-10 w-auto" />
+        <img src="/logo-white.png" alt="Handwerk Voran" className="h-10 w-auto" style={{ mixBlendMode: "screen" }} />
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
