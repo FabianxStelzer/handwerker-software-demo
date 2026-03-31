@@ -124,6 +124,7 @@ model User {
   azubiProfile         AzubiProfile?
   azubiReports         AzubiReport[]
   appointments         Appointment[]       @relation("TerminZugewiesen")
+  belegChecks          BelegCheck[]        @relation("BelegCheckCreator")
 
   @@map("users")
 }
@@ -1702,6 +1703,44 @@ model AppointmentRequest {
   updatedAt       DateTime          @updatedAt
 
   @@map("appointment_requests")
+}
+
+// ─── Belegprüfung / Document Verification ────────
+
+enum BelegCheckStatus {
+  AUSSTEHEND
+  GEPRUEFT
+  FEHLER
+}
+
+model BelegCheck {
+  id              String           @id @default(cuid())
+  title           String?
+  status          BelegCheckStatus @default(AUSSTEHEND)
+  resultSummary   String?
+  resultDetails   String?
+  checkedAt       DateTime?
+  createdById     String?
+  createdBy       User?            @relation("BelegCheckCreator", fields: [createdById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  documents       BelegCheckDoc[]
+
+  @@map("beleg_checks")
+}
+
+model BelegCheckDoc {
+  id            String     @id @default(cuid())
+  belegCheckId  String
+  belegCheck    BelegCheck @relation(fields: [belegCheckId], references: [id], onDelete: Cascade)
+  role          String
+  fileName      String
+  fileUrl       String
+  fileType      String
+  fileSize      Int
+  createdAt     DateTime   @default(now())
+
+  @@map("beleg_check_docs")
 }
 
 // ─── Vereinbarungen / Agreements ─────────────────

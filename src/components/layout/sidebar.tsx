@@ -7,7 +7,7 @@ import {
   UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill, GraduationCap, HeartPulse, BookOpen,
   Calculator, ChevronDown, ChevronRight, FileStack, Building2, MapPin,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
-  Bell, LogOut, User, Car, Ruler,
+  Bell, LogOut, User, Car, Ruler, FileCheck2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -23,6 +23,7 @@ const buchhaltungSubItems: NavChild[] = [
   { name: "Kontakte", href: "/buchhaltung/kontakte", icon: Users, tKey: "nav.kontakte" },
   { name: "Buchhaltung", href: "/buchhaltung/uebersicht", icon: Calculator, tKey: "nav.buchhaltung" },
   { name: "Lohn", href: "/buchhaltung/lohn", icon: Banknote, tKey: "nav.lohn" },
+  { name: "Belegprüfung", href: "/buchhaltung/belegpruefung", icon: FileCheck2, tKey: "nav.belegpruefung" },
 ];
 
 const mitarbeiterSubItems: NavChild[] = [
