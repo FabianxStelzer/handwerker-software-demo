@@ -1,6 +1,6 @@
 # Schritt-für-Schritt: Handwerker Software deployen
 
-Diese Anleitung führt dich durch das komplette Deployment auf **handwerk-demo.brandfaden.com**.
+Diese Anleitung führt dich durch das komplette Deployment auf **einblick.handwerkvoran.de**.
 
 ---
 
@@ -8,7 +8,7 @@ Diese Anleitung führt dich durch das komplette Deployment auf **handwerk-demo.b
 
 - GitHub-Account
 - Hetzner-Account (Cloud)
-- Zugang zur Domain brandfaden.com bei Strato
+- Zugang zur Domain handwerkvoran.de bei Strato
 - Terminal / Kommandozeile
 
 ---
@@ -175,7 +175,7 @@ In `nano` ersetze die Platzhalter. Deine `.env` sollte so aussehen:
 ```
 DATABASE_URL="file:/app/data/data.db"
 AUTH_SECRET="DEIN-GENERIERTER-WERT-VON-SCHRITT-4.2"
-NEXTAUTH_URL="https://handwerk-demo.brandfaden.com"
+NEXTAUTH_URL="https://einblick.handwerkvoran.de"
 ```
 
 Speichern: `Strg+O`, Enter, dann `Strg+X` zum Beenden.
@@ -225,7 +225,7 @@ Sollte HTML zurückgeben (kein Fehler).
 ## Schritt 6.2: Domain-Verwaltung öffnen
 
 1. Zu **„Meine Produkte“** oder **„Domains“**
-2. **brandfaden.com** auswählen
+2. **handwerkvoran.de** auswählen
 3. **„DNS-Einträge“** oder **„Nameserver / DNS“** öffnen
 
 ## Schritt 6.3: Neuen A-Record anlegen
@@ -236,26 +236,26 @@ Sollte HTML zurückgeben (kein Fehler).
    | Feld      | Wert                          |
    |-----------|-------------------------------|
    | **Typ**   | A                             |
-   | **Name**  | handwerk-demo                 |
+   | **Name**  | einblick                      |
    | **Wert**  | DEINE-HETZNER-SERVER-IP       |
    | **TTL**   | 3600 (oder Standard)          |
 
 3. Speichern
 
-**Wichtig:** Der Name ist nur `handwerk-demo`, nicht `handwerk-demo.brandfaden.com`.
+**Wichtig:** Der Name ist nur `einblick`, nicht `einblick.handwerkvoran.de`.
 
 ## Schritt 6.4: Warten auf DNS-Propagierung
 
 5–60 Minuten warten. Prüfen mit:
 
 ```bash
-nslookup handwerk-demo.brandfaden.com
+nslookup einblick.handwerkvoran.de
 ```
 
 oder
 
 ```bash
-dig handwerk-demo.brandfaden.com +short
+dig einblick.handwerkvoran.de +short
 ```
 
 Wenn deine Hetzner-IP erscheint, ist DNS aktiv.
@@ -287,7 +287,7 @@ systemctl reload nginx
 ## Schritt 7.4: SSL-Zertifikat mit Let's Encrypt
 
 ```bash
-certbot --nginx -d handwerk-demo.brandfaden.com
+certbot --nginx -d einblick.handwerkvoran.de
 ```
 
 - E-Mail-Adresse eingeben
@@ -297,7 +297,7 @@ certbot --nginx -d handwerk-demo.brandfaden.com
 
 ## Schritt 7.5: Test
 
-Im Browser öffnen: **https://handwerk-demo.brandfaden.com**
+Im Browser öffnen: **https://einblick.handwerkvoran.de**
 
 Du solltest die Login-Seite sehen.  
 Login: **admin@handwerker.de** / **admin123**
@@ -364,7 +364,7 @@ cat ~/.ssh/github_deploy
 2. Hetzner-Server anlegen  
 3. Server per SSH einrichten (Docker, Nginx, Certbot)  
 4. Repo klonen, `.env` anlegen, `docker compose up -d`  
-5. DNS bei Strato: A-Record für handwerk-demo  
+5. DNS bei Strato: A-Record für einblick  
 6. Nginx + Certbot für HTTPS  
 7. GitHub Secrets für automatisches Deploy  
 
@@ -394,7 +394,7 @@ docker compose up -d --force-recreate
 → App prüfen: `docker compose ps` und `docker compose logs app`
 
 **Login funktioniert nicht**  
-→ `NEXTAUTH_URL` in `.env` muss exakt `https://handwerk-demo.brandfaden.com` sein
+→ `NEXTAUTH_URL` in `.env` muss exakt `https://einblick.handwerkvoran.de` sein
 
 **SSL-Fehler bei Certbot**  
 → DNS muss bereits auf die Server-IP zeigen (Phase 6 abwarten)

@@ -8,7 +8,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/data.db
       - AUTH_SECRET=${AUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://handwerk-demo.brandfaden.com}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://einblick.handwerkvoran.de}
     volumes:
       - prisma_data:/app/data
 volumes:

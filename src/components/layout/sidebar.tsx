@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard, Users, FolderKanban, Package, FileText,
+  LayoutDashboard, Users, FolderKanban, Package, FileText, FileSignature,
   UserCog, Clock, Bot, Menu, X, Hammer, Wrench, Settings, Drill, GraduationCap, HeartPulse, BookOpen,
   Calculator, ChevronDown, ChevronRight, FileStack, Building2, MapPin,
   PackageSearch, Banknote, CalendarDays, ClipboardList,
@@ -41,6 +41,7 @@ const navigation: NavItem[] = [
   { name: "Termine", href: "/termine", icon: CalendarDays, tKey: "nav.termine" },
   { name: "Kunden", href: "/kunden", icon: Users, tKey: "nav.kunden" },
   { name: "Projekte", href: "/projekte", icon: FolderKanban, tKey: "nav.projekte" },
+  { name: "Vereinbarungen", href: "/vereinbarungen", icon: FileSignature, tKey: "nav.vereinbarungen" },
   { name: "Katalog", href: "/katalog", icon: Package, tKey: "nav.katalog" },
   { name: "Aufmaß", href: "/aufmass", icon: Ruler, tKey: "nav.aufmass" },
   { name: "Buchhaltung", href: "/buchhaltung", icon: Calculator, children: buchhaltungSubItems, expandKey: "buchhaltung", tKey: "nav.buchhaltung" },

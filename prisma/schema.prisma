@@ -211,6 +211,7 @@ model Customer {
   schlosserObjekte SchlosserObjekt[]
   deliveryNotes    DeliveryNote[]
   appointments     Appointment[]
+  agreements       Agreement[]
 
   @@map("customers")
 }
@@ -253,6 +254,7 @@ model Project {
   staffAssignments ProjectStaffAssignment[]
   phases           ProjectPhase[]
   appointments     Appointment[]
+  agreements       Agreement[]
 
   @@map("projects")
 }
@@ -1700,4 +1702,30 @@ model AppointmentRequest {
   updatedAt       DateTime          @updatedAt
 
   @@map("appointment_requests")
+}
+
+// ─── Vereinbarungen / Agreements ─────────────────
+
+enum AgreementStatus {
+  ENTWURF
+  AKTIV
+  ABGESCHLOSSEN
+  GEKUENDIGT
+}
+
+model Agreement {
+  id          String          @id @default(cuid())
+  title       String
+  status      AgreementStatus @default(ENTWURF)
+  isTemplate  Boolean         @default(false)
+  customerId  String?
+  customer    Customer?       @relation(fields: [customerId], references: [id])
+  projectId   String?
+  project     Project?        @relation(fields: [projectId], references: [id])
+  blocks      String?         @db.Text
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("agreements")
 }

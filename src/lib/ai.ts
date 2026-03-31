@@ -111,6 +111,13 @@ function buildAnthropicContent(msg: AiMessage): any {
   return blocks;
 }
 
+const RETRY_STATUS_CODES = [429, 529, 502, 503];
+const MAX_RETRIES = 3;
+
+async function sleepMs(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function callAnthropic(
   provider: { apiKey: string | null; model: string | null; provider: string },
   messages: AiMessage[]
@@ -130,27 +137,47 @@ async function callAnthropic(
   };
   if (systemMsg) body.system = systemMsg.content;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": provider.apiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const payload = JSON.stringify(body);
+  let lastError = "";
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Anthropic Fehler (${res.status}): ${err.slice(0, 200)}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(1000 * 2 ** attempt, 15000);
+      console.log(`Anthropic Retry ${attempt}/${MAX_RETRIES} nach ${delay}ms...`);
+      await sleepMs(delay);
+    }
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": provider.apiKey!,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: payload,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        content: data.content?.map((b: any) => b.text || "").join("") || "",
+        model: data.model || provider.model || "claude",
+        provider: "anthropic",
+      };
+    }
+
+    lastError = await res.text();
+
+    if (!RETRY_STATUS_CODES.includes(res.status)) {
+      throw new Error(`Anthropic Fehler (${res.status}): ${lastError.slice(0, 200)}`);
+    }
+
+    if (attempt === MAX_RETRIES) {
+      throw new Error(`Anthropic Fehler (${res.status}) nach ${MAX_RETRIES} Versuchen: ${lastError.slice(0, 200)}`);
+    }
   }
 
-  const data = await res.json();
-  return {
-    content: data.content?.map((b: any) => b.text || "").join("") || "",
-    model: data.model || provider.model || "claude",
-    provider: "anthropic",
-  };
+  throw new Error(`Anthropic Fehler: ${lastError.slice(0, 200)}`);
 }
 
 function buildOpenAIContent(msg: AiMessage): any {

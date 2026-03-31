@@ -1,6 +1,6 @@
 # Deployment: Handwerker Software auf Hetzner
 
-Anleitung zum Hosten der Software auf einem Hetzner-Server mit der Subdomain **handwerk-demo.brandfaden.com** (Domain bei Strato).
+Anleitung zum Hosten der Software auf einem Hetzner-Server mit der Subdomain **einblick.handwerkvoran.de** (Domain bei Strato).
 
 ---
 
@@ -8,7 +8,7 @@ Anleitung zum Hosten der Software auf einem Hetzner-Server mit der Subdomain **h
 
 1. **GitHub** – Code-Repository
 2. **Hetzner** – Server mit Docker
-3. **Strato** – DNS für brandfaden.com
+3. **Strato** – DNS für handwerkvoran.de
 4. **Nginx + Let's Encrypt** – SSL und Reverse Proxy
 
 ---
@@ -82,7 +82,7 @@ Inhalt von `.env`:
 ```
 DATABASE_URL="file:/app/data/data.db"
 AUTH_SECRET="HIER-EINEN-SICHEREN-WERT-EINGEBEN"
-NEXTAUTH_URL="https://handwerk-demo.brandfaden.com"
+NEXTAUTH_URL="https://einblick.handwerkvoran.de"
 ```
 
 **AUTH_SECRET** erzeugen:
@@ -106,18 +106,18 @@ Der Admin-User (admin@handwerker.de / admin123) wird beim ersten Start automatis
 ## 3. DNS bei Strato konfigurieren
 
 1. Strato Login: https://www.strato.de/
-2. Domain **brandfaden.com** → DNS-Verwaltung / Nameserver
+2. Domain **handwerkvoran.de** → DNS-Verwaltung / Nameserver
 3. Neuen Eintrag anlegen:
 
    | Typ  | Name              | Wert                    | TTL  |
    |------|-------------------|-------------------------|------|
-   | A    | handwerk-demo     | IP-DEINES-HETZNER-SERVERS | 3600 |
+   | A    | einblick          | IP-DEINES-HETZNER-SERVERS | 3600 |
 
    Oder als CNAME (falls gewünscht):
 
    | Typ   | Name          | Wert                    |
    |-------|---------------|-------------------------|
-   | CNAME | handwerk-demo | DEIN-SERVER.brandfaden.com |
+   | CNAME | einblick      | DEIN-SERVER.handwerkvoran.de |
 
 4. Änderung speichern – DNS-Propagierung kann 5–60 Minuten dauern
 
@@ -143,7 +143,7 @@ systemctl reload nginx
 ### 4.2 SSL-Zertifikat
 
 ```bash
-certbot --nginx -d handwerk-demo.brandfaden.com
+certbot --nginx -d einblick.handwerkvoran.de
 ```
 
 Certbot passt die Nginx-Konfiguration automatisch an und richtet HTTPS ein.
@@ -197,7 +197,7 @@ Im Repository: **Settings → Secrets and variables → Actions**
 - [ ] `.env` mit AUTH_SECRET und NEXTAUTH_URL
 - [ ] Erster `docker compose up -d` erfolgreich
 - [ ] Admin-User angelegt
-- [ ] DNS-Eintrag bei Strato für handwerk-demo.brandfaden.com
+- [ ] DNS-Eintrag für einblick.handwerkvoran.de
 - [ ] Nginx konfiguriert und SSL mit Certbot
 - [ ] GitHub Secrets für Deploy gesetzt
 
@@ -232,5 +232,5 @@ docker compose up -d --force-recreate
 - Nginx: `proxy_pass` auf Port 3000
 
 **Login funktioniert nicht**
-- NEXTAUTH_URL muss exakt `https://handwerk-demo.brandfaden.com` sein
+- NEXTAUTH_URL muss exakt `https://einblick.handwerkvoran.de` sein
 - AUTH_SECRET muss gesetzt sein
