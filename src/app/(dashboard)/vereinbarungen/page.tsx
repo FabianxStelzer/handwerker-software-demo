@@ -695,7 +695,7 @@ export default function VereinbarungenPage() {
 function PreviewBlock({ block }: { block: ContentBlock }) {
   switch (block.type) {
     case "heading": {
-      const Tag = `h${block.level}` as keyof JSX.IntrinsicElements;
+      const Tag = `h${block.level}` as keyof React.JSX.IntrinsicElements;
       return <Tag style={textStyleToCss(block.style)} className="mb-2">{block.content || "…"}</Tag>;
     }
     case "text":
