@@ -1,21 +1,27 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { loginAction } from "./actions";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Anmeldung..." : "Anmelden"}
-    </Button>
-  );
-}
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
+  const [loading, setLoading] = useState(false);
+
   const errorMessage = initialError ? mapError(initialError) : null;
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    await signIn("credentials", {
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      callbackUrl: "/",
+    });
+  }
 
   return (
     <div
@@ -36,7 +42,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </div>
 
         <form
-          action={loginAction}
+          onSubmit={handleSubmit}
           className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200"
         >
           {errorMessage && (
@@ -71,7 +77,9 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          <SubmitButton />
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Anmeldung..." : "Anmelden"}
+          </Button>
         </form>
       </div>
     </div>
