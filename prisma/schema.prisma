@@ -1722,7 +1722,7 @@ model Agreement {
   customer    Customer?       @relation(fields: [customerId], references: [id])
   projectId   String?
   project     Project?        @relation(fields: [projectId], references: [id])
-  blocks      String?         @db.Text
+  blocks      String?
   createdById String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
