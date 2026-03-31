@@ -1,15 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loginAction } from "./actions";
 
-export function LoginForm({ initialError }: { initialError: string | null }) {
-  const [state, formAction, pending] = useActionState(
-    loginAction,
-    initialError ? { error: mapError(initialError) } : null
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? "Anmeldung..." : "Anmelden"}
+    </Button>
   );
+}
+
+export function LoginForm({ initialError }: { initialError: string | null }) {
+  const errorMessage = initialError ? mapError(initialError) : null;
 
   return (
     <div
@@ -30,12 +36,12 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </div>
 
         <form
-          action={formAction}
+          action={loginAction}
           className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200"
         >
-          {state?.error && (
+          {errorMessage && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-              <p>{state.error}</p>
+              <p>{errorMessage}</p>
             </div>
           )}
 
@@ -65,9 +71,7 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Anmeldung..." : "Anmelden"}
-          </Button>
+          <SubmitButton />
         </form>
       </div>
     </div>
