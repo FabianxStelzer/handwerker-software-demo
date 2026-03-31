@@ -1,56 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useActionState } from "react";
 import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { loginAction } from "./actions";
 
 export function LoginForm({ initialError }: { initialError: string | null }) {
-  const [error, setError] = useState(() => {
-    if (initialError === "CredentialsSignin") return "Ungültige Anmeldedaten";
-    if (initialError === "Configuration") return "Konfigurationsfehler. Bitte AUTH_SECRET und NEXTAUTH_URL prüfen.";
-    if (initialError) return "Anmeldung fehlgeschlagen.";
-    return "";
-  });
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: "/",
-      });
-
-      if (result?.error) {
-        setError("Ungültige Anmeldedaten");
-        setLoading(false);
-        return;
-      }
-
-      if (!result?.ok) {
-        setError("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
-        setLoading(false);
-        return;
-      }
-
-      window.location.href = "/";
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
-      setLoading(false);
-    }
-  }
+  const [state, formAction, pending] = useActionState(
+    async (_prev: { error: string } | null, formData: FormData) => {
+      const result = await loginAction(formData);
+      return result ?? null;
+    },
+    initialError ? { error: mapError(initialError) } : null
+  );
 
   return (
     <div
@@ -74,12 +37,12 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
         </div>
 
         <form
-          onSubmit={handleSubmit}
+          action={formAction}
           className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200"
         >
-          {error && (
+          {state?.error && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-              <p>{error}</p>
+              <p>{state.error}</p>
             </div>
           )}
 
@@ -109,11 +72,17 @@ export function LoginForm({ initialError }: { initialError: string | null }) {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Anmeldung..." : "Anmelden"}
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? "Anmeldung..." : "Anmelden"}
           </Button>
         </form>
       </div>
     </div>
   );
+}
+
+function mapError(code: string): string {
+  if (code === "CredentialsSignin") return "Ungültige Anmeldedaten";
+  if (code === "Configuration") return "Konfigurationsfehler. Bitte AUTH_SECRET und NEXTAUTH_URL prüfen.";
+  return "Anmeldung fehlgeschlagen.";
 }
